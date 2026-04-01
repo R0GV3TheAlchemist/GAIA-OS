@@ -1,0 +1,33 @@
+"""
+GAIA Core — Constitutional Logic Engine
+Authorship: Kyle Steen (2026)
+
+This module is the heart of the GAIA-APP. It enforces the constitutional
+framework defined in the GAIA canon (https://github.com/R0GV3TheAlchemist/GAIA)
+through concrete runtime mechanisms:
+
+  - Canon loading and validation
+  - Risk-tiered action gates
+  - Cryptographic consent lifecycle
+  - Governed memory surface
+  - Sovereignty enforcement
+
+Platform policy (T8) cannot override the T1 constitutional floor enforced here.
+"""
+
+__version__ = "0.1.0"
+__author__ = "Kyle Steen"
+__canon_ref__ = "https://github.com/R0GV3TheAlchemist/GAIA"
+
+from .canon_loader import CanonLoader
+from .action_gate import ActionGate, RiskTier
+from .consent_ledger import ConsentLedger
+from .memory_store import MemoryStore
+
+__all__ = [
+    "CanonLoader",
+    "ActionGate",
+    "RiskTier",
+    "ConsentLedger",
+    "MemoryStore",
+]
