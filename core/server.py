@@ -8,8 +8,19 @@ Exposes REST endpoints for:
   - Consent lifecycle (ConsentLedger)
   - Action gating (ActionGate)
   - ATLAS Earth Intelligence (Google Earth Engine)
-  - Query streaming (SSE — canon-first + web search, Perplexity-style)
-  - Web search (CAP-012, canon-first per C20)
+  - Query streaming (SSE — Perplexity-style: canon-first + real LLM synthesis)
+  - Web search (CAP-012, multi-provider: Brave / Tavily / DuckDuckGo)
+
+LLM Providers (auto-detected via .env):
+  OPENAI_API_KEY      → OpenAI gpt-4o-mini
+  ANTHROPIC_API_KEY   → Claude 3 Haiku
+  OLLAMA_MODEL        → Local Ollama (e.g. mistral)
+  (none)              → Rule-based fallback (always works)
+
+Search Providers (auto-detected via .env):
+  BRAVE_API_KEY       → Brave Search (recommended)
+  TAVILY_API_KEY      → Tavily (AI-optimised)
+  (none)              → DuckDuckGo (zero cost, no key)
 
 Runs locally on http://127.0.0.1:8008 for desktop.
 Deploy via Docker to Google Cloud Run for mobile/web.
@@ -35,15 +46,17 @@ from pydantic import BaseModel
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core import CanonLoader, ActionGate, RiskTier, ConsentLedger, MemoryStore
-from core.web_search import search_web_async, synthesise_sources
+from core.web_search import search_web_async, synthesise_sources, detect_search_provider
+from core.scraper import fetch_top_sources
+from core.synthesizer import stream_synthesis
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="GAIA Core API",
-    description="Constitutional AI governance layer for GAIA-APP",
-    version="0.3.0"
+    description="Constitutional AI governance layer for GAIA-APP — Perplexity-style answer engine",
+    version="0.4.0"
 )
 
 app.add_middleware(
@@ -97,7 +110,9 @@ class ActionEvaluateRequest(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     max_canon_refs: int = 3
-    enable_web_search: bool = True   # CAP-012 toggle — GAIAN controls this
+    enable_web_search: bool = True
+    enable_scraping: bool = True        # fetch full page content for richer synthesis
+    llm_provider: Optional[str] = None  # force provider: openai/anthropic/ollama/fallback
     sovereign_id: Optional[str] = None
 
 class WebSearchRequest(BaseModel):
@@ -120,15 +135,18 @@ def status():
         "canon_loaded": canon.is_loaded,
         "canon_doc_count": len(canon.list_documents()),
         "canon_docs": canon.list_documents(),
+        "search_provider": detect_search_provider(),
         "capabilities": {
             "CAP-011": "active",
-            "CAP-012": "active",
+            "CAP-012": "active — multi-provider (Brave/Tavily/DDG)",
+            "CAP-013": "active — LLM synthesis (auto-detect provider)",
+            "CAP-014": "active — web scraping (trafilatura)",
             "CAP-015": "active",
             "CAP-016": "active",
             "CAP-017": "active",
             "CAP-020": "active",
         },
-        "version": "0.3.0"
+        "version": "0.4.0"
     }
 
 
@@ -186,9 +204,8 @@ def canon_search(q: str, max_results: int = 5):
 @app.post("/search/web")
 async def web_search(req: WebSearchRequest):
     """
-    CAP-012: Web search with C20 source triage.
-    Returns results ranked T1 (canon) first, then T2-T5 web results.
-    No API key required. Uses DuckDuckGo Instant Answers.
+    CAP-012: Multi-provider web search with C20 source triage.
+    Provider auto-detected: Brave → Tavily → DuckDuckGo.
     """
     query = req.query.strip()
     if not query:
@@ -202,31 +219,35 @@ async def web_search(req: WebSearchRequest):
         "query": query,
         "sources": sources,
         "canon_status": canon.status,
+        "search_provider": detect_search_provider(),
         "triage_policy": "C20 — canon first, web second",
         "timestamp": time.time(),
     }
 
 
 # ------------------------------------------------------------------ #
-#  Query Streaming — Canon + Web (CAP-011 + CAP-012)                   #
+#  Query Streaming — Perplexity-Style with Real LLM Synthesis          #
 # ------------------------------------------------------------------ #
 
 async def _stream_query_response(
     query: str,
     canon_refs: list[dict],
     web_results: list,
-    sovereign_id: Optional[str] = None
+    enable_scraping: bool = True,
+    llm_provider: Optional[str] = None,
+    sovereign_id: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
-    SSE stream format:
+    Perplexity-style SSE stream:
+
       event: citation      — T1 canon card {doc_id, title, excerpt, tier}
       event: web_result    — T2-T5 web card {title, url, snippet, source_tier, domain}
-      event: token         — single word of response text
+      event: token         — single chunk of LLM response text
       event: suggestions   — follow-up question chips
       event: done          — stream complete with metadata
 
-    Order: canon citations first → web results second → synthesised text third.
-    This enforces C20 source triage at the stream level.
+    Order enforced: canon citations → web result cards → LLM synthesis tokens.
+    LLM is grounded in scraped full-text content for higher accuracy.
     """
 
     def sse(event: str, data: dict) -> str:
@@ -242,61 +263,67 @@ async def _stream_query_response(
         })
         await asyncio.sleep(0.04)
 
-    # 2. Web results (T2-T5 — after canon)
-    for result in web_results:
-        if result.url:
-            yield sse("web_result", {
-                "tier": result.source_tier,
-                "title": result.title,
-                "url": result.url,
-                "snippet": result.snippet[:250],
-                "domain": result.domain,
-            })
-            await asyncio.sleep(0.06)
+    # 2. Web result cards (T2-T5 — after canon)
+    valid_web = [r for r in web_results if r.url]
+    for result in valid_web:
+        yield sse("web_result", {
+            "tier": result.source_tier,
+            "title": result.title,
+            "url": result.url,
+            "snippet": result.snippet[:250],
+            "domain": result.domain,
+            "provider": getattr(result, "provider", "unknown"),
+        })
+        await asyncio.sleep(0.05)
 
-    # 3. Build synthesis text
-    if canon_refs:
-        canon_context = " ".join(r["excerpt"][:150] for r in canon_refs[:2])
-        preamble = f"Based on the GAIA canon and current web sources, here is what I found regarding '{query}':\n\n"
-    else:
-        canon_context = ""
-        preamble = f"Web sources found for '{query}'. The constitutional canon does not yet have a direct entry:\n\n"
+    # 3. Optionally scrape top web sources for full content
+    scraped_content: dict[str, str] = {}
+    if enable_scraping and valid_web:
+        top_urls = [r.url for r in valid_web if r.source_tier in ("T2", "T3")][:3]
+        if not top_urls:
+            top_urls = [r.url for r in valid_web[:2]]
+        try:
+            fetched = await fetch_top_sources(top_urls, max_per_source=1200, max_sources=3)
+            scraped_content = {item["url"]: item["content"] for item in fetched if item["content"]}
+        except Exception as e:
+            logger.warning(f"Scraping failed (non-fatal): {e}")
 
-    # 4. Stream preamble
-    for word in preamble.split():
-        yield sse("token", {"text": word + " "})
-        await asyncio.sleep(0.035)
+    # 4. Build unified source list for LLM (canon + web with scraped content)
+    llm_sources: list[dict] = []
+    for ref in canon_refs:
+        llm_sources.append({
+            "tier": "T1",
+            "title": ref["title"],
+            "excerpt": ref["excerpt"][:300],
+        })
+    for result in valid_web:
+        content = scraped_content.get(result.url, result.snippet)
+        llm_sources.append({
+            "tier": result.source_tier,
+            "title": result.title,
+            "url": result.url,
+            "snippet": content[:400],
+        })
 
-    # 5. Stream canon context
-    if canon_context:
-        for word in canon_context.split():
-            yield sse("token", {"text": word + " "})
-            await asyncio.sleep(0.025)
+    # 5. Stream LLM synthesis tokens
+    try:
+        async for chunk in stream_synthesis(query, llm_sources, provider=llm_provider):
+            yield sse("token", {"text": chunk})
+    except Exception as e:
+        yield sse("token", {"text": f"[Synthesis error: {str(e)[:100]}]"})
 
-    # 6. Surface top web snippets in text
-    top_web = [r for r in web_results if r.url and r.source_tier in ("T2", "T3")][:2]
-    if top_web:
-        bridge = " Additionally, from external sources: "
-        for word in bridge.split():
-            yield sse("token", {"text": word + " "})
-            await asyncio.sleep(0.03)
-        for r in top_web:
-            snippet_words = r.snippet[:200].split()
-            for word in snippet_words:
-                yield sse("token", {"text": word + " "})
-                await asyncio.sleep(0.02)
-            yield sse("token", {"text": " "})
-
-    # 7. Suggestions
-    await asyncio.sleep(0.08)
+    # 6. Follow-up suggestions
+    await asyncio.sleep(0.05)
     yield sse("suggestions", {"items": _generate_suggestions(query)})
 
-    # 8. Done
+    # 7. Done
     yield sse("done", {
         "canon_status": canon.status,
         "docs_searched": len(canon.list_documents()),
         "refs_found": len(canon_refs),
-        "web_results": len([r for r in web_results if r.url]),
+        "web_results": len(valid_web),
+        "scraped_sources": len(scraped_content),
+        "search_provider": detect_search_provider(),
         "timestamp": time.time(),
     })
 
@@ -338,15 +365,16 @@ def _generate_suggestions(query: str) -> list[str]:
 @app.post("/query/stream")
 async def query_stream(req: QueryRequest):
     """
-    Canon-first streaming query with optional web search (CAP-012).
+    Perplexity-style canon-first streaming query with real LLM synthesis.
 
-    SSE event sequence:
-      citation     — T1 canon sources (always first)
-      web_result   — T2-T5 web sources (if enable_web_search=true)
-      token        — streamed response text
-      suggestions  — follow-up chips
-      done         — metadata: canon_status, refs_found, web_results count
+    Pipeline:
+      1. Canon search (T1 citations emitted first)
+      2. Multi-provider web search (Brave/Tavily/DDG)
+      3. Web scraping of top sources (for grounded synthesis)
+      4. LLM synthesis streamed as token events
+      5. Follow-up suggestions + done metadata
 
+    SSE event types: citation | web_result | token | suggestions | done
     Canon Ref: C20 (Source Triage), C21 (Shell Grammar)
     """
     query = req.query.strip()
@@ -360,13 +388,21 @@ async def query_stream(req: QueryRequest):
         web_results = await search_web_async(query, max_results=5)
 
     return StreamingResponse(
-        _stream_query_response(query, canon_refs, web_results, req.sovereign_id),
+        _stream_query_response(
+            query,
+            canon_refs,
+            web_results,
+            enable_scraping=req.enable_scraping,
+            llm_provider=req.llm_provider,
+            sovereign_id=req.sovereign_id,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
             "X-Canon-Status": canon.status,
-        }
+            "X-Search-Provider": detect_search_provider(),
+        },
     )
 
 
