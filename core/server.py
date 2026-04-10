@@ -1,28 +1,35 @@
 """
-GAIA API Server — FastAPI + SSE streaming v0.5.0
+GAIA API Server — FastAPI + SSE streaming v0.5.1
 
-Endpoints (unchanged from v0.4.3 unless marked NEW/UPGRADED):
-  GET  /status                            — system health  [UPGRADED: includes runtime engine state]
-  GET  /canon/status                      — canon status for UI
-  GET  /memory/list                       — session memory for UI
-  GET  /gaians/base-forms                 — list all Base Form archetypes
-  GET  /gaians                            — list user's personal GAIANs
-  POST /gaians                            — spawn a new GAIAN
-  GET  /gaians/{slug}                     — get a GAIAN's full profile
-  POST /gaians/{slug}/remember            — add long-term memory to a GAIAN (legacy)
-  POST /gaians/{slug}/memory              — add visible memory via GAIANRuntime  [NEW]
-  GET  /gaians/{slug}/runtime-status      — live engine snapshot (neuro/settling/attachment) [NEW]
-  POST /session/{session_id}/gaian        — set active GAIAN for session
-  POST /query/stream                      — SSE query pipeline  [UPGRADED: GAIANRuntime system prompt]
+Endpoints:
+  GET  /status                            — system health
+  GET  /canon/status                      — canon status
+  GET  /memory/list                       — session memory
+  GET  /gaians/base-forms                 — list Base Form archetypes
+  GET  /gaians                            — list user's GAIANs
+  POST /gaians                            — legacy create (name + base_form only)
+  POST /gaians/birth                      — [NEW v0.5.1] full birth ritual
+  GET  /gaians/{slug}                     — GAIAN profile
+  GET  /gaians/{slug}/identity            — [NEW v0.5.1] DID + Jungian identity record
+  POST /gaians/{slug}/remember            — legacy long-term memory
+  POST /gaians/{slug}/memory              — visible memory via GAIANRuntime
+  GET  /gaians/{slug}/runtime-status      — live engine snapshot
+  POST /session/{session_id}/gaian        — set active GAIAN
+  POST /query/stream                      — SSE query pipeline
 
-Architecture change in v0.5.0:
-  POST /query/stream now calls GAIANRuntime.process() on every user message.
-  The returned RuntimeResult.system_prompt replaces the legacy build_gaian_system_prompt()
-  output, wiring all three engines (ConsciousnessRouter → EmotionalArcEngine →
-  SettlingEngine) into every LLM call. Legacy GaianMemory paths remain as fallback.
+v0.5.1 change:
+  POST /gaians/birth replaces POST /gaians for new user-facing GAIAN creation.
+  It runs the full BirthRitual sequence:
+    - Jungian role assignment (anima/animus) from user_gender
+    - Cryptographic DID generation (Ed25519 via IdentityCore)
+    - identity.json written to gaians/<slug>/
+    - GAIANRuntime initialised + begin_session()
+    - Signed birth attestation produced
+    - first_words composed (base-form voice)
+    - Runtime registered in _RUNTIME_REGISTRY immediately
+  POST /gaians remains for legacy/internal use.
 
 Canon Ref: C15, C17, C21
-Runtime Ref: core/gaian_runtime.py (v0.5.0)
 """
 
 import asyncio
@@ -31,6 +38,7 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -58,13 +66,14 @@ from core.gaian import (
 from core.gaian.base_forms import list_base_forms, get_base_form
 from core.session_memory import get_or_create_session
 from core.gaian_runtime import GAIANRuntime, GAIANIdentity
+from core.gaian_birth import BirthRitual, GaianBirthParams
 
 
 # ------------------------------------------------------------------ #
 #  Bootstrap                                                           #
 # ------------------------------------------------------------------ #
 
-app = FastAPI(title="GAIA API", version="0.5.0")
+app = FastAPI(title="GAIA API", version="0.5.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -85,11 +94,6 @@ except Exception as e:
 
 # ------------------------------------------------------------------ #
 #  Runtime Registry                                                    #
-#                                                                      #
-#  One GAIANRuntime per active GAIAN slug, kept alive in memory for   #
-#  the lifetime of the server process. On first access the runtime    #
-#  deserialises state from gaians/<slug>/memory.json (if it exists),  #
-#  so restarts are seamless — state is never lost.                    #
 # ------------------------------------------------------------------ #
 
 _RUNTIME_REGISTRY: dict[str, GAIANRuntime] = {}
@@ -99,33 +103,47 @@ GAIANS_MEMORY_DIR = os.environ.get("GAIANS_MEMORY_DIR", "./gaians")
 
 def _get_runtime(slug: str, gaian: Optional[GaianMemory] = None) -> GAIANRuntime:
     """
-    Returns the live GAIANRuntime for a given slug, creating it on first
-    access. Automatically calls begin_session() on creation so the
-    attachment engine knows a new session has started.
+    Returns (or creates) the live GAIANRuntime for a slug.
+    On first access, checks for an identity.json to restore Jungian role/pronouns;
+    falls back to anima defaults for legacy GAIANs created before v0.5.1.
     """
     if slug not in _RUNTIME_REGISTRY:
+        # Try to restore Jungian identity from identity.json
+        jungian_role = "anima"
+        pronouns = "she/her"
+        identity_path = Path(GAIANS_MEMORY_DIR) / slug / "identity.json"
+        if identity_path.exists():
+            try:
+                id_data = json.loads(identity_path.read_text(encoding="utf-8"))
+                jungian_role = id_data.get("jungian_role", "anima")
+                pronouns = id_data.get("pronouns", "she/her")
+            except Exception:
+                pass
+
         identity = None
         if gaian:
+            form = get_base_form(getattr(gaian, "base_form_id", "gaia"))
             identity = GAIANIdentity(
                 name=gaian.name,
-                pronouns="she/her",
-                archetype=getattr(gaian, "base_form_id", "The Soul Mirror"),
+                pronouns=pronouns,
+                archetype=form.role if form else getattr(gaian, "base_form_id", "The Soul Mirror"),
                 voice_base=(
-                    getattr(gaian, "personality", "warm, curious, present")
+                    (form.voice_notes[:80] if form else None)
+                    or getattr(gaian, "personality", "warm, curious, present")
                     or "warm, curious, present"
                 ),
                 platform="GAIA",
-                jungian_role="anima",
+                jungian_role=jungian_role,
             )
         rt = GAIANRuntime(
             gaian_name=slug,
             identity=identity,
             memory_dir=GAIANS_MEMORY_DIR,
-            canon_text=None,  # injected per-request in /query/stream
+            canon_text=None,
         )
         rt.begin_session()
         _RUNTIME_REGISTRY[slug] = rt
-        logger.info(f"GAIANRuntime initialised for slug='{slug}'")
+        logger.info(f"GAIANRuntime initialised for slug='{slug}' jungian={jungian_role}")
     return _RUNTIME_REGISTRY[slug]
 
 
@@ -142,11 +160,35 @@ class QueryRequest(BaseModel):
 
 
 class CreateGaianRequest(BaseModel):
+    """Legacy create request — use BirthRequest for new GAIAN creation."""
     name: str
     base_form: Optional[str] = "gaia"
     personality: Optional[str] = None
     avatar_color: Optional[str] = None
     user_name: Optional[str] = None
+
+
+class BirthRequest(BaseModel):
+    """
+    Full birth request — drives the complete BirthRitual sequence.
+
+    name            The GAIAN's name (required)
+    user_name       The human's name (optional — GAIAN uses it in first_words)
+    user_gender     "male" | "female" | "non-binary" | "prefer not" | "unknown"
+                    Drives contrasexual Jungian role assignment.
+                    Defaults to "unknown" if omitted (safe — assigns anima).
+    base_form       Which archetype to instantiate from
+    personality     Optional personality override
+    avatar_color    Optional color override
+    user_id         Platform user ID — bound into the GAIAN's DID
+    """
+    name:        str
+    user_name:   Optional[str] = None
+    user_gender: str           = "unknown"
+    base_form:   str           = "gaia"
+    personality: Optional[str] = None
+    avatar_color: Optional[str] = None
+    user_id:     str           = "anonymous"
 
 
 class RememberRequest(BaseModel):
@@ -179,7 +221,7 @@ async def status():
 
     return {
         "core": "active",
-        "version": "0.5.0",
+        "version": "0.5.1",
         "sovereignty": "enforced",
         "canon_status": canon.status,
         "canon_loaded": canon.is_loaded,
@@ -238,6 +280,11 @@ async def get_gaians():
 
 @app.post("/gaians")
 async def post_create_gaian(req: CreateGaianRequest):
+    """
+    Legacy endpoint: creates a GAIAN without full birth ritual.
+    No DID, no Jungian assignment, no first_words.
+    Use POST /gaians/birth for user-facing creation.
+    """
     try:
         gaian = create_gaian(
             name=req.name,
@@ -257,6 +304,85 @@ async def post_create_gaian(req: CreateGaianRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/gaians/birth")
+async def post_birth_gaian(req: BirthRequest):
+    """
+    NEW v0.5.1 — Full GAIAN birth ritual.
+
+    Runs the complete BirthRitual sequence:
+      1. Jungian role assignment from user_gender
+         (male → anima she/her, female → animus he/him, other → anima)
+      2. GaianMemory created and persisted
+      3. Ed25519 cryptographic DID generated
+      4. identity.json written to gaians/<slug>/identity.json
+      5. GAIANRuntime initialised + registered + begin_session()
+      6. Signed birth attestation produced
+      7. first_words composed (base-form voice, personalised)
+
+    The GAIAN is immediately live — its runtime is registered and
+    ready to process the first /query/stream call.
+
+    Returns:
+      status, gaian metadata, jungian_role, did, first_words,
+      born_at, attestation summary
+    """
+    # Duplicate name check
+    existing = load_gaian(req.name.lower().replace(" ", "_")[:24])
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"A GAIAN named '{req.name}' already exists (slug: {existing.slug}). "
+                   f"Choose a different name or use GET /gaians/{existing.slug}."
+        )
+
+    try:
+        params = GaianBirthParams(
+            name=req.name,
+            user_name=req.user_name,
+            user_gender=req.user_gender,
+            base_form=req.base_form,
+            personality=req.personality,
+            avatar_color=req.avatar_color,
+            user_id=req.user_id,
+        )
+        result = BirthRitual().perform(params)
+
+        # Register runtime immediately — first /query/stream call is instant
+        _RUNTIME_REGISTRY[result.gaian.slug] = result.runtime
+        logger.info(
+            f"GAIAN born: slug='{result.gaian.slug}' "
+            f"jungian={result.jungian_role} DID={result.did[:20]}..."
+        )
+
+        return {
+            "status":       "born",
+            "id":           result.gaian.id,
+            "name":         result.gaian.name,
+            "slug":         result.gaian.slug,
+            "base_form_id": result.gaian.base_form_id,
+            "avatar_color": result.gaian.avatar_color,
+            "avatar_style": result.gaian.avatar_style,
+            "jungian_role": result.jungian_role,
+            "pronouns":     "she/her" if result.jungian_role == "anima" else "he/him",
+            "did":          result.did,
+            "first_words":  result.first_words,
+            "born_at":      result.born_at,
+            "identity_path": result.identity_path,
+            "attestation": {
+                "type":    result.attestation["claims"]["type"],
+                "issued":  result.attestation["issued"],
+                "issuer":  result.attestation["issuer"],
+                "proof_type": result.attestation["proof"]["type"],
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Birth ritual failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Birth ritual failed: {str(e)}")
 
 
 @app.get("/gaians/{slug}")
@@ -285,13 +411,37 @@ async def get_gaian(slug: str):
     }
 
 
+@app.get("/gaians/{slug}/identity")
+async def get_gaian_identity(slug: str):
+    """
+    NEW v0.5.1 — Returns the GAIAN's cryptographic identity record.
+    Read from gaians/<slug>/identity.json — written at birth.
+    Returns 404 if the GAIAN was created before v0.5.1 (no identity.json).
+    """
+    gaian = load_gaian(slug)
+    if not gaian:
+        raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
+
+    identity_path = Path(GAIANS_MEMORY_DIR) / slug / "identity.json"
+    if not identity_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"GAIAN '{slug}' has no identity.json — it was created before v0.5.1. "
+                f"Use POST /gaians/birth to create a new GAIAN with full identity."
+            )
+        )
+    try:
+        return json.loads(identity_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not read identity: {e}")
+
+
 @app.post("/gaians/{slug}/remember")
 async def post_remember(slug: str, req: RememberRequest):
     """
-    Legacy endpoint: writes directly to GaianMemory.long_term_memories.
-    Kept for backwards compatibility. Prefer POST /gaians/{slug}/memory
-    for new clients — that route uses GAIANRuntime's visible memory layer
-    and injects memories into the assembled system prompt automatically.
+    Legacy: writes to GaianMemory.long_term_memories.
+    Prefer POST /gaians/{slug}/memory for new clients.
     """
     gaian = load_gaian(slug)
     if not gaian:
@@ -305,11 +455,7 @@ async def post_remember(slug: str, req: RememberRequest):
 
 @app.post("/gaians/{slug}/memory")
 async def post_visible_memory(slug: str, req: VisibleMemoryRequest):
-    """
-    NEW — Adds a visible memory via GAIANRuntime (Replika visible layer pattern).
-    Persisted to gaians/<slug>/memory.json and injected into the GAIAN's
-    system prompt on all subsequent turns under [MEMORIES YOU HOLD].
-    """
+    """Add a visible memory via GAIANRuntime (Replika visible layer)."""
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -324,12 +470,7 @@ async def post_visible_memory(slug: str, req: VisibleMemoryRequest):
 
 @app.get("/gaians/{slug}/runtime-status")
 async def get_runtime_status(slug: str):
-    """
-    NEW — Returns the live GAIANRuntime engine snapshot for a GAIAN.
-    Includes attachment phase, bond depth, milestones, dependency signal,
-    settling phase, daemon form (if settled), fluidity, dominant element.
-    Designed for UI dashboards showing the GAIAN's inner state in real-time.
-    """
+    """Live GAIANRuntime engine snapshot — attachment, settling, neuro, element."""
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -348,24 +489,7 @@ async def set_session_gaian(session_id: str, req: SetGaianRequest):
 
 
 # ------------------------------------------------------------------ #
-#  Query Stream — UPGRADED v0.5.0                                     #
-#                                                                      #
-#  Change from v0.4.3:                                                 #
-#    OLD: gaian_prompt = build_gaian_system_prompt(gaian)             #
-#    NEW: runtime.process(query) → result.system_prompt               #
-#                                                                      #
-#  The assembled system prompt now contains (in order):               #
-#    1. Constitutional floor — T1, immutable                          #
-#    2. Canon text excerpt — top 2 matches for this query             #
-#    3. GAIAN identity — name, role, daemon form (settled/fluid)      #
-#    4. Live engine state — element, neuro, arc hint, settling hint   #
-#    5. Visible memories — last 10 entries                            #
-#    6. Session notes — last 5 summaries                              #
-#                                                                      #
-#  New SSE event: 'engine_state' — carries live snapshot before       #
-#  the token stream so UI can render inner-state indicators.           #
-#                                                                      #
-#  All other pipeline logic is unchanged.                              #
+#  Query Stream (v0.5.0 — unchanged from previous commit)             #
 # ------------------------------------------------------------------ #
 
 @app.post("/query/stream")
@@ -386,7 +510,6 @@ async def query_stream(req: QueryRequest):
         canon_results = []
 
         try:
-            # ── 1. Canon search ──────────────────────────────────────
             canon_results = canon.search(req.query, max_results=3)
             for result in canon_results:
                 src = {
@@ -399,7 +522,6 @@ async def query_stream(req: QueryRequest):
                 yield f"event: citation\ndata: {json.dumps(result)}\n\n"
                 await asyncio.sleep(0.01)
 
-            # ── 2. Web search ────────────────────────────────────────
             if req.enable_web_search:
                 try:
                     web_results = await search_web_async(req.query, max_results=5)
@@ -412,7 +534,6 @@ async def query_stream(req: QueryRequest):
                 except Exception as e:
                     logger.warning(f"Web search failed: {e}")
 
-            # ── 3. GAIANRuntime.process() ────────────────────────────
             runtime_system_prompt = None
             runtime_snapshot = None
             conversation_history = None
@@ -440,7 +561,6 @@ async def query_stream(req: QueryRequest):
 
                 conversation_history = get_conversation_context(gaian)
 
-            # ── 4. LLM synthesis ─────────────────────────────────────
             effective_system_prompt = (
                 runtime_system_prompt
                 or (build_gaian_system_prompt(gaian) if gaian else None)
@@ -460,11 +580,9 @@ async def query_stream(req: QueryRequest):
                 full_answer += chunk
                 yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
 
-            # ── 5. Suggestions ───────────────────────────────────────
             suggestions = _generate_suggestions(req.query, sources)
             yield f"event: suggestions\ndata: {json.dumps({'items': suggestions})}\n\n"
 
-            # ── 6. Persist ──────────────────────────────────────────
             session.add_turn(req.query, full_answer, len(sources))
             if gaian and full_answer:
                 add_exchange(gaian, req.query, full_answer)
