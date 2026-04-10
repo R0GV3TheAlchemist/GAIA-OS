@@ -1,45 +1,81 @@
-// GAIA Chat — Perplexity-style streaming chat UI with web search (CAP-012)
-// Canonical source: C20 (Source Triage), C21 (Interface & Shell Grammar)
+// GAIA Chat — v0.5.1
+// SSE event order:
+//   citation     → T1 canon cards (gold border)
+//   web_result   → T2–T5 web cards (tier-coloured border)
+//   engine_state → GAIANRuntime snapshot → EngineStatePanel.update()  [NEW v0.5.1]
+//   token        → streaming text
+//   suggestions  → follow-up chips
+//   done         → metadata footer
 //
-// SSE event order (enforced by server, mirrored here):
-//   citation    → T1 canon cards (green border)
-//   web_result  → T2–T5 web cards (tier-coloured border)
-//   token       → streaming text
-//   suggestions → follow-up chips
-//   done        → metadata footer
+// Canon Ref: C20 (Source Triage), C21 (Interface & Shell Grammar)
 
 import type { ChatMessage, CanonCitation } from './types';
 import { API_BASE } from './types';
+import { EngineStatePanel, type EngineStateSnapshot } from './EngineStatePanel';
 
 export interface WebResult {
-  tier: string;    // T2–T5
+  tier: string;
   title: string;
   url: string;
   snippet: string;
   domain: string;
 }
 
-let _messages: ChatMessage[] = [];
-let _isStreaming = false;
-let _webSearchEnabled = true;
+let _messages:        ChatMessage[]         = [];
+let _isStreaming:     boolean               = false;
+let _webSearchEnabled: boolean              = true;
 let _abortController: AbortController | null = null;
+let _gaianSlug:       string               = 'gaia';
+let _sessionId:       string               = _makeSessionId();
+let _enginePanel:     EngineStatePanel | null = null;
 
-function makeId(): string {
-  return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-}
+function makeId(): string { return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; }
+function ts():     string { return new Date().toISOString(); }
 
-function ts(): string {
-  return new Date().toISOString();
+function _makeSessionId(): string {
+  // Persist session ID across page reloads so conversation history is maintained
+  const key = 'gaia_session_id';
+  let id = sessionStorage.getItem(key);
+  if (!id) { id = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; sessionStorage.setItem(key, id); }
+  return id;
 }
 
 // ------------------------------------------------------------------ //
-//  Mount                                                               //
+//  Public API                                                          //
 // ------------------------------------------------------------------ //
 
-export function mountChat(root: HTMLElement): void {
+/**
+ * Mount the chat UI into root.
+ *
+ * @param root       Target element
+ * @param gaianSlug  Slug of the active GAIAN (from birth or picker). Defaults to 'gaia'.
+ * @param sessionId  Optional session ID override (defaults to sessionStorage-persisted ID).
+ */
+export function mountChat(
+  root: HTMLElement,
+  gaianSlug = 'gaia',
+  sessionId?: string,
+): void {
+  _gaianSlug = gaianSlug;
+  if (sessionId) _sessionId = sessionId;
+
   root.innerHTML = buildChatHTML();
+
+  // Mount EngineStatePanel into the header slot
+  const espContainer = root.querySelector<HTMLElement>('#esp-container')!;
+  _enginePanel = new EngineStatePanel(espContainer);
+  _enginePanel.mount();
+
   bindEvents(root);
   appendSystemMessage(root, 'GAIA is online. Constitutional floor held. Web search active.');
+  checkCanonStatus(root);
+}
+
+/**
+ * Update the active GAIAN slug mid-session (e.g. user switches companions).
+ */
+export function setGaianSlug(slug: string): void {
+  _gaianSlug = slug;
 }
 
 // ------------------------------------------------------------------ //
@@ -60,6 +96,7 @@ function buildChatHTML(): string {
         <input type="checkbox" id="toggle-web" checked />
         <span class="toggle-label">&#127760; Web</span>
       </label>
+      <div id="esp-container"></div>
       <button class="hdr-btn" id="btn-clear" title="Clear">✕ Clear</button>
       <button class="hdr-btn" id="btn-stop"  title="Stop" disabled>■ Stop</button>
     </div>
@@ -96,10 +133,10 @@ function buildChatHTML(): string {
 // ------------------------------------------------------------------ //
 
 function bindEvents(root: HTMLElement): void {
-  const input    = root.querySelector<HTMLTextAreaElement>('#chat-input')!;
-  const sendBtn  = root.querySelector<HTMLButtonElement>('#btn-send')!;
-  const stopBtn  = root.querySelector<HTMLButtonElement>('#btn-stop')!;
-  const clearBtn = root.querySelector<HTMLButtonElement>('#btn-clear')!;
+  const input     = root.querySelector<HTMLTextAreaElement>('#chat-input')!;
+  const sendBtn   = root.querySelector<HTMLButtonElement>('#btn-send')!;
+  const stopBtn   = root.querySelector<HTMLButtonElement>('#btn-stop')!;
+  const clearBtn  = root.querySelector<HTMLButtonElement>('#btn-clear')!;
   const webToggle = root.querySelector<HTMLInputElement>('#toggle-web')!;
 
   input.addEventListener('input', () => {
@@ -108,15 +145,12 @@ function bindEvents(root: HTMLElement): void {
   });
 
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(root, input.value.trim());
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(root, input.value.trim()); }
   });
 
-  sendBtn.addEventListener('click', () => sendMessage(root, input.value.trim()));
+  sendBtn.addEventListener('click',  () => sendMessage(root, input.value.trim()));
 
-  stopBtn.addEventListener('click', () => {
+  stopBtn.addEventListener('click',  () => {
     _abortController?.abort();
     _isStreaming = false;
     setStreamingUI(root, false);
@@ -135,8 +169,6 @@ function bindEvents(root: HTMLElement): void {
       ? 'Web search enabled (CAP-012 active).'
       : 'Web search disabled. Canon-only mode.');
   });
-
-  checkCanonStatus(root);
 }
 
 // ------------------------------------------------------------------ //
@@ -173,8 +205,10 @@ async function sendMessage(root: HTMLElement, text: string): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query: text,
-        max_canon_refs: 4,
+        query:             text,
+        session_id:        _sessionId,
+        gaian_slug:        _gaianSlug,
+        max_canon_refs:    4,
         enable_web_search: _webSearchEnabled,
       }),
       signal: _abortController.signal,
@@ -182,9 +216,9 @@ async function sendMessage(root: HTMLElement, text: string): Promise<void> {
 
     if (!response.ok || !response.body) throw new Error(`Server ${response.status}`);
 
-    const reader = response.body.getReader();
+    const reader  = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let buffer    = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -195,7 +229,7 @@ async function sendMessage(root: HTMLElement, text: string): Promise<void> {
 
       let eventType = '';
       for (const line of lines) {
-        if (line.startsWith('event: ')) { eventType = line.slice(7).trim(); }
+        if      (line.startsWith('event: ')) { eventType = line.slice(7).trim(); }
         else if (line.startsWith('data: ') && eventType) {
           handleSSEEvent(root, msgEl, gaiaMsg, eventType, line.slice(6).trim());
           eventType = '';
@@ -218,31 +252,44 @@ function handleSSEEvent(
   msgEl: HTMLElement,
   msg: ChatMessage,
   event: string,
-  data: string
+  data: string,
 ): void {
   try {
     const payload = JSON.parse(data);
     switch (event) {
+
       case 'citation':
         msg.citations.push(payload as CanonCitation);
         renderCitationCard(msgEl, payload as CanonCitation);
         break;
+
       case 'web_result':
         renderWebResultCard(msgEl, payload as WebResult);
         break;
+
+      // ---- NEW v0.5.1 -------------------------------------------- //
+      case 'engine_state':
+        if (_enginePanel) {
+          _enginePanel.update(payload as EngineStateSnapshot);
+        }
+        break;
+      // ------------------------------------------------------------ //
+
       case 'token':
         msg.text += payload.text;
         appendToken(msgEl, payload.text);
         scrollToBottom(root);
         break;
+
       case 'suggestions':
         msg.suggestions = payload.items ?? [];
         renderSuggestions(root, msgEl, msg.suggestions);
         break;
+
       case 'done':
-        msg.canonStatus = payload.canon_status;
+        msg.canonStatus  = payload.canon_status;
         msg.docsSearched = payload.docs_searched;
-        msg.refsFound = payload.refs_found;
+        msg.refsFound    = payload.refs_found;
         renderDoneMeta(msgEl, payload);
         updateCanonBadge(root, payload.canon_status);
         break;
@@ -256,7 +303,7 @@ function handleSSEEvent(
 
 function renderUserBubble(root: HTMLElement, msg: ChatMessage): void {
   const list = root.querySelector('#chat-messages')!;
-  const div = document.createElement('div');
+  const div  = document.createElement('div');
   div.className = 'message-row user-row';
   div.innerHTML = `
 <div class="bubble user-bubble">${escHtml(msg.text)}</div>
@@ -267,9 +314,9 @@ function renderUserBubble(root: HTMLElement, msg: ChatMessage): void {
 
 function renderGaiaBubble(root: HTMLElement, msg: ChatMessage): HTMLElement {
   const list = root.querySelector('#chat-messages')!;
-  const row = document.createElement('div');
+  const row  = document.createElement('div');
   row.className = 'message-row gaia-row';
-  row.id = msg.id;
+  row.id        = msg.id;
   row.innerHTML = `
 <div class="gaia-avatar">◉</div>
 <div class="gaia-message">
@@ -286,16 +333,16 @@ function renderGaiaBubble(root: HTMLElement, msg: ChatMessage): HTMLElement {
 }
 
 function appendToken(msgEl: HTMLElement, token: string): void {
-  const bb = msgEl.querySelector<HTMLElement>('[id^="bb-"]')!;
+  const bb     = msgEl.querySelector<HTMLElement>('[id^="bb-"]')!;
   const cursor = bb.querySelector('.typing-cursor');
-  const span = document.createElement('span');
+  const span   = document.createElement('span');
   span.textContent = token;
   cursor ? bb.insertBefore(span, cursor) : bb.appendChild(span);
 }
 
 function renderCitationCard(msgEl: HTMLElement, c: CanonCitation): void {
   const panel = msgEl.querySelector<HTMLElement>('[id^="sp-"]')!;
-  const card = document.createElement('div');
+  const card  = document.createElement('div');
   card.className = 'source-card canon-card';
   card.innerHTML = `
 <div class="source-tier tier-T1">T1 CANON</div>
@@ -306,7 +353,7 @@ function renderCitationCard(msgEl: HTMLElement, c: CanonCitation): void {
 
 function renderWebResultCard(msgEl: HTMLElement, r: WebResult): void {
   const panel = msgEl.querySelector<HTMLElement>('[id^="sp-"]')!;
-  const card = document.createElement('div');
+  const card  = document.createElement('div');
   card.className = `source-card web-card tier-${r.tier}`;
   const href = r.url ? `href="${escHtml(r.url)}" target="_blank" rel="noopener"` : '';
   card.innerHTML = `
@@ -328,14 +375,15 @@ function renderSuggestions(root: HTMLElement, msgEl: HTMLElement, items: string[
 }
 
 function renderDoneMeta(msgEl: HTMLElement, payload: Record<string, unknown>): void {
-  const meta = msgEl.querySelector<HTMLElement>('[id^="meta-"]')!;
-  const status = (payload.canon_status as string) ?? 'unknown';
+  const meta     = msgEl.querySelector<HTMLElement>('[id^="meta-"]')!;
+  const status   = (payload.canon_status  as string) ?? 'unknown';
   const searched = (payload.docs_searched as number) ?? 0;
-  const refs = (payload.refs_found as number) ?? 0;
-  const web = (payload.web_results as number) ?? 0;
+  const refs     = (payload.refs_found    as number) ?? 0;
+  const web      = (payload.web_results   as number) ?? 0;
+  const runtime  = payload.runtime_active ? ' · ● runtime' : '';
   meta.innerHTML = `
 <span class="meta-dot canon-${status}"></span>
-<span class="meta-text">Canon ${status} · ${searched} docs · ${refs} canon refs · ${web} web results</span>`;
+<span class="meta-text">Canon ${status} · ${searched} docs · ${refs} canon refs · ${web} web${runtime}</span>`;
   msgEl.querySelector('.typing-cursor')?.remove();
 }
 
@@ -359,7 +407,7 @@ function showBackendError(root: HTMLElement, msgEl: HTMLElement, error: string):
 
 function appendSystemMessage(root: HTMLElement, text: string): void {
   const list = root.querySelector('#chat-messages')!;
-  const div = document.createElement('div');
+  const div  = document.createElement('div');
   div.className = 'system-msg';
   div.textContent = text;
   list.appendChild(div);
@@ -371,21 +419,21 @@ function appendSystemMessage(root: HTMLElement, text: string): void {
 // ------------------------------------------------------------------ //
 
 function setStreamingUI(root: HTMLElement, streaming: boolean): void {
-  (root.querySelector<HTMLButtonElement>('#btn-send')!).disabled = streaming;
-  (root.querySelector<HTMLButtonElement>('#btn-stop')!).disabled = !streaming;
+  (root.querySelector<HTMLButtonElement>('#btn-send')!).disabled  =  streaming;
+  (root.querySelector<HTMLButtonElement>('#btn-stop')!).disabled  = !streaming;
   (root.querySelector<HTMLTextAreaElement>('#chat-input')!).disabled = streaming;
 }
 
 async function checkCanonStatus(root: HTMLElement): Promise<void> {
   const badge = root.querySelector<HTMLElement>('#canon-status-badge')!;
   try {
-    const res = await fetch(`${API_BASE}/canon/status`, { signal: AbortSignal.timeout(3000) });
+    const res  = await fetch(`${API_BASE}/canon/status`, { signal: AbortSignal.timeout(3000) });
     const data = await res.json();
-    const s = data.status ?? 'unknown';
-    badge.className = `canon-status canon-badge-${s}`;
+    const s    = data.status ?? 'unknown';
+    badge.className   = `canon-status canon-badge-${s}`;
     badge.textContent = `● Canon ${s.toUpperCase()} — ${data.loaded_count ?? 0} docs`;
   } catch {
-    badge.className = 'canon-status canon-badge-offline';
+    badge.className   = 'canon-status canon-badge-offline';
     badge.textContent = '○ Canon offline — start server';
   }
 }

@@ -1,0 +1,241 @@
+/* ------------------------------------------------------------------ */
+/* EngineStatePanel Styles                                              */
+/* Live inner-state panel in the chat header bar.                      */
+/* Imports design tokens from ../shell/tokens.css (via Chat.css).      */
+/* ------------------------------------------------------------------ */
+
+/* ---- Host container ---- */
+
+.esp {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+/* ---- Collapsed chip ---- */
+
+.esp__chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--surface-border, #2a2a2a);
+  border-radius: 20px;
+  padding: 3px 10px 3px 7px;
+  cursor: pointer;
+  color: var(--neutral-grey, #888);
+  font-family: inherit;
+  font-size: inherit;
+  white-space: nowrap;
+  transition: border-color 0.2s, color 0.2s;
+  user-select: none;
+}
+
+.esp__chip:hover {
+  border-color: var(--pure-white, #f0f0f0);
+  color: var(--pure-white, #f0f0f0);
+}
+
+/* Glowing dot — color set inline from elementColor() */
+.esp__element-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--neutral-grey, #888);
+  flex-shrink: 0;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.esp__chip-label {
+  transition: color 0.2s;
+}
+
+.esp__chevron {
+  font-size: 9px;
+  margin-left: 2px;
+  transition: transform 0.2s ease;
+  color: var(--neutral-grey, #888);
+}
+
+/* ---- Expanded panel ---- */
+
+.esp__panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  width: 300px;
+  background: var(--surface-secondary, #111);
+  border: 1px solid var(--surface-border, #2a2a2a);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: esp-slide-in 0.18s ease;
+}
+
+.esp__panel--open {
+  display: block;
+}
+
+@keyframes esp-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Rows ---- */
+
+.esp__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.esp__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.esp__key {
+  width: 52px;
+  flex-shrink: 0;
+  color: var(--neutral-grey, #888);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-top: 2px;
+}
+
+.esp__val {
+  flex: 1;
+  color: var(--pure-white, #f0f0f0);
+  font-size: 11px;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+/* Bond row: phase badge + depth + bar stacked */
+.esp__val--bond {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.esp__val--bond > *:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Phase badge */
+.esp__phase-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--esp-color, #888) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--esp-color, #888) 40%, transparent);
+  color: var(--esp-color, #888);
+}
+
+.esp__depth {
+  font-size: 10px;
+  color: var(--neutral-grey, #888);
+}
+
+/* Bond progress bar */
+.esp-bond-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-border, #2a2a2a);
+  overflow: hidden;
+}
+
+.esp-bond-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* Element pill */
+.esp__element-pill {
+  display: inline-block;
+  padding: 1px 9px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--esp-color, #888) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--esp-color, #888) 35%, transparent);
+  color: var(--esp-color, #888);
+}
+
+/* Neuro state */
+.esp__neuro {
+  font-style: italic;
+  color: var(--neutral-grey, #aaa);
+  font-size: 10.5px;
+}
+
+/* Settling phase */
+.esp__settling {
+  font-size: 10.5px;
+}
+
+.esp__settling--fluid {
+  color: var(--neutral-grey, #888);
+  font-style: italic;
+}
+
+.esp__settling--crystallising {
+  color: var(--signal-amber, #f59e0b);
+}
+
+.esp__settling--set {
+  color: var(--gaia-green, #22c55e);
+  font-weight: 600;
+}
+
+/* Arc row */
+.esp__row--arc .esp__val {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.esp__arc-icon {
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.esp__arc-hint {
+  font-size: 10px;
+  color: var(--neutral-grey, #aaa);
+  line-height: 1.45;
+  font-style: italic;
+}
+
+/* Footer strip */
+.esp__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--surface-border, #2a2a2a);
+  color: var(--neutral-grey, #888);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+
+.esp__dep-signal {
+  color: var(--signal-amber, #f59e0b);
+  font-size: 9.5px;
+}
