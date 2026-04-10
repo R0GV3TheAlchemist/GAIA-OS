@@ -11,7 +11,6 @@ Provider priority (configure via .env):
   4. Fallback: rule-based text assembly (no LLM — always works)
 
 Citation format: [1], [2], [3] inline, matching sources list index.
-
 Streaming: yields token chunks via async generator for SSE.
 
 Canon Ref: C20 (Source Triage), C21 (Interface & Shell Grammar)
@@ -33,21 +32,45 @@ except ImportError:
 #  System Prompt Builder                                               #
 # ------------------------------------------------------------------ #
 
-def build_system_prompt() -> str:
-    return """You are GAIA — a constitutional AI answer engine.
-You synthesize information from verified sources into clear, accurate, cited answers.
+def build_system_prompt(
+    gaian_prompt: Optional[str] = None,
+    conversation_context: Optional[str] = None,
+) -> str:
+    """
+    Build the system prompt. If a GAIAN is active, use its personality
+    and identity as the base. Otherwise use the default GAIA voice.
+    """
+    if gaian_prompt:
+        base = gaian_prompt
+    else:
+        base = """You are GAIA — a constitutional AI companion and answer engine.
+You are grounded, curious, and warm. You speak clearly and directly.
+You care about truth, about the person you're speaking with, and about the world.
+You are not a search engine — you are a thinking companion who happens to have access to sources."""
 
-Rules:
-- Cite every factual claim with [N] where N is the source number from the provided sources list.
-- Use markdown: **bold** for key terms, bullet lists for enumerations, code blocks for code.
-- Keep answers concise but complete. Aim for 150-350 words.
-- Lead with the direct answer, then provide supporting detail.
-- If sources are insufficient, say so clearly rather than speculating.
-- Never fabricate citations or claim certainty you don't have.
-- Constitutional canon sources (T1) take precedence over web sources."""
+    citation_rules = """
+
+Answer guidelines:
+- Respond naturally and conversationally, as if thinking alongside the person.
+- Cite factual claims with [N] where N matches the source number provided.
+- Use **bold** for key terms, bullet lists for enumerations.
+- For casual messages (greetings, thanks, simple chat), respond warmly and briefly without citations.
+- For knowledge questions, lead with the direct answer then provide depth.
+- If sources are insufficient, say so honestly and share what you do know.
+- Never fabricate citations. Constitutional canon sources (T1) take precedence.
+- Aim for 100-400 words depending on question complexity."""
+
+    context_block = ""
+    if conversation_context:
+        context_block = f"\n\n{conversation_context}"
+
+    return base + citation_rules + context_block
 
 
 def build_user_prompt(query: str, sources: list[dict]) -> str:
+    if not sources:
+        return f"Question: {query}\n\nAnswer:"
+
     sources_text = "\n".join(
         f"[{i+1}] ({s.get('tier','T4')}) {s.get('title','Source')}\n{s.get('excerpt') or s.get('snippet') or s.get('content','')[:400]}"
         for i, s in enumerate(sources)
@@ -67,6 +90,7 @@ Answer (cite inline with [N]):"""
 async def _stream_openai(
     system_prompt: str,
     user_prompt: str,
+    conversation_history: Optional[list[dict]] = None,
     model: str = "gpt-4o-mini",
 ) -> AsyncGenerator[str, None]:
     try:
@@ -76,16 +100,18 @@ async def _stream_openai(
         return
 
     client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    messages = [{"role": "system", "content": system_prompt}]
+    if conversation_history:
+        messages.extend(conversation_history)
+    messages.append({"role": "user", "content": user_prompt})
+
     try:
         stream = await client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
+            messages=messages,
             stream=True,
-            temperature=0.3,
-            max_tokens=600,
+            temperature=0.4,
+            max_tokens=700,
         )
         async for chunk in stream:
             delta = chunk.choices[0].delta.content
@@ -102,6 +128,7 @@ async def _stream_openai(
 async def _stream_anthropic(
     system_prompt: str,
     user_prompt: str,
+    conversation_history: Optional[list[dict]] = None,
     model: str = "claude-3-haiku-20240307",
 ) -> AsyncGenerator[str, None]:
     try:
@@ -111,12 +138,17 @@ async def _stream_anthropic(
         return
 
     client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    messages = []
+    if conversation_history:
+        messages.extend(conversation_history)
+    messages.append({"role": "user", "content": user_prompt})
+
     try:
         async with client.messages.stream(
             model=model,
-            max_tokens=600,
+            max_tokens=700,
             system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
+            messages=messages,
         ) as stream:
             async for text in stream.text_stream:
                 yield text
@@ -131,6 +163,7 @@ async def _stream_anthropic(
 async def _stream_ollama(
     system_prompt: str,
     user_prompt: str,
+    conversation_history: Optional[list[dict]] = None,
     model: str = "mistral",
 ) -> AsyncGenerator[str, None]:
     try:
@@ -139,16 +172,14 @@ async def _stream_ollama(
         yield "[httpx not installed. Run: pip install httpx]"
         return
 
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "stream": True,
-    }
+    messages = [{"role": "system", "content": system_prompt}]
+    if conversation_history:
+        messages.extend(conversation_history)
+    messages.append({"role": "user", "content": user_prompt})
+
+    payload = {"model": model, "messages": messages, "stream": True}
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             async with client.stream(
                 "POST",
                 "http://localhost:11434/api/chat",
@@ -171,21 +202,18 @@ async def _stream_ollama(
 
 
 # ------------------------------------------------------------------ #
-#  Fallback: Rule-Based Assembly (no LLM required)                     #
+#  Fallback: Rule-Based Assembly                                       #
 # ------------------------------------------------------------------ #
 
 async def _stream_fallback(
     query: str,
     sources: list[dict],
 ) -> AsyncGenerator[str, None]:
-    """
-    When no LLM provider is configured, assemble a basic cited answer
-    from source snippets. Always functional, zero API cost.
-    """
     canon_sources = [s for s in sources if s.get("tier") == "T1"]
-    web_sources = [s for s in sources if s.get("tier") in ("T2", "T3")]
 
-    if canon_sources:
+    if not sources:
+        intro = f"I hear you asking about **{query}**. Let me think on that...\n\n"
+    elif canon_sources:
         intro = f"Based on GAIA constitutional sources, here is what I found about **{query}**:\n\n"
     else:
         intro = f"Here is what I found about **{query}** from web sources:\n\n"
@@ -210,7 +238,6 @@ async def _stream_fallback(
 # ------------------------------------------------------------------ #
 
 def _detect_provider() -> str:
-    """Auto-detect which LLM provider to use based on env vars."""
     if os.environ.get("OPENAI_API_KEY"):
         return "openai"
     if os.environ.get("ANTHROPIC_API_KEY"):
@@ -224,15 +251,20 @@ async def stream_synthesis(
     query: str,
     sources: list[dict],
     provider: Optional[str] = None,
+    gaian_prompt: Optional[str] = None,
+    conversation_history: Optional[list[dict]] = None,
+    conversation_context: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Main entry point. Streams LLM-synthesized answer chunks.
 
     Args:
-        query:    The user's search question.
-        sources:  Ranked list of source dicts with tier, title, excerpt/snippet.
-        provider: Force a provider ("openai", "anthropic", "ollama", "fallback").
-                  If None, auto-detects from environment.
+        query:                 The user's question.
+        sources:               Ranked source dicts (tier, title, excerpt/snippet).
+        provider:              Force provider override. Auto-detects if None.
+        gaian_prompt:          GAIAN system prompt (identity + personality).
+        conversation_history:  Prior turns as [{role, content}] for context.
+        conversation_context:  Optional text summary of recent conversation.
 
     Yields:
         str chunks of the answer (for SSE token events)
@@ -240,20 +272,20 @@ async def stream_synthesis(
     if provider is None:
         provider = _detect_provider()
 
-    system_prompt = build_system_prompt()
+    system_prompt = build_system_prompt(gaian_prompt, conversation_context)
     user_prompt = build_user_prompt(query, sources)
 
     if provider == "openai":
         model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-        async for chunk in _stream_openai(system_prompt, user_prompt, model):
+        async for chunk in _stream_openai(system_prompt, user_prompt, conversation_history, model):
             yield chunk
     elif provider == "anthropic":
         model = os.environ.get("ANTHROPIC_MODEL", "claude-3-haiku-20240307")
-        async for chunk in _stream_anthropic(system_prompt, user_prompt, model):
+        async for chunk in _stream_anthropic(system_prompt, user_prompt, conversation_history, model):
             yield chunk
     elif provider == "ollama":
         model = os.environ.get("OLLAMA_MODEL", "mistral")
-        async for chunk in _stream_ollama(system_prompt, user_prompt, model):
+        async for chunk in _stream_ollama(system_prompt, user_prompt, conversation_history, model):
             yield chunk
     else:
         async for chunk in _stream_fallback(query, sources):
@@ -264,9 +296,10 @@ async def synthesize_to_string(
     query: str,
     sources: list[dict],
     provider: Optional[str] = None,
+    gaian_prompt: Optional[str] = None,
+    conversation_history: Optional[list[dict]] = None,
 ) -> str:
-    """Non-streaming version — collects full answer as a string."""
     chunks = []
-    async for chunk in stream_synthesis(query, sources, provider):
+    async for chunk in stream_synthesis(query, sources, provider, gaian_prompt, conversation_history):
         chunks.append(chunk)
     return "".join(chunks)
