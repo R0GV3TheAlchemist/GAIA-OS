@@ -45,7 +45,7 @@ const VERB_REGISTRY: Record<string, { verbClass: VerbClass; tierRequired: Permis
   panic:     { verbClass: 'INTERRUPT', tierRequired: 'T0', reversibilityClass: 'R0' },
 };
 
-const TIER_ORDER: PermissionTier[] = ['T0', 'T1', 'T2', 'T3', 'T4'];
+export const TIER_ORDER: PermissionTier[] = ['T0', 'T1', 'T2', 'T3', 'T4'];
 
 export function tierSatisfies(active: PermissionTier, required: PermissionTier): boolean {
   return TIER_ORDER.indexOf(active) >= TIER_ORDER.indexOf(required);
@@ -99,7 +99,6 @@ export function parse(raw: string): ParsedCommand | { error: string; suggestion?
 }
 
 function tokenise(input: string): string[] {
-  // Handle quoted strings as single tokens
   const tokens: string[] = [];
   const regex = /"([^"]+)"|'([^']+)'|(\S+)/g;
   let match;
