@@ -1,0 +1,347 @@
+/*
+ * gaian-chat.css — GaianChatView Styles
+ *
+ * Design intent: sacred, intimate, alive.
+ * The GAIAN chat feels different from the general GAIA chat —
+ * warmer, more personal, less interface and more presence.
+ *
+ * Canon Ref: C21 (Interface & Shell Grammar), C19 (Color Doctrine)
+ */
+
+/* ------------------------------------------------------------------ */
+/*  Shell Layout                                                        */
+/* ------------------------------------------------------------------ */
+
+.gc-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary, #0a0a0a);
+  color: var(--text-primary, #f0f0f0);
+  font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Header                                                              */
+/* ------------------------------------------------------------------ */
+
+.gc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(8px);
+  flex-shrink: 0;
+  gap: 0.75rem;
+}
+
+.gc-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.gc-element-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #6b7280;
+  flex-shrink: 0;
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.gc-gaian-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-primary, #f0f0f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gc-settling-badge {
+  font-size: 0.68rem;
+  padding: 0.18em 0.55em;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.55);
+  white-space: nowrap;
+  transition: all 0.4s ease;
+  letter-spacing: 0.04em;
+}
+
+.gc-settling-badge--unsettled    { border-color: rgba(107,114,128,0.4); }
+.gc-settling-badge--narrowing    { border-color: rgba(251,191,36,0.5);  color: #fbbf24; }
+.gc-settling-badge--crystallising{ border-color: rgba(167,139,250,0.6); color: #a78bfa; }
+.gc-settling-badge--settled      { border-color: rgba(74,222,128,0.7);  color: #4ade80; }
+
+.gc-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.gc-hdr-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.gc-hdr-btn:hover:not(:disabled) {
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.9);
+}
+.gc-hdr-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Messages                                                            */
+/* ------------------------------------------------------------------ */
+
+.gc-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  scroll-behavior: smooth;
+}
+
+.gc-messages::-webkit-scrollbar       { width: 4px; }
+.gc-messages::-webkit-scrollbar-track { background: transparent; }
+.gc-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* ------------------------------------------------------------------ */
+/*  Message Rows                                                        */
+/* ------------------------------------------------------------------ */
+
+.gc-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: 680px;
+  animation: gc-fade-in 0.2s ease;
+}
+
+@keyframes gc-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.gc-row--user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.gc-row--gaian {
+  align-self: flex-start;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Avatar                                                              */
+/* ------------------------------------------------------------------ */
+
+.gc-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bubbles                                                             */
+/* ------------------------------------------------------------------ */
+
+.gc-bubble {
+  border-radius: 14px;
+  padding: 0.65rem 0.9rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  word-break: break-word;
+  max-width: 520px;
+}
+
+.gc-bubble--user {
+  background: rgba(59,130,246,0.18);
+  border: 1px solid rgba(59,130,246,0.3);
+  color: #e2e8f0;
+  border-bottom-right-radius: 4px;
+}
+
+.gc-bubble--gaian {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #f0f0f0;
+  border-bottom-left-radius: 4px;
+  min-height: 2rem;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Typing Cursor                                                       */
+/* ------------------------------------------------------------------ */
+
+.gc-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: rgba(255,255,255,0.7);
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  animation: gc-blink 1s step-end infinite;
+}
+
+.gc-cursor--done {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+@keyframes gc-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ------------------------------------------------------------------ */
+/*  System Note                                                         */
+/* ------------------------------------------------------------------ */
+
+.gc-system-note {
+  align-self: center;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.3);
+  padding: 0.2rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  letter-spacing: 0.04em;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Error & Muted                                                       */
+/* ------------------------------------------------------------------ */
+
+.gc-error {
+  color: #f87171;
+  font-size: 0.83rem;
+}
+.gc-error code {
+  background: rgba(255,255,255,0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.gc-muted {
+  color: rgba(255,255,255,0.3);
+  font-size: 0.83rem;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Input Area                                                          */
+/* ------------------------------------------------------------------ */
+
+.gc-input-area {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 0.75rem 1rem;
+  background: rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.gc-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.gc-textarea {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  color: #f0f0f0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  padding: 0.55rem 0.85rem;
+  resize: none;
+  min-height: 2.4rem;
+  max-height: 140px;
+  overflow-y: auto;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.gc-textarea:focus {
+  outline: none;
+  border-color: rgba(167,139,250,0.5);
+}
+
+.gc-textarea:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gc-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(167,139,250,0.2);
+  border: 1px solid rgba(167,139,250,0.3);
+  color: #a78bfa;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.gc-send-btn:hover:not(:disabled) {
+  background: rgba(167,139,250,0.35);
+  border-color: rgba(167,139,250,0.6);
+}
+.gc-send-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.gc-input-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.35rem;
+}
+
+.gc-footer-note {
+  font-size: 0.67rem;
+  color: rgba(255,255,255,0.22);
+  letter-spacing: 0.05em;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Birth Host Wrapper                                                  */
+/* ------------------------------------------------------------------ */
+
+.gc-birth-host {
+  height: 100%;
+  overflow-y: auto;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}

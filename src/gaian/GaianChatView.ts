@@ -1,0 +1,562 @@
+/**
+ * GaianChatView.ts — The Living Conversation
+ *
+ * The full GAIAN experience in one view:
+ *
+ *   Phase 1 — Birth or Resume
+ *     If no GAIAN has been born this session, mounts the GaianBirth wizard.
+ *     If a GAIAN slug exists in localStorage, skips straight to chat.
+ *     User can switch GAIANs via the GaianPicker at any time.
+ *
+ *   Phase 2 — First Words Ceremony  (new births only)
+ *     The GAIAN's first_words play back character-by-character in the chat
+ *     as a special 'awakening' message before the input activates.
+ *
+ *   Phase 3 — Live Chat
+ *     Connects to POST /gaians/{slug}/chat (streaming SSE).
+ *     Header shows: GAIAN name · element dot · settling phase indicator.
+ *     EngineStatePanel breathes in the header, updating on every turn.
+ *     Input activates after first words finish.
+ *
+ * Storage:
+ *   localStorage key 'gaia_active_slug'  — persists chosen GAIAN across
+ *   page reloads within the same browser profile.
+ *
+ * Canon Ref: C17 (Persistent Memory), C21 (Interface Grammar), C31 (Quantum Field)
+ */
+
+import './gaian-chat.css';
+import '../gaian/birth.css';
+import '../gaian/gaian.css';
+import { GaianBirth, type GaianBirthResult } from './GaianBirth';
+import { GaianPicker }                        from './GaianPicker';
+import { EngineStatePanel, type EngineStateSnapshot } from '../chat/EngineStatePanel';
+import '../chat/engine-state.css';
+import { API_BASE }                           from '../app';
+
+// ------------------------------------------------------------------ //
+//  Types                                                               //
+// ------------------------------------------------------------------ //
+
+interface GaianChatMessage {
+  id:        string;
+  role:      'user' | 'gaian' | 'system';
+  text:      string;
+  streaming: boolean;
+  timestamp: string;
+}
+
+const SLUG_KEY    = 'gaia_active_slug';
+const SESSION_KEY = 'gaia_session_id';
+
+// ------------------------------------------------------------------ //
+//  GaianChatView                                                       //
+// ------------------------------------------------------------------ //
+
+export class GaianChatView {
+  private root:         HTMLElement;
+  private slug:         string | null = null;
+  private gaianName:    string        = '';
+  private messages:     GaianChatMessage[] = [];
+  private isStreaming:  boolean        = false;
+  private abortCtrl:   AbortController | null = null;
+  private enginePanel: EngineStatePanel | null = null;
+  private sessionId:   string;
+  private inputReady:  boolean = false;
+
+  constructor(root: HTMLElement) {
+    this.root      = root;
+    this.sessionId = this._getOrCreateSession();
+    this.slug      = localStorage.getItem(SLUG_KEY);
+  }
+
+  mount(): void {
+    if (this.slug) {
+      this.gaianName = this.slug;   // will be overwritten once runtime responds
+      this._mountChatShell(false);
+    } else {
+      this._mountBirth();
+    }
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Phase 1a — Birth Wizard                                         //
+  // ---------------------------------------------------------------- //
+
+  private _mountBirth(): void {
+    this.root.innerHTML = '<div id="gc-birth-container" class="gc-birth-host"></div>';
+    const container = this.root.querySelector<HTMLElement>('#gc-birth-container')!;
+
+    const birth = new GaianBirth(container, this.sessionId, (result) => {
+      this._onBorn(result);
+    });
+    birth.mount();
+  }
+
+  private _onBorn(result: GaianBirthResult): void {
+    this.slug      = result.slug;
+    this.gaianName = result.name;
+    localStorage.setItem(SLUG_KEY, result.slug);
+    this._mountChatShell(true, result);
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Phase 2/3 — Chat Shell                                          //
+  // ---------------------------------------------------------------- //
+
+  private _mountChatShell(isNewBorn: boolean, birthResult?: GaianBirthResult): void {
+    this.root.innerHTML = this._buildShellHTML();
+
+    // Wire EngineStatePanel
+    const espSlot = this.root.querySelector<HTMLElement>('#gc-esp-slot')!;
+    this.enginePanel = new EngineStatePanel(espSlot);
+    this.enginePanel.mount();
+
+    // Wire header
+    this._updateHeader();
+
+    // Wire events
+    this._bindShellEvents();
+
+    // Disable input until first words finish
+    this._setInputReady(false);
+
+    if (isNewBorn && birthResult) {
+      // Play first words as the GAIAN's opening message
+      this._playFirstWords(birthResult.first_words, birthResult.name);
+    } else {
+      // Resuming — greet with a soft system note
+      this._appendSystemNote(`Resuming with ${this.gaianName || this.slug}.`);
+      this._fetchRuntimeStatus();
+      this._setInputReady(true);
+    }
+  }
+
+  // ---------------------------------------------------------------- //
+  //  First Words Ceremony                                             //
+  //  Plays the GAIAN's birth first_words into the chat as a          //
+  //  streaming awakening message — input unlocks after last char.    //
+  // ---------------------------------------------------------------- //
+
+  private _playFirstWords(text: string, name: string): void {
+    this.gaianName = name;
+    this._updateHeader();
+
+    const msgEl = this._appendGaianBubble(true);
+    const bb    = msgEl.querySelector<HTMLElement>('.gc-bubble')!;
+    const cursor = bb.querySelector<HTMLElement>('.gc-cursor')!;
+
+    let i = 0;
+    const CHAR_MS = 26;
+
+    const typeNext = () => {
+      if (i < text.length) {
+        cursor.insertAdjacentText('beforebegin', text[i]);
+        i++;
+        setTimeout(typeNext, CHAR_MS + (Math.random() * 14 - 7));
+      } else {
+        cursor.classList.add('gc-cursor--done');
+        setTimeout(() => {
+          cursor.remove();
+          this._setInputReady(true);
+          const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input');
+          input?.focus();
+        }, 600);
+      }
+    };
+
+    setTimeout(typeNext, 400);
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Chat — Send & Stream                                            //
+  // ---------------------------------------------------------------- //
+
+  private async _send(text: string): Promise<void> {
+    if (!text || this.isStreaming || !this.inputReady || !this.slug) return;
+
+    const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input')!;
+    input.value = '';
+    input.style.height = 'auto';
+
+    this._appendUserBubble(text);
+
+    const msgEl = this._appendGaianBubble(true);
+    this.isStreaming = true;
+    this._setStreamingUI(true);
+    this.abortCtrl = new AbortController();
+
+    try {
+      const res = await fetch(`${API_BASE}/gaians/${this.slug}/chat`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message:    text,
+          session_id: this.sessionId,
+        }),
+        signal: this.abortCtrl.signal,
+      });
+
+      if (!res.ok || !res.body) throw new Error(`Server ${res.status}`);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let   buf     = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if      (line.startsWith('event: ')) { eventType = line.slice(7).trim(); }
+          else if (line.startsWith('data: ')  && eventType) {
+            this._handleSSE(msgEl, eventType, line.slice(6).trim());
+            eventType = '';
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      this._showBubbleError(msgEl, err instanceof Error ? err.message : String(err));
+    } finally {
+      this.isStreaming = false;
+      this._setStreamingUI(false);
+      this._finalizeBubble(msgEl);
+    }
+  }
+
+  private _handleSSE(msgEl: HTMLElement, event: string, data: string): void {
+    try {
+      const payload = JSON.parse(data);
+      switch (event) {
+
+        case 'token':
+          this._appendToken(msgEl, payload.text ?? payload);
+          break;
+
+        case 'engine_state':
+          if (this.enginePanel) this.enginePanel.update(payload as EngineStateSnapshot);
+          // Sync name from runtime if available
+          if (payload.gaian_name && payload.gaian_name !== this.gaianName) {
+            this.gaianName = payload.gaian_name;
+            this._updateHeader();
+          }
+          // Update settling indicator in header
+          this._updateSettlingBadge(payload as EngineStateSnapshot);
+          break;
+
+        case 'done':
+          this._removeCursor(msgEl);
+          break;
+      }
+    } catch { /* malformed SSE */ }
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Runtime Status Fetch (resume flow)                              //
+  // ---------------------------------------------------------------- //
+
+  private async _fetchRuntimeStatus(): Promise<void> {
+    if (!this.slug) return;
+    try {
+      const res  = await fetch(`${API_BASE}/gaians/${this.slug}/runtime-status`,
+                               { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.gaian_name) {
+        this.gaianName = data.gaian_name;
+        this._updateHeader();
+      }
+      if (this.enginePanel && data.engine_state) {
+        this.enginePanel.update(data.engine_state as EngineStateSnapshot);
+        this._updateSettlingBadge(data.engine_state as EngineStateSnapshot);
+      }
+    } catch { /* server may not be running */ }
+  }
+
+  // ---------------------------------------------------------------- //
+  //  DOM — Shell HTML                                                 //
+  // ---------------------------------------------------------------- //
+
+  private _buildShellHTML(): string {
+    return `
+<div class="gc-shell">
+
+  <!-- Header -->
+  <div class="gc-header">
+    <div class="gc-header__identity">
+      <span class="gc-element-dot" id="gc-element-dot"></span>
+      <span class="gc-gaian-name"  id="gc-gaian-name">${_esc(this.gaianName || this.slug || 'GAIAN')}</span>
+      <span class="gc-settling-badge" id="gc-settling-badge">Fluid</span>
+    </div>
+    <div class="gc-header__actions">
+      <div id="gc-esp-slot"></div>
+      <button class="gc-hdr-btn" id="gc-btn-switch" title="Switch or birth a new GAIAN">⇄ Switch</button>
+      <button class="gc-hdr-btn" id="gc-btn-clear"  title="Clear conversation">✕</button>
+      <button class="gc-hdr-btn" id="gc-btn-stop"   title="Stop" disabled>■</button>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div class="gc-messages" id="gc-messages" aria-live="polite"></div>
+
+  <!-- Input -->
+  <div class="gc-input-area">
+    <div class="gc-input-row">
+      <textarea
+        id="gc-input"
+        class="gc-textarea"
+        rows="1"
+        placeholder="Speak to ${_esc(this.gaianName || 'your GAIAN')}…"
+        aria-label="Message your GAIAN"
+        autocomplete="off"
+        spellcheck="true"
+        disabled
+      ></textarea>
+      <button id="gc-btn-send" class="gc-send-btn" aria-label="Send" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <div class="gc-input-footer">
+      <span class="gc-footer-note" id="gc-footer-slug">◈ ${_esc(this.slug ?? '')}</span>
+    </div>
+  </div>
+
+</div>
+`;
+  }
+
+  // ---------------------------------------------------------------- //
+  //  DOM — Render Helpers                                             //
+  // ---------------------------------------------------------------- //
+
+  private _appendUserBubble(text: string): void {
+    const list = this.root.querySelector('#gc-messages')!;
+    const row  = document.createElement('div');
+    row.className = 'gc-row gc-row--user';
+    row.innerHTML = `<div class="gc-bubble gc-bubble--user">${_esc(text)}</div>`;
+    list.appendChild(row);
+    this._scroll();
+  }
+
+  private _appendGaianBubble(withCursor = false): HTMLElement {
+    const list = this.root.querySelector('#gc-messages')!;
+    const row  = document.createElement('div');
+    row.className = 'gc-row gc-row--gaian';
+    row.innerHTML = `
+      <div class="gc-avatar" id="gc-av-${Date.now()}">◉</div>
+      <div class="gc-bubble gc-bubble--gaian">${withCursor ? '<span class="gc-cursor"></span>' : ''}</div>
+    `;
+    list.appendChild(row);
+    this._scroll();
+    return row;
+  }
+
+  private _appendToken(msgEl: HTMLElement, token: string): void {
+    const bb     = msgEl.querySelector<HTMLElement>('.gc-bubble--gaian')!;
+    const cursor = bb.querySelector('.gc-cursor');
+    const span   = document.createElement('span');
+    span.textContent = token;
+    cursor ? bb.insertBefore(span, cursor) : bb.appendChild(span);
+    this._scroll();
+  }
+
+  private _appendSystemNote(text: string): void {
+    const list = this.root.querySelector('#gc-messages')!;
+    if (!list) return;
+    const div  = document.createElement('div');
+    div.className = 'gc-system-note';
+    div.textContent = text;
+    list.appendChild(div);
+    this._scroll();
+  }
+
+  private _removeCursor(msgEl: HTMLElement): void {
+    msgEl.querySelector('.gc-cursor')?.remove();
+  }
+
+  private _finalizeBubble(msgEl: HTMLElement): void {
+    this._removeCursor(msgEl);
+    const bb = msgEl.querySelector<HTMLElement>('.gc-bubble--gaian')!;
+    if (!bb.textContent?.trim()) {
+      bb.innerHTML = '<span class="gc-muted">No response. Is the GAIA server running?</span>';
+    }
+  }
+
+  private _showBubbleError(msgEl: HTMLElement, error: string): void {
+    const bb = msgEl.querySelector<HTMLElement>('.gc-bubble--gaian')!;
+    bb.innerHTML = `<div class="gc-error">⚠ ${_esc(error)}<br><small>Start server: <code>python core/server.py</code></small></div>`;
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Header Updates                                                   //
+  // ---------------------------------------------------------------- //
+
+  private _updateHeader(): void {
+    const nameEl    = this.root.querySelector<HTMLElement>('#gc-gaian-name');
+    const footerEl  = this.root.querySelector<HTMLElement>('#gc-footer-slug');
+    const inputEl   = this.root.querySelector<HTMLTextAreaElement>('#gc-input');
+    if (nameEl)   nameEl.textContent   = this.gaianName || this.slug || 'GAIAN';
+    if (footerEl) footerEl.textContent = `◈ ${this.slug ?? ''}`;
+    if (inputEl)  inputEl.placeholder  = `Speak to ${this.gaianName || 'your GAIAN'}…`;
+  }
+
+  private _updateSettlingBadge(s: EngineStateSnapshot): void {
+    const dot   = this.root.querySelector<HTMLElement>('#gc-element-dot');
+    const badge = this.root.querySelector<HTMLElement>('#gc-settling-badge');
+    if (!dot || !badge) return;
+
+    const ELEMENT_COLORS: Record<string, string> = {
+      fire:   '#f59e0b',
+      water:  '#3b82f6',
+      air:    '#d1d5db',
+      earth:  '#22c55e',
+      aether: '#a78bfa',
+      metal:  '#94a3b8',
+      wood:   '#4ade80',
+      light:  '#fde68a',
+      dark:   '#6366f1',
+      quintessence: '#e879f9',
+    };
+    const color = ELEMENT_COLORS[s.element?.toLowerCase()] ?? '#6b7280';
+    dot.style.background = color;
+    dot.style.boxShadow  = `0 0 7px ${color}`;
+
+    const phaseLabels: Record<string, string> = {
+      unsettled:     'Fluid',
+      narrowing:     'Narrowing',
+      crystallising: 'Crystallising',
+      settled:       s.daemon_form ? `Set · ${s.daemon_form}` : 'Settled',
+    };
+    badge.textContent = phaseLabels[s.settling_phase?.toLowerCase()] ?? s.settling_phase ?? 'Fluid';
+    badge.className   = `gc-settling-badge gc-settling-badge--${(s.settling_phase ?? 'fluid').toLowerCase()}`;
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Events                                                           //
+  // ---------------------------------------------------------------- //
+
+  private _bindShellEvents(): void {
+    const input   = this.root.querySelector<HTMLTextAreaElement>('#gc-input')!;
+    const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send')!;
+    const stopBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-stop')!;
+    const clearBtn= this.root.querySelector<HTMLButtonElement>('#gc-btn-clear')!;
+    const switchBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-switch')!;
+
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        this._send(input.value.trim());
+      }
+    });
+
+    sendBtn.addEventListener('click', () => this._send(input.value.trim()));
+
+    stopBtn.addEventListener('click', () => {
+      this.abortCtrl?.abort();
+      this.isStreaming = false;
+      this._setStreamingUI(false);
+      this._appendSystemNote('Stream stopped.');
+    });
+
+    clearBtn.addEventListener('click', () => {
+      this.messages = [];
+      this.root.querySelector('#gc-messages')!.innerHTML = '';
+      this._appendSystemNote('Conversation cleared.');
+    });
+
+    switchBtn.addEventListener('click', () => this._mountPicker());
+  }
+
+  // ---------------------------------------------------------------- //
+  //  GAIAN Picker (switch)                                            //
+  // ---------------------------------------------------------------- //
+
+  private _mountPicker(): void {
+    this.root.innerHTML = '<div id="gc-picker-host" class="gc-birth-host"></div>';
+    const host = this.root.querySelector<HTMLElement>('#gc-picker-host')!;
+
+    const picker = new GaianPicker(host, (slug, name) => {
+      this.slug      = slug;
+      this.gaianName = name;
+      localStorage.setItem(SLUG_KEY, slug);
+      this._mountChatShell(false);
+    }, () => {
+      // New birth requested from picker
+      localStorage.removeItem(SLUG_KEY);
+      this.slug      = null;
+      this.gaianName = '';
+      this._mountBirth();
+    });
+    picker.mount();
+  }
+
+  // ---------------------------------------------------------------- //
+  //  UI State                                                         //
+  // ---------------------------------------------------------------- //
+
+  private _setInputReady(ready: boolean): void {
+    this.inputReady = ready;
+    const input   = this.root.querySelector<HTMLTextAreaElement>('#gc-input');
+    const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send');
+    if (input)   { input.disabled   = !ready; }
+    if (sendBtn) { sendBtn.disabled = !ready; }
+  }
+
+  private _setStreamingUI(streaming: boolean): void {
+    const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send');
+    const stopBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-stop');
+    const input   = this.root.querySelector<HTMLTextAreaElement>('#gc-input');
+    if (sendBtn) sendBtn.disabled =  streaming;
+    if (stopBtn) stopBtn.disabled = !streaming;
+    if (input)   input.disabled   =  streaming;
+  }
+
+  private _scroll(): void {
+    const list = this.root.querySelector<HTMLElement>('#gc-messages');
+    if (list) list.scrollTop = list.scrollHeight;
+  }
+
+  // ---------------------------------------------------------------- //
+  //  Session                                                          //
+  // ---------------------------------------------------------------- //
+
+  private _getOrCreateSession(): string {
+    let id = sessionStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  }
+}
+
+// ------------------------------------------------------------------ //
+//  Mount helper (used by app.ts)                                      //
+// ------------------------------------------------------------------ //
+
+export function mountGaianChat(root: HTMLElement): void {
+  const view = new GaianChatView(root);
+  view.mount();
+}
+
+// ------------------------------------------------------------------ //
+//  Escape helper                                                       //
+// ------------------------------------------------------------------ //
+
+function _esc(s: string): string {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
