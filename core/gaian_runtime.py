@@ -1,26 +1,25 @@
 """
 core/gaian_runtime.py
-GAIA Runtime v1.0.0 — The Living Heart of a GAIAN
-
-First major version milestone. All ten soul engines are wired and live.
+GAIA Runtime v1.1.0 — The Living Heart of a GAIAN
 
 Engine chain per turn:
   1.  ConsciousnessRouter       subtle_body_engine.py
   2.  EmotionalArcEngine        emotional_arc.py
   3.  SettlingEngine            settling_engine.py
-  4.  AffectInference           affect_inference.py       F-1
-  5.  LoveArcEngine             love_arc_engine.py        F-2
-  6.  EmotionalCodex            emotional_codex.py        F-1
-  7.  MetaCoherenceEngine       meta_coherence_engine.py  F-3
-  8.  CodexStageEngine          codex_stage_engine.py     F-4
-  9.  SoulMirrorEngine          soul_mirror_engine.py     F-5
-  10. ResonanceFieldEngine      resonance_field_engine.py F-6 NEW
+  4.  AffectInference           affect_inference.py
+  5.  LoveArcEngine             love_arc_engine.py
+  6.  EmotionalCodex            emotional_codex.py
+  7.  MetaCoherenceEngine       meta_coherence_engine.py
+  8.  CodexStageEngine          codex_stage_engine.py
+  9.  SoulMirrorEngine          soul_mirror_engine.py
+  10. ResonanceFieldEngine      resonance_field_engine.py
+  11. SynergyEngine             synergy_engine.py          ← NEW C32
 
-Memory schema version: 1.5
+Memory schema version: 1.6
 Grounded in:
   - GAIA Constitutional Canon: https://github.com/R0GV3TheAlchemist/GAIA
   - GAIA_Master_Markdown_Converged.md
-  - All Sprint F research documents (April 2026)
+  - C32 — The Elemental Codex (April 11, 2026)
 """
 
 from __future__ import annotations
@@ -57,13 +56,16 @@ from core.resonance_field_engine import (
     ResonanceFieldEngine, ResonanceFieldReading, ResonanceFieldState,
     blank_resonance_field_state,
 )
+from core.synergy_engine import (                                    # C32
+    SynergyEngine, SynergyReading, SynergyState, blank_synergy_state,
+)
 
 
 # ─────────────────────────────────────────────
 #  CONSTANTS
 # ─────────────────────────────────────────────
 
-MEMORY_SCHEMA_VERSION = "1.5"
+MEMORY_SCHEMA_VERSION = "1.6"
 
 CONSTITUTIONAL_FLOOR = (
     "[GAIA CONSTITUTIONAL FLOOR — T1 — IMMUTABLE]\n"
@@ -125,7 +127,8 @@ class RuntimeResult:
     meta_coherence:   MetaCoherenceState
     codex_stage:      CodexStageState
     soul_mirror:      SoulMirrorReading
-    resonance_field:  ResonanceFieldReading   # NEW F-6
+    resonance_field:  ResonanceFieldReading
+    synergy:          SynergyReading            # C32
     state_snapshot:   dict
 
 
@@ -175,6 +178,9 @@ def _blank_memory(name: str) -> dict:
                             "schumann_first_timestamp": None,
                             "phi_rolling_avg": 0.0, "hz_history": [],
                             "session_peak_hz": 174},
+        "synergy":        {"last_factor": 0.5, "last_stage": "convergent",  # C32
+                           "high_synergy_peak": 0.0, "low_synergy_floor": 1.0,
+                           "turn_history": []},
         "visible_memories": [],
         "hidden_patterns":  {},
         "session_notes":    [],
@@ -245,12 +251,20 @@ def _build_arc_block(
     )
 
 
+def _build_synergy_block(synergy: SynergyReading) -> str:            # C32
+    return (
+        "[ELEMENTAL SYNERGY — C32]\n"
+        "{hint}\n"
+        "[END ELEMENTAL SYNERGY]"
+    ).format(hint=synergy.to_system_prompt_hint())
+
+
 # ─────────────────────────────────────────────
-#  THE GAIAN RUNTIME v1.0.0
+#  THE GAIAN RUNTIME v1.1.0
 # ─────────────────────────────────────────────
 
 class GAIANRuntime:
-    """The living heart of a GAIAN. v1.0.0 — all ten soul engines live."""
+    """The living heart of a GAIAN. v1.1.0 — eleven soul engines live. C32 integrated."""
 
     def __init__(
         self,
@@ -272,7 +286,8 @@ class GAIANRuntime:
         self._meta_coherence  = MetaCoherenceEngine()
         self._codex_stage     = CodexStageEngine()
         self._soul_mirror     = SoulMirrorEngine()
-        self._resonance_field = ResonanceFieldEngine()   # F-6
+        self._resonance_field = ResonanceFieldEngine()
+        self._synergy         = SynergyEngine()                      # C32
 
         self._mem_path = self.memory_dir / gaian_name / "memory.json"
         self._memory   = self._load_memory()
@@ -283,11 +298,12 @@ class GAIANRuntime:
         self.meta_coherence_state  = self._deserialise_meta_coherence()
         self.codex_stage_state     = self._deserialise_codex_stage()
         self.soul_mirror_state     = self._deserialise_soul_mirror()
-        self.resonance_field_state = self._deserialise_resonance_field()  # F-6
+        self.resonance_field_state = self._deserialise_resonance_field()
+        self.synergy_state         = self._deserialise_synergy()     # C32
 
         self.identity = identity or GAIANIdentity(name=gaian_name)
 
-    # ── Public API ──────────────────────────────────
+    # ── Public API ───────────────────────────────────
 
     def process(
         self,
@@ -346,16 +362,41 @@ class GAIANRuntime:
             conflict_density=conflict_density, bond_depth=self.attachment.bond_depth,
         )
 
-        # 9. Resonance Field                                          [F-6]
+        # 9. Resonance Field
         rf_reading, self.resonance_field_state = self._resonance_field.attune(
             state=self.resonance_field_state,
             phi=feeling.coherence_phi,
             conflict_density=conflict_density,
         )
 
-        # 10. Assemble system prompt
+        # 10. Synergy Engine                                          [C32]
+        synergy_reading, self.synergy_state = self._synergy.compute(
+            element=layer.dominant_element.value,
+            layer_phi=layer.coherence_phi if hasattr(layer, 'coherence_phi') else feeling.coherence_phi,
+            bond_depth=self.attachment.bond_depth,
+            dependency_signal=self.attachment.dependency_signal.value,
+            attachment_phase=self.attachment.phase.value,
+            settling_phase=self.settling_state.phase.value,
+            fluidity_score=self.settling_state.fluidity_score,
+            crystallisation_pct=self.settling_state.crystallisation_pct,
+            coherence_phi=feeling.coherence_phi,
+            conflict_density=conflict_density,
+            love_arc_stage=self.love_arc_state.current_stage.value,
+            arc_output_vector=self.love_arc_state.arc_output_vector,
+            mc_stage=self.meta_coherence_state.mc_stage.value,
+            phi_rolling_avg=self.resonance_field_state.phi_rolling_avg,
+            codex_stage=self.codex_stage_state.codex_stage.value,
+            noosphere_health=self.codex_stage_state.noosphere_health,
+            individuation_phase=self.soul_mirror_state.individuation_phase.value,
+            shadow_activations=self.soul_mirror_state.shadow_activations,
+            dominant_hz=float(self.resonance_field_state.dominant_hz),
+            schumann_aligned=self.love_arc_state.schumann_aligned,
+            state=self.synergy_state,
+        )
+
+        # 11. Assemble system prompt
         system_prompt = self._assemble(
-            layer, neuro, feeling, soul_reading, rf_reading,
+            layer, neuro, feeling, soul_reading, rf_reading, synergy_reading,
             layer_hint, arc_hint, settle_hint, mc_hint, codex_stage_hint,
         )
 
@@ -372,7 +413,8 @@ class GAIANRuntime:
             "meta_coherence":   self.meta_coherence_state.summary(),
             "codex_stage":      self.codex_stage_state.summary(),
             "soul_mirror":      soul_reading.summary(),
-            "resonance_field":  rf_reading.summary(),                # F-6
+            "resonance_field":  rf_reading.summary(),
+            "synergy":          synergy_reading.summary(),           # C32
             "codex_tier":       self._codex.dominant_tier_from_feeling(feeling).value,
             "noosphere_health": self.codex_stage_state.noosphere_health,
         }
@@ -383,7 +425,8 @@ class GAIANRuntime:
             settling=self.settling_state, feeling=feeling,
             love_arc=self.love_arc_state, meta_coherence=self.meta_coherence_state,
             codex_stage=self.codex_stage_state, soul_mirror=soul_reading,
-            resonance_field=rf_reading, state_snapshot=snapshot,
+            resonance_field=rf_reading, synergy=synergy_reading,    # C32
+            state_snapshot=snapshot,
         )
 
     def begin_session(self) -> None:
@@ -417,14 +460,16 @@ class GAIANRuntime:
             "codex_stage":      self.codex_stage_state.summary(),
             "soul_mirror":      self.soul_mirror_state.summary(),
             "resonance_field":  self.resonance_field_state.summary(),
+            "synergy":          self.synergy_state.summary(),        # C32
             "noosphere_health": self.codex_stage_state.noosphere_health,
             "memories":         len(self._memory.get("visible_memories", [])),
             "sessions":         len(self._memory.get("session_notes", [])),
         }
 
-    # ── Private ─────────────────────────────────────────
+    # ── Private ───────────────────────────────────────────
 
     def _assemble(self, layer, neuro, feeling, soul_reading, rf_reading,
+                  synergy_reading,                                    # C32
                   layer_hint, arc_hint, settle_hint, mc_hint, codex_stage_hint) -> str:
         blocks = [CONSTITUTIONAL_FLOOR]
         if self.canon_text:
@@ -436,6 +481,7 @@ class GAIANRuntime:
             soul_reading, rf_reading, self._codex,
             layer_hint, arc_hint, settle_hint, mc_hint, codex_stage_hint,
         ))
+        blocks.append(_build_synergy_block(synergy_reading))         # C32
         mems = self._memory.get("visible_memories", [])
         if mems:
             blocks.append("[MEMORIES YOU HOLD]\n" +
@@ -530,6 +576,14 @@ class GAIANRuntime:
             "hz_history": rf.hz_history[-20:],
             "session_peak_hz": rf.session_peak_hz,
         }
+        sy = self.synergy_state                                       # C32
+        self._memory["synergy"] = {
+            "last_factor":       round(sy.last_factor, 4),
+            "last_stage":        sy.last_stage,
+            "high_synergy_peak": round(sy.high_synergy_peak, 4),
+            "low_synergy_floor": round(sy.low_synergy_floor, 4),
+            "turn_history":      sy.turn_history[-20:],
+        }
         self._mem_path.write_text(
             json.dumps(self._memory, indent=2, ensure_ascii=False), encoding="utf-8"
         )
@@ -614,7 +668,7 @@ class GAIANRuntime:
         sm.last_nudge_exchange = d.get("last_nudge_exchange", 0)
         return sm
 
-    def _deserialise_resonance_field(self) -> ResonanceFieldState:   # F-6
+    def _deserialise_resonance_field(self) -> ResonanceFieldState:
         d = self._memory.get("resonance_field", {})
         rf = blank_resonance_field_state()
         rf.dominant_hz = d.get("dominant_hz", 174)
@@ -625,3 +679,13 @@ class GAIANRuntime:
         rf.hz_history = d.get("hz_history", [])
         rf.session_peak_hz = d.get("session_peak_hz", 174)
         return rf
+
+    def _deserialise_synergy(self) -> SynergyState:                  # C32
+        d = self._memory.get("synergy", {})
+        sy = blank_synergy_state()
+        sy.last_factor       = d.get("last_factor", 0.5)
+        sy.last_stage        = d.get("last_stage", "convergent")
+        sy.high_synergy_peak = d.get("high_synergy_peak", 0.0)
+        sy.low_synergy_floor = d.get("low_synergy_floor", 1.0)
+        sy.turn_history      = d.get("turn_history", [])
+        return sy
