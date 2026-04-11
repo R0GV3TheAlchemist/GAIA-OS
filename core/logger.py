@@ -111,7 +111,7 @@ class GAIAEvent(str, Enum):
     CANON_SEARCH        = "canon.search"
 
     # Errors
-    ERROR               = "error"
+    ERROR               = "error.generic"
     UNHANDLED_EXCEPTION = "error.unhandled"
 
 
