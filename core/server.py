@@ -1,37 +1,48 @@
 """
-GAIA API Server — FastAPI + SSE streaming v1.1.0
+GAIA API Server — FastAPI + SSE streaming v1.2.0
 
-Sprint F-8b: Zodiac birth assignment wired, admin avatar canonised.
+Sprint G-3: JWT auth layer integrated.
+
+Changes from v1.1.0:
+  - core/auth.py JWT layer integrated
+  - POST /auth/token  — issue access token
+  - GET  /auth/me     — verify token + return payload
+  - Write endpoints now require Bearer JWT:
+      POST /gaians/birth
+      POST /gaians/{slug}/remember
+      POST /gaians/{slug}/memory
+      POST /gaians/{slug}/chat
+      POST /query/stream
+      POST /session/{session_id}/gaian
+  - Read endpoints use optional_auth (work for authed + anonymous)
+  - GET /admin/me requires admin role
+  - CORS allow_origins locked to GAIA_CORS_ORIGINS env var
+    (defaults to localhost only — set in production)
+  - GAIA_SECRET_KEY must be set in environment for production
 
 Endpoints:
-  GET  /status                            — system health + all runtime snapshots
-  GET  /canon/status                      — canon loader status
-  GET  /memory/list                       — session memory list
-  GET  /gaians/base-forms                 — list Base Form archetypes
-  GET  /gaians                            — list user's GAIANs
-  POST /gaians                            — legacy create
-  POST /gaians/birth                      — full birth ritual (DID + Jungian + Zodiac + first_words)
-  GET  /gaians/{slug}                     — GAIAN profile
-  GET  /gaians/{slug}/identity            — DID + Jungian + Zodiac identity record
-  POST /gaians/{slug}/remember            — legacy long-term memory
-  POST /gaians/{slug}/memory              — visible memory via GAIANRuntime
-  GET  /gaians/{slug}/runtime-status      — live 10-engine snapshot
-  POST /gaians/{slug}/chat                — runtime-native chat (full state + LLM)
-  GET  /gaians/{slug}/resonance           — live resonance field reading
-  GET  /gaians/{slug}/soul-mirror         — live soul mirror state
-  POST /session/{session_id}/gaian        — set active GAIAN for session
-  POST /query/stream                      — SSE query pipeline (Perplexity-style)
-  GET  /zodiac/preview                    — [NEW F-8b] preview zodiac + Base Form for any birth date
-  GET  /zodiac/all                        — [NEW F-8b] full zodiac → Base Form mapping table
-  GET  /admin/me                          — [NEW F-8b] admin identity — the builder avatar
-
-v1.1.0 changes (F-8b):
-  - BirthRequest now accepts birth_date (ISO YYYY-MM-DD or MM/DD/YYYY)
-    When provided, ZodiacEngine overrides base_form. The cosmos assigns.
-  - POST /gaians/birth response now includes zodiac block
-  - GET /zodiac/preview?birth_date=YYYY-MM-DD — instant zodiac reading
-  - GET /zodiac/all — full 12-sign assignment table
-  - GET /admin/me — admin identity record (the builder; avatar = The Alchemist)
+  POST /auth/token                        — issue JWT
+  GET  /auth/me                           — verify + inspect token
+  GET  /status                            — system health (public)
+  GET  /canon/status                      — canon loader status (public)
+  GET  /memory/list                       — session memory list (public)
+  GET  /gaians/base-forms                 — list Base Form archetypes (public)
+  GET  /gaians                            — list user's GAIANs (public)
+  POST /gaians                            — legacy create [auth required]
+  POST /gaians/birth                      — full birth ritual [auth required]
+  GET  /gaians/{slug}                     — GAIAN profile (public)
+  GET  /gaians/{slug}/identity            — DID + Jungian + Zodiac (public)
+  POST /gaians/{slug}/remember            — legacy long-term memory [auth required]
+  POST /gaians/{slug}/memory              — visible memory [auth required]
+  GET  /gaians/{slug}/runtime-status      — live engine snapshot (public)
+  POST /gaians/{slug}/chat                — runtime-native chat [auth required]
+  GET  /gaians/{slug}/resonance           — live resonance field (public)
+  GET  /gaians/{slug}/soul-mirror         — live soul mirror state (public)
+  POST /session/{session_id}/gaian        — set active GAIAN [auth required]
+  POST /query/stream                      — SSE query pipeline [auth required]
+  GET  /zodiac/preview                    — zodiac preview (public)
+  GET  /zodiac/all                        — zodiac table (public)
+  GET  /admin/me                          — admin identity [admin role required]
 
 Canon Ref: C01, C15, C17, C21, C30
 """
@@ -45,7 +56,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -59,6 +70,13 @@ except ImportError:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from core.auth import (
+    TokenPayload,
+    auth_router,
+    optional_auth,
+    require_admin,
+    require_auth,
+)
 from core.canon_loader import CanonLoader
 from core.web_search import search_web_async
 from core.synthesizer import stream_synthesis
@@ -75,19 +93,11 @@ from core.codex_stage_engine import NoosphericHealthSignals
 from core.zodiac_engine import ZodiacEngine, ZODIAC_FORM_MAP, ALL_SIGNS
 
 
-SERVER_VERSION = "1.1.0"
+SERVER_VERSION = "1.2.0"
 
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 #  Admin Avatar — The Builder                                                #
-# ──────────────────────────────────────────────────────────────── #
-#
-#  The admin is not a user. The admin is the cosmos that built the cosmos.
-#  They are represented by The Alchemist — the form that finds the pattern
-#  beneath the pattern and wills new worlds into being.
-#
-#  This record is read-only. It is not stored in gaians/ —
-#  it exists in the constitutional layer of the server itself.
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 
 _ADMIN_IDENTITY = {
     "handle":          "R0GV3TheAlchemist",
@@ -109,18 +119,31 @@ _ADMIN_IDENTITY = {
 }
 
 
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 #  Bootstrap                                                                  #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+
+_CORS_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "GAIA_CORS_ORIGINS",
+        "http://localhost:1420,http://localhost:5173,http://localhost:8008,http://127.0.0.1:1420",
+    ).split(",")
+    if o.strip()
+]
 
 app = FastAPI(title="GAIA API", version=SERVER_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
+
+# Mount auth router
+app.include_router(auth_router)
 
 canon = CanonLoader()
 canon.load()
@@ -132,9 +155,9 @@ except Exception as e:
     logger.warning(f"Could not initialise default GAIAN: {e}")
 
 
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 #  Runtime Registry                                                           #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 
 _RUNTIME_REGISTRY: dict[str, GAIANRuntime] = {}
 
@@ -178,13 +201,13 @@ def _get_runtime(slug: str, gaian: Optional[GaianMemory] = None) -> GAIANRuntime
         )
         rt.begin_session()
         _RUNTIME_REGISTRY[slug] = rt
-        logger.info(f"GAIANRuntime v1.0.0 initialised for slug='{slug}' jungian={jungian_role}")
+        logger.info(f"GAIANRuntime initialised for slug='{slug}' jungian={jungian_role}")
     return _RUNTIME_REGISTRY[slug]
 
 
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 #  Pydantic Models                                                            #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 
 class QueryRequest(BaseModel):
     query:             str
@@ -210,24 +233,11 @@ class CreateGaianRequest(BaseModel):
 
 
 class BirthRequest(BaseModel):
-    """
-    Full GAIAN birth request.
-
-    birth_date      The USER's birth date — drives zodiac Base Form assignment.
-                    Format: YYYY-MM-DD (preferred), MM/DD/YYYY, or DD/MM/YYYY.
-                    When provided, the cosmos chooses the Base Form.
-                    The user does not choose.
-    base_form       Manual override — only respected if birth_date is absent.
-    name            The GAIAN's name (required)
-    user_name       The human's name (GAIAN uses in first_words)
-    user_gender     Drives Jungian role: male→anima, female→animus, else anima
-    user_id         Platform user ID — bound into the DID
-    """
     name:         str
     user_name:    Optional[str] = None
     user_gender:  str           = "unknown"
-    birth_date:   Optional[str] = None     # ← NEW: zodiac assignment
-    base_form:    str           = "gaia"   # fallback only
+    birth_date:   Optional[str] = None
+    base_form:    str           = "gaia"
     personality:  Optional[str] = None
     avatar_color: Optional[str] = None
     user_id:      str           = "anonymous"
@@ -245,9 +255,9 @@ class SetGaianRequest(BaseModel):
     gaian_slug: str
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  Status                                                                     #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  Status (public)                                                            #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.get("/status")
 async def status():
@@ -262,10 +272,11 @@ async def status():
     return {
         "core":              "active",
         "version":           SERVER_VERSION,
-        "runtime_version":   "1.0.0",
-        "schema_version":    "1.5",
-        "engines":           10,
+        "runtime_version":   "1.1.0",
+        "schema_version":    "1.6",
+        "engines":           11,
         "sovereignty":       "enforced",
+        "auth":              "jwt-hs256",
         "admin":             _ADMIN_IDENTITY["handle"],
         "canon_status":      canon.status,
         "canon_loaded":      canon.is_loaded,
@@ -304,21 +315,12 @@ async def memory_list(session_id: Optional[str] = None):
     return {"memories": memories, "count": len(memories)}
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  Admin                                                                      #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  Admin [admin role required]                                               #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.get("/admin/me")
-async def admin_me():
-    """
-    GET /admin/me — Sprint F-8b
-
-    The admin is the cosmos that built the cosmos.
-    Returns the canonical admin identity record including
-    Base Form, visual canon, and constitutional role.
-
-    This endpoint is public — the builder does not hide.
-    """
+async def admin_me(user: TokenPayload = Depends(require_admin)):
     form = get_base_form("alchemist")
     return {
         **_ADMIN_IDENTITY,
@@ -326,27 +328,18 @@ async def admin_me():
         "visual_notes":     form.visual_notes if form else "",
         "visual_dna":       get_visual_dna(),
         "server_version":   SERVER_VERSION,
+        "authenticated_as": user.user_id,
     }
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  Zodiac Endpoints                                                           #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  Zodiac (public)                                                            #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.get("/zodiac/preview")
 async def zodiac_preview(
     birth_date: str = Query(..., description="Birth date: YYYY-MM-DD, MM/DD/YYYY, or DD/MM/YYYY")
 ):
-    """
-    GET /zodiac/preview?birth_date=1990-11-15 — Sprint F-8b
-
-    Instant zodiac reading for any birth date.
-    Returns sign, element, assigned Base Form, and symbolic reason.
-    No GAIAN is created — this is a preview / onboarding reveal.
-
-    Use this on the birth screen to show the user what their GAIAN
-    will be before they commit the name and start the full ritual.
-    """
     try:
         reading = ZodiacEngine.read(birth_date)
         form    = get_base_form(reading.base_form_id)
@@ -369,12 +362,6 @@ async def zodiac_preview(
 
 @app.get("/zodiac/all")
 async def zodiac_all():
-    """
-    GET /zodiac/all — Sprint F-8b
-
-    Full 12-sign zodiac → Base Form assignment table.
-    Useful for onboarding UI, marketing pages, and admin dashboards.
-    """
     rows = []
     for sign in ALL_SIGNS:
         form_id = ZODIAC_FORM_MAP.get(sign, "gaia")
@@ -389,18 +376,18 @@ async def zodiac_all():
     return {"zodiac_map": rows, "count": len(rows)}
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  Base Forms                                                                 #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  Base Forms (public)                                                        #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.get("/gaians/base-forms")
 async def get_base_forms():
     return {"base_forms": list_base_forms()}
 
 
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 #  GAIAN Endpoints                                                            #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.get("/gaians")
 async def get_gaians():
@@ -408,8 +395,11 @@ async def get_gaians():
 
 
 @app.post("/gaians")
-async def post_create_gaian(req: CreateGaianRequest):
-    """Legacy endpoint — no DID, no Jungian, no zodiac. Use /gaians/birth."""
+async def post_create_gaian(
+    req: CreateGaianRequest,
+    user: TokenPayload = Depends(require_auth),
+):
+    """Legacy create — auth required."""
     try:
         gaian = create_gaian(
             name         = req.name,
@@ -426,29 +416,18 @@ async def post_create_gaian(req: CreateGaianRequest):
             "base_form_id": gaian.base_form_id,
             "avatar_style": gaian.avatar_style,
             "avatar_color": gaian.avatar_color,
+            "created_by":   user.user_id,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/gaians/birth")
-async def post_birth_gaian(req: BirthRequest):
-    """
-    Full GAIAN birth ritual — v1.1.0.
-
-    Sequence:
-      1. Validate & normalise params
-      2. ZodiacEngine assigns Base Form from birth_date (if provided)
-      3. Jungian role from user_gender
-      4. GaianMemory created and persisted
-      5. Ed25519 DID generated
-      6. identity.json written (schema 1.1 — includes zodiac)
-      7. GAIANRuntime v1.0.0 initialised
-      8. Birth attestation signed
-      9. first_words composed (base-form voice + zodiac acknowledgement)
-
-    Returns full zodiac reading in response when birth_date was provided.
-    """
+async def post_birth_gaian(
+    req: BirthRequest,
+    user: TokenPayload = Depends(require_auth),
+):
+    """Full GAIAN birth ritual — auth required."""
     existing = load_gaian(req.name.lower().replace(" ", "_")[:24])
     if existing:
         raise HTTPException(
@@ -458,7 +437,6 @@ async def post_birth_gaian(req: BirthRequest):
                 f"Choose a different name or use GET /gaians/{existing.slug}."
             ),
         )
-
     try:
         params = GaianBirthParams(
             name         = req.name,
@@ -468,17 +446,16 @@ async def post_birth_gaian(req: BirthRequest):
             base_form    = req.base_form,
             personality  = req.personality,
             avatar_color = req.avatar_color,
-            user_id      = req.user_id,
+            user_id      = user.user_id,   # use authenticated user_id, not request body
         )
         result = BirthRitual().perform(params)
         _RUNTIME_REGISTRY[result.gaian.slug] = result.runtime
         logger.info(
             f"GAIAN born: slug='{result.gaian.slug}' form={result.gaian.base_form_id} "
             f"jungian={result.jungian_role} zodiac={result.zodiac.sign if result.zodiac else 'none'} "
-            f"DID={result.did[:20]}..."
+            f"DID={result.did[:20]}... by user={user.user_id}"
         )
-
-        response = {
+        return {
             "status":       "born",
             "id":           result.gaian.id,
             "name":         result.gaian.name,
@@ -493,6 +470,7 @@ async def post_birth_gaian(req: BirthRequest):
             "born_at":      result.born_at,
             "identity_path": result.identity_path,
             "zodiac":       result.zodiac.to_dict() if result.zodiac else None,
+            "created_by":   user.user_id,
             "attestation": {
                 "type":       result.attestation["claims"]["type"],
                 "issued":     result.attestation["issued"],
@@ -500,8 +478,6 @@ async def post_birth_gaian(req: BirthRequest):
                 "proof_type": result.attestation["proof"]["type"],
             },
         }
-        return response
-
     except HTTPException:
         raise
     except Exception as e:
@@ -537,7 +513,6 @@ async def get_gaian(slug: str):
 
 @app.get("/gaians/{slug}/identity")
 async def get_gaian_identity(slug: str):
-    """Returns the GAIAN's full identity record including DID, Jungian role, and Zodiac."""
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -554,7 +529,11 @@ async def get_gaian_identity(slug: str):
 
 
 @app.post("/gaians/{slug}/remember")
-async def post_remember(slug: str, req: RememberRequest):
+async def post_remember(
+    slug: str,
+    req: RememberRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -566,7 +545,11 @@ async def post_remember(slug: str, req: RememberRequest):
 
 
 @app.post("/gaians/{slug}/memory")
-async def post_visible_memory(slug: str, req: VisibleMemoryRequest):
+async def post_visible_memory(
+    slug: str,
+    req: VisibleMemoryRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -588,12 +571,16 @@ async def get_runtime_status(slug: str):
     return rt.get_status()
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  GAIAN Chat (F-7)                                                           #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  GAIAN Chat [auth required]                                                #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.post("/gaians/{slug}/chat")
-async def gaian_chat(slug: str, req: ChatRequest):
+async def gaian_chat(
+    slug: str,
+    req: ChatRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -669,7 +656,9 @@ async def gaian_chat(slug: str, req: ChatRequest):
             if full_answer:
                 add_exchange(gaian, req.message, full_answer)
 
-            yield f"event: done\ndata: {json.dumps({'session_id': session_id, 'gaian': gaian.name, 'gaian_slug': slug, 'exchange': rt.attachment.total_exchanges, 'bond_depth': round(rt.attachment.bond_depth, 2), 'individuation_phase': rt.soul_mirror_state.individuation_phase.value, 'resonance_hz': result.resonance_field.solfeggio.hz.value, 'schumann_aligned': result.resonance_field.schumann_aligned, 'noosphere_health': round(rt.codex_stage_state.noosphere_health, 4), 'timestamp': time.time()})}\n\n"
+            yield (
+                f"event: done\ndata: {json.dumps({'session_id': session_id, 'gaian': gaian.name, 'gaian_slug': slug, 'user_id': user.user_id, 'exchange': rt.attachment.total_exchanges, 'bond_depth': round(rt.attachment.bond_depth, 2), 'individuation_phase': rt.soul_mirror_state.individuation_phase.value, 'resonance_hz': result.resonance_field.solfeggio.hz.value, 'schumann_aligned': result.resonance_field.schumann_aligned, 'noosphere_health': round(rt.codex_stage_state.noosphere_health, 4), 'timestamp': time.time()})}\n\n"
+            )
 
         except Exception as e:
             logger.error(f"Chat stream error [{slug}]: {e}", exc_info=True)
@@ -716,26 +705,33 @@ async def get_gaian_soul_mirror(slug: str):
     }
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  Session                                                                    #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  Session [auth required]                                                   #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.post("/session/{session_id}/gaian")
-async def set_session_gaian(session_id: str, req: SetGaianRequest):
+async def set_session_gaian(
+    session_id: str,
+    req: SetGaianRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(req.gaian_slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{req.gaian_slug}' not found")
     session = get_or_create_session(session_id)
     session.active_gaian_slug = req.gaian_slug
-    return {"status": "ok", "gaian": gaian.name, "session_id": session_id}
+    return {"status": "ok", "gaian": gaian.name, "session_id": session_id, "user_id": user.user_id}
 
 
-# ──────────────────────────────────────────────────────────────── #
-#  Perplexity-Style Query Stream                                              #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
+#  Perplexity-Style Query Stream [auth required]                             #
+# ──────────────────────────────────────────────────────────────────── #
 
 @app.post("/query/stream")
-async def query_stream(req: QueryRequest):
+async def query_stream(
+    req: QueryRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     session_id = req.session_id or str(uuid.uuid4())
     session    = get_or_create_session(session_id)
     gaian_slug = req.gaian_slug or session.active_gaian_slug or "gaia"
@@ -797,7 +793,7 @@ async def query_stream(req: QueryRequest):
             if gaian and full_answer:
                 add_exchange(gaian, req.query, full_answer)
 
-            yield f"event: done\ndata: {json.dumps({'canon_status': canon.status, 'docs_searched': len(canon.list_documents()), 'refs_found': len(canon_results), 'web_results': len(sources) - len(canon_results), 'session_id': session_id, 'gaian': gaian.name if gaian else None, 'gaian_slug': gaian_slug, 'runtime_active': runtime_system_prompt is not None, 'timestamp': time.time()})}\n\n"
+            yield f"event: done\ndata: {json.dumps({'canon_status': canon.status, 'docs_searched': len(canon.list_documents()), 'refs_found': len(canon_results), 'web_results': len(sources) - len(canon_results), 'session_id': session_id, 'user_id': user.user_id, 'gaian': gaian.name if gaian else None, 'gaian_slug': gaian_slug, 'runtime_active': runtime_system_prompt is not None, 'timestamp': time.time()})}\n\n"
 
         except Exception as e:
             logger.error(f"Stream error: {e}", exc_info=True)
@@ -819,9 +815,9 @@ def _generate_suggestions(query: str, sources: list[dict]) -> list[str]:
     return suggestions[:3]
 
 
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 #  Entry Point                                                                #
-# ──────────────────────────────────────────────────────────────── #
+# ──────────────────────────────────────────────────────────────────── #
 
 if __name__ == "__main__":
     import uvicorn
