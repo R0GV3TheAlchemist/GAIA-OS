@@ -187,7 +187,7 @@ class TestGAIAEvent:
         assert GAIAEvent.TURN_COMPLETE == "turn.complete"
 
     def test_error_value(self):
-        assert GAIAEvent.ERROR == "error"
+        assert GAIAEvent.ERROR == "error.generic"
 
     def test_request_in_value(self):
         assert GAIAEvent.REQUEST_IN == "http.request"
