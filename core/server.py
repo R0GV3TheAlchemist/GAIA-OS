@@ -1,13 +1,16 @@
 """
-GAIA API Server — FastAPI + SSE streaming v1.3.1
+GAIA API Server — FastAPI + SSE streaming v1.4.0
 
-Sprint G-5: UI Audit fixes.
+Sprint G-6: Global error boundary.
 
-Changes from v1.3.0:
-  - /status response: added `canon_docs` (list[str]) field alongside
-    existing `canon_doc_count` (int) so the UI can render canon doc names
+Changes from v1.3.1:
+  - install_error_handlers(app) called immediately after app = FastAPI(...)
+  - All unhandled exceptions now return a structured JSON envelope instead
+    of FastAPI's default {"detail": ...} shape
+  - X-Correlation-ID header is present on every error response
+  - No internal tracebacks are ever leaked to clients
 
-Endpoints: (unchanged from v1.3.0)
+Endpoints: (unchanged from v1.3.1)
   POST /auth/token  GET /auth/me
   GET  /status  GET /canon/status  GET /memory/list
   GET  /gaians/base-forms  GET /gaians
@@ -75,9 +78,10 @@ from core.gaian_runtime import GAIANRuntime, GAIANIdentity
 from core.gaian_birth import BirthRitual, GaianBirthParams
 from core.codex_stage_engine import NoosphericHealthSignals
 from core.zodiac_engine import ZodiacEngine, ZODIAC_FORM_MAP, ALL_SIGNS
+from core.error_boundary import install_error_handlers
 
 
-SERVER_VERSION = "1.3.1"
+SERVER_VERSION = "1.4.0"
 
 # ──────────────────────────────────────────────────────────────────── #
 #  Admin Avatar — The Builder                                                #
@@ -117,6 +121,9 @@ _CORS_ORIGINS = [
 ]
 
 app = FastAPI(title="GAIA API", version=SERVER_VERSION)
+
+# G-6: Install error boundary FIRST — before middleware and routes
+install_error_handlers(app)
 
 # Middleware order: logging first (outermost), then CORS
 app.add_middleware(LoggingMiddleware)
@@ -253,7 +260,7 @@ class SetGaianRequest(BaseModel):
 @app.get("/status")
 async def status():
     doc_count = len(canon.list_documents())
-    doc_names = canon.list_documents()          # G-5: expose list for UI
+    doc_names = canon.list_documents()
     gaians    = list_gaians()
     runtime_snapshots = {}
     for slug, rt in _RUNTIME_REGISTRY.items():
@@ -274,7 +281,7 @@ async def status():
         "canon_status":      canon.status,
         "canon_loaded":      canon.is_loaded,
         "canon_doc_count":   doc_count,
-        "canon_docs":        doc_names,         # G-5: list of doc name strings for UI
+        "canon_docs":        doc_names,
         "gaians":            len(gaians),
         "gaian_names":       [g["name"] for g in gaians],
         "base_forms":        len(list_base_forms()),
