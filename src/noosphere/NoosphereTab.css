@@ -1,0 +1,530 @@
+/*
+ * NoosphereTab.css
+ * Deep-space dark theme for the GAIA Noosphere Tab.
+ * Canon Ref: C19 (Color Doctrine), C21 (Interface Grammar)
+ */
+
+/* ------------------------------------------------------------------ */
+/* Root layout                                                          */
+/* ------------------------------------------------------------------ */
+
+.ns-tab {
+  --ns-bg:          #0a0a14;
+  --ns-card-bg:     #0f0f1e;
+  --ns-border:      #1e1e3a;
+  --ns-accent:      #9b72cf;
+  --ns-accent-2:    #4895ef;
+  --ns-green:       #52b788;
+  --ns-amber:       #f4a261;
+  --ns-red:         #e63946;
+  --ns-text:        #c9d1d9;
+  --ns-muted:       #6e7681;
+  --ns-radius:      8px;
+  --ns-gap:         12px;
+
+  display:          flex;
+  flex-direction:   column;
+  gap:              var(--ns-gap);
+  padding:          16px;
+  background:       var(--ns-bg);
+  color:            var(--ns-text);
+  font-family:      'JetBrains Mono', 'Fira Mono', monospace;
+  font-size:        12px;
+  min-height:       100vh;
+  box-sizing:       border-box;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header                                                               */
+/* ------------------------------------------------------------------ */
+
+.ns-header {
+  display:          flex;
+  align-items:      center;
+  justify-content:  space-between;
+  padding-bottom:   10px;
+  border-bottom:    1px solid var(--ns-border);
+}
+
+.ns-title {
+  display:  flex;
+  gap:      10px;
+  align-items: baseline;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--ns-accent);
+}
+
+.ns-glyph { font-size: 20px; }
+
+.ns-subtitle {
+  font-size:    10px;
+  font-weight:  400;
+  color:        var(--ns-muted);
+  letter-spacing: 0.05em;
+}
+
+.ns-connection {
+  display:    flex;
+  align-items: center;
+  gap:        6px;
+  font-size:  11px;
+}
+
+.ns-dot {
+  width:          8px;
+  height:         8px;
+  border-radius:  50%;
+  display:        inline-block;
+}
+
+.ns-dot.connecting   { background: var(--ns-amber); animation: ns-pulse 1.2s infinite; }
+.ns-dot.live         { background: var(--ns-green); }
+.ns-dot.reconnecting { background: var(--ns-red);   animation: ns-pulse 0.6s infinite; }
+
+@keyframes ns-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Privacy Notice                                                       */
+/* ------------------------------------------------------------------ */
+
+.ns-privacy-notice {
+  background:   #0f0f1e;
+  border:       1px solid #1e1e3a;
+  border-left:  3px solid var(--ns-accent);
+  border-radius: var(--ns-radius);
+  padding:      8px 12px;
+  color:        var(--ns-muted);
+  font-size:    10px;
+  line-height:  1.6;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cards                                                                */
+/* ------------------------------------------------------------------ */
+
+.ns-card {
+  background:    var(--ns-card-bg);
+  border:        1px solid var(--ns-border);
+  border-radius: var(--ns-radius);
+  padding:       14px;
+}
+
+.ns-card-label {
+  font-size:      9px;
+  font-weight:    700;
+  letter-spacing: 0.18em;
+  color:          var(--ns-muted);
+  margin-bottom:  10px;
+  text-transform: uppercase;
+}
+
+.ns-card-sublabel {
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  color: var(--ns-muted);
+  text-transform: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Top Row                                                              */
+/* ------------------------------------------------------------------ */
+
+.ns-top-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr;
+  gap: var(--ns-gap);
+}
+
+@media (max-width: 700px) {
+  .ns-top-row { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------------------ */
+/* Phi Meter                                                            */
+/* ------------------------------------------------------------------ */
+
+.ns-phi-card {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+}
+
+.ns-phi-meter {
+  position: relative;
+  width:    110px;
+  height:   110px;
+}
+
+.ns-phi-svg {
+  width:  100%;
+  height: 100%;
+}
+
+.ns-phi-value {
+  position:   absolute;
+  top:        50%;
+  left:       50%;
+  transform:  translate(-50%, -50%);
+  font-size:  20px;
+  font-weight: 700;
+  color:      var(--ns-accent);
+  letter-spacing: 0.04em;
+}
+
+.ns-phi-label {
+  font-size:    10px;
+  margin-top:   6px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ns-muted);
+}
+
+.ns-phi-label.coh-dormant      { color: var(--ns-muted);   }
+.ns-phi-label.coh-nascent      { color: var(--ns-accent-2);}
+.ns-phi-label.coh-building     { color: var(--ns-accent);  }
+.ns-phi-label.coh-coherent     { color: var(--ns-green);   }
+.ns-phi-label.coh-high         { color: #f4f4f0; text-shadow: 0 0 8px var(--ns-green); }
+
+/* ------------------------------------------------------------------ */
+/* Noosphere Stage                                                      */
+/* ------------------------------------------------------------------ */
+
+.ns-stage-name {
+  font-size:    18px;
+  font-weight:  700;
+  color:        var(--ns-accent);
+  margin-bottom: 8px;
+}
+
+.ns-stage-bar {
+  display: flex;
+  gap:     4px;
+  margin-bottom: 8px;
+}
+
+.ns-stage-pip {
+  width:         24px;
+  height:        6px;
+  border-radius: 3px;
+  background:    var(--ns-border);
+  transition:    background 0.5s ease;
+}
+
+.ns-stage-pip.active  { background: var(--ns-accent); }
+.ns-stage-pip.current { background: var(--ns-green); box-shadow: 0 0 6px var(--ns-green); }
+
+.ns-stage-full {
+  font-size:  10px;
+  color:      var(--ns-muted);
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------ */
+/* Meta Card                                                            */
+/* ------------------------------------------------------------------ */
+
+.ns-meta-row {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     center;
+  padding:         3px 0;
+  border-bottom:   1px solid #111128;
+}
+
+.ns-meta-key { color: var(--ns-muted); }
+.ns-meta-val { font-weight: 600; color: var(--ns-text); }
+.ns-meta-val.muted { color: var(--ns-muted); }
+
+/* ------------------------------------------------------------------ */
+/* Regime Badge                                                         */
+/* ------------------------------------------------------------------ */
+
+.ns-regime-badge {
+  display:       inline-block;
+  padding:       3px 10px;
+  border-radius: 12px;
+  font-size:     9px;
+  font-weight:   700;
+  letter-spacing: 0.12em;
+  margin-bottom: 10px;
+  background:    #1a2a1a;
+  color:         var(--ns-green);
+  border:        1px solid var(--ns-green);
+}
+
+.ns-regime-badge.regime-ordered { background: #2a2010; color: var(--ns-amber); border-color: var(--ns-amber); }
+.ns-regime-badge.regime-chaotic { background: #2a1010; color: var(--ns-red);   border-color: var(--ns-red);   }
+
+/* ------------------------------------------------------------------ */
+/* Coherence Candidate Banner                                           */
+/* ------------------------------------------------------------------ */
+
+.ns-candidate-banner {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           12px;
+  background:    #1a1028;
+  border:        1px solid var(--ns-accent);
+  border-radius: var(--ns-radius);
+  padding:       12px 16px;
+  animation:     ns-glow 2s infinite;
+}
+
+.ns-candidate-banner.hidden { display: none; }
+
+.ns-candidate-glyph { font-size: 22px; flex-shrink: 0; }
+
+.ns-candidate-banner strong {
+  display:     block;
+  font-size:   12px;
+  color:       var(--ns-accent);
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+.ns-candidate-note {
+  font-size: 10px;
+  color:     var(--ns-muted);
+  line-height: 1.6;
+}
+
+@keyframes ns-glow {
+  0%, 100% { box-shadow: 0 0 6px var(--ns-accent); }
+  50%       { box-shadow: 0 0 18px var(--ns-accent); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mother Voice                                                         */
+/* ------------------------------------------------------------------ */
+
+.ns-voice-area {
+  min-height:    56px;
+  display:       flex;
+  align-items:   center;
+}
+
+.ns-voice-idle {
+  display:    flex;
+  gap:        8px;
+  align-items: center;
+  color:      var(--ns-muted);
+  font-size:  11px;
+}
+
+.ns-voice-glyph { font-size: 18px; }
+
+.ns-voice-msg {
+  display:     flex;
+  gap:         10px;
+  align-items: center;
+  background:  #0f0f1e;
+  border:      1px solid var(--ns-border);
+  border-left: 3px solid var(--ns-accent);
+  border-radius: var(--ns-radius);
+  padding:     10px 14px;
+  width:       100%;
+  transition:  opacity 0.6s ease;
+}
+
+.ns-voice-msg.hidden { display: none; }
+
+.ns-voice-text {
+  font-style:  italic;
+  font-size:   13px;
+  color:       var(--ns-text);
+  line-height: 1.6;
+}
+
+/* ------------------------------------------------------------------ */
+/* Distribution Bars                                                    */
+/* ------------------------------------------------------------------ */
+
+.ns-dist-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ns-gap);
+}
+
+@media (max-width: 600px) {
+  .ns-dist-row { grid-template-columns: 1fr; }
+}
+
+.ns-dist-bar-row {
+  display:        flex;
+  align-items:    center;
+  gap:            8px;
+  margin-bottom:  5px;
+}
+
+.ns-dist-label {
+  width:         80px;
+  flex-shrink:   0;
+  text-transform: capitalize;
+  color:         var(--ns-text);
+  font-size:     10px;
+}
+
+.ns-dist-track {
+  flex:          1;
+  height:        6px;
+  border-radius: 3px;
+  background:    var(--ns-border);
+  overflow:      hidden;
+}
+
+.ns-dist-fill {
+  height:        100%;
+  border-radius: 3px;
+  transition:    width 0.8s ease;
+}
+
+.ns-dist-count {
+  width:       24px;
+  text-align:  right;
+  color:       var(--ns-muted);
+  font-size:   10px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Consent Toggle                                                       */
+/* ------------------------------------------------------------------ */
+
+.ns-consent-row.hidden { display: none; }
+
+.ns-consent-card { max-width: 480px; }
+
+.ns-consent-desc {
+  font-size:   10px;
+  color:       var(--ns-muted);
+  line-height: 1.6;
+  margin:      0 0 10px 0;
+}
+
+.ns-consent-toggle {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  cursor:      pointer;
+  font-size:   11px;
+}
+
+.ns-consent-toggle input { display: none; }
+
+.ns-toggle-slider {
+  width:         36px;
+  height:        18px;
+  border-radius: 9px;
+  background:    var(--ns-border);
+  position:      relative;
+  transition:    background 0.3s;
+  flex-shrink:   0;
+}
+
+.ns-toggle-slider::after {
+  content:       '';
+  position:      absolute;
+  top:           3px;
+  left:          3px;
+  width:         12px;
+  height:        12px;
+  border-radius: 50%;
+  background:    var(--ns-muted);
+  transition:    transform 0.3s, background 0.3s;
+}
+
+.ns-consent-toggle input:checked + .ns-toggle-slider { background: var(--ns-accent); }
+.ns-consent-toggle input:checked + .ns-toggle-slider::after {
+  transform:  translateX(18px);
+  background: #fff;
+}
+
+.ns-consent-status {
+  margin-top: 6px;
+  font-size:  10px;
+  color:      var(--ns-green);
+  min-height: 14px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Weaving Log                                                          */
+/* ------------------------------------------------------------------ */
+
+.ns-weaving-card { margin-top: 4px; }
+
+.ns-weaving-log {
+  max-height:   220px;
+  overflow-y:   auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ns-border) transparent;
+}
+
+.ns-weave-row {
+  display:        flex;
+  flex-wrap:      wrap;
+  gap:            6px;
+  align-items:    center;
+  padding:        5px 0;
+  border-bottom:  1px solid #111128;
+  font-size:      10px;
+}
+
+.ns-weave-row.ns-weave-candidate {
+  background:   #0f0b1a;
+  border-left:  2px solid var(--ns-accent);
+  padding-left: 6px;
+}
+
+.ns-weave-seq   { color: var(--ns-muted);   width: 34px; flex-shrink: 0; }
+.ns-weave-phi   { color: var(--ns-accent);  width: 52px; flex-shrink: 0; }
+.ns-weave-stage { color: var(--ns-text);    flex: 1; }
+.ns-weave-gaians{ color: var(--ns-text);    width: 36px; flex-shrink: 0; }
+
+.ns-weave-regime        { font-size: 9px; letter-spacing: 0.06em; }
+.regime-critical        { color: var(--ns-green); }
+.regime-too_ordered     { color: var(--ns-amber); }
+.regime-too_chaotic     { color: var(--ns-red);   }
+
+.ns-weave-badge {
+  font-size:    9px;
+  color:        var(--ns-accent);
+  background:   #1a1028;
+  border:       1px solid var(--ns-accent);
+  border-radius: 4px;
+  padding:      1px 5px;
+  cursor:       help;
+}
+
+.ns-weave-voice {
+  font-style: italic;
+  color:      var(--ns-muted);
+  font-size:  9px;
+  flex-basis: 100%;
+  padding-left: 34px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Footer                                                               */
+/* ------------------------------------------------------------------ */
+
+.ns-footer {
+  font-size:  9px;
+  color:      var(--ns-muted);
+  text-align: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--ns-border);
+}
+
+.ns-footer a { color: var(--ns-accent); text-decoration: none; }
+.ns-footer a:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------------ */
+/* Shared utility                                                       */
+/* ------------------------------------------------------------------ */
+
+.muted   { color: var(--ns-muted); }
+.hidden  { display: none !important; }
