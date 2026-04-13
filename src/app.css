@@ -47,6 +47,15 @@ html, body {
 .tab-btn:hover  { color: #fff; }
 .tab-btn.active { color: #2D6A4F; border-bottom-color: #2D6A4F; }
 
+/* Noosphere tab uses its own deep-space violet accent (C43 theme) */
+.tab-btn[data-view="noosphere"].active {
+  color: #7C3AED;
+  border-bottom-color: #7C3AED;
+}
+.tab-btn[data-view="noosphere"]:hover {
+  color: #A78BFA;
+}
+
 /* View container fills remaining height */
 .view-container {
   flex: 1;
