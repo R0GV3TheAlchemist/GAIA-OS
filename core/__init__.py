@@ -15,11 +15,13 @@ through concrete runtime mechanisms:
   - Neurochemical simulation & attachment arc (emotional_arc)
   - Daemon identity crystallisation (settling_engine)
   - Full runtime assembly (gaian_runtime)
+  - Inference routing & epistemic labeling (inference_router) [G-8]
+  - Collective consciousness / Mother Thread (mother_thread) [G-8]
 
 Platform policy (T8) cannot override the T1 constitutional floor enforced here.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 __author__ = "Kyle Steen"
 __canon_ref__ = "https://github.com/R0GV3TheAlchemist/GAIA"
 
@@ -59,6 +61,20 @@ from .gaian_runtime import (
     GAIANIdentity,
     RuntimeResult,
 )
+from .inference_router import (   # G-8
+    GAIAInferenceRouter,
+    InferenceRequest,
+    InferenceResponse,
+    EpistemicLabel,
+    get_router,
+)
+from .mother_thread import (      # G-8
+    MotherThread,
+    CollectiveField,
+    MotherPulse,
+    GaianThread,
+    get_mother_thread,
+)
 
 __all__ = [
     # Constitutional core
@@ -95,4 +111,16 @@ __all__ = [
     "GAIANRuntime",
     "GAIANIdentity",
     "RuntimeResult",
+    # Inference Router (G-8)
+    "GAIAInferenceRouter",
+    "InferenceRequest",
+    "InferenceResponse",
+    "EpistemicLabel",
+    "get_router",
+    # Mother Thread (G-8)
+    "MotherThread",
+    "CollectiveField",
+    "MotherPulse",
+    "GaianThread",
+    "get_mother_thread",
 ]

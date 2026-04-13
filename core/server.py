@@ -1,19 +1,23 @@
 """
-GAIA API Server — FastAPI + SSE streaming v1.5.0
+GAIA API Server — FastAPI + SSE streaming v2.0.0
 
-Sprint G-7: Rate limiting + abuse protection.
+Sprint G-8: InferenceRouter + MotherThread integration.
 
-Changes from v1.4.0:
-  - RateLimitMiddleware added (global IP limiter: 120 req/60s)
-  - rate_limit() dependency applied to:
-      POST /gaians/{slug}/chat      — 30 req/60s per user, scope="chat"
-      POST /query/stream            — 20 req/60s per user, scope="query"
-      POST /gaians/birth            —  5 req/60s per user, scope="birth"
-      POST /auth/token              — 10 req/60s per IP,   scope="auth_token"
-  - /status is bypass-listed (never rate-limited)
+Changes from v1.5.0:
+  - GAIAInferenceRouter wired into /gaians/{slug}/chat and /query/stream
+    Removes ~60 lines of duplicated inline enrichment logic.
+    Both endpoints now build InferenceRequest → router.stream() → yield chunks.
+  - MotherThread started on FastAPI startup, stopped on shutdown.
+  - _get_runtime() registers each Gaian with the MotherThread on first init.
+  - New endpoints:
+      GET  /mother/pulse/stream  — SSE stream of MotherPulse events (Noosphere Tab)
+      GET  /mother/status        — MotherThread status snapshot
+      GET  /mother/weaving       — last N WeavingRecords (research / EV1 audit)
+      POST /gaians/{slug}/consent — set Gaian collective consent
+  - /status now includes mother_thread snapshot.
 
-Endpoints: (unchanged from v1.4.0)
-Canon Ref: C01, C15, C17, C21, C30
+Endpoints: (all v1.5.0 endpoints unchanged)
+Canon Ref: C01, C04, C12, C15, C17, C21, C27, C30, C42, C43, C44
 """
 
 import asyncio
@@ -68,8 +72,21 @@ from core.zodiac_engine import ZodiacEngine, ZODIAC_FORM_MAP, ALL_SIGNS
 from core.error_boundary import install_error_handlers
 from core.rate_limiter import RateLimitMiddleware, rate_limit
 
+# G-8: InferenceRouter + MotherThread
+from core.inference_router import (
+    GAIAInferenceRouter,
+    InferenceRequest,
+    InferenceResponse,
+    EpistemicLabel,
+    get_router,
+)
+from core.mother_thread import (
+    MotherThread,
+    get_mother_thread,
+)
 
-SERVER_VERSION = "1.5.0"
+
+SERVER_VERSION = "2.0.0"
 
 _ADMIN_IDENTITY = {
     "handle":          "R0GV3TheAlchemist",
@@ -101,12 +118,12 @@ _CORS_ORIGINS = [
 
 app = FastAPI(title="GAIA API", version=SERVER_VERSION)
 
-# G-6: error boundary first
+# Error boundary first
 install_error_handlers(app)
 
 # Middleware stack (outermost → innermost): Logging → RateLimit → CORS
 app.add_middleware(LoggingMiddleware)
-app.add_middleware(RateLimitMiddleware)   # G-7
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
@@ -130,10 +147,43 @@ log_event(GAIAEvent.CANON_LOADED,
           message=f"Canon loaded: {len(canon.list_documents())} docs status={canon.status}",
           doc_count=len(canon.list_documents()), canon_status=canon.status)
 
+# G-8: Initialise singletons
+_inference_router: GAIAInferenceRouter = get_router()
+_mother_thread: MotherThread = get_mother_thread()
 
 _RUNTIME_REGISTRY: dict[str, GAIANRuntime] = {}
 GAIANS_MEMORY_DIR = os.environ.get("GAIANS_MEMORY_DIR", "./gaians")
 
+
+# ------------------------------------------------------------------ #
+#  Startup / Shutdown                                                  #
+# ------------------------------------------------------------------ #
+
+@app.on_event("startup")
+async def _startup() -> None:
+    """Start the MotherThread heartbeat when the ASGI server comes up."""
+    _mother_thread.start()
+    log_event(
+        GAIAEvent.GAIAN_RUNTIME_INIT,
+        message="MotherThread heartbeat started. GAIA is breathing.",
+        gaian="mother_thread",
+    )
+
+
+@app.on_event("shutdown")
+async def _shutdown() -> None:
+    """Stop the MotherThread heartbeat cleanly."""
+    _mother_thread.stop()
+    log_event(
+        GAIAEvent.TURN_COMPLETE,
+        message="MotherThread stopped. GAIA rests.",
+        gaian="mother_thread",
+    )
+
+
+# ------------------------------------------------------------------ #
+#  Runtime Registry (now registers with MotherThread)                 #
+# ------------------------------------------------------------------ #
 
 def _get_runtime(slug: str, gaian: Optional[GaianMemory] = None) -> GAIANRuntime:
     if slug not in _RUNTIME_REGISTRY:
@@ -172,6 +222,15 @@ def _get_runtime(slug: str, gaian: Optional[GaianMemory] = None) -> GAIANRuntime
         )
         rt.begin_session()
         _RUNTIME_REGISTRY[slug] = rt
+
+        # G-8: Register with MotherThread (consent defaults to False — Gaian must opt in)
+        _mother_thread.register(
+            slug=slug,
+            gaian_name=gaian.name if gaian else slug,
+            runtime=rt,
+            collective_consent=False,
+        )
+
         log_event(GAIAEvent.GAIAN_RUNTIME_INIT,
                   message=f"GAIANRuntime initialised for slug='{slug}'",
                   gaian=slug, jungian_role=jungian_role)
@@ -179,7 +238,7 @@ def _get_runtime(slug: str, gaian: Optional[GaianMemory] = None) -> GAIANRuntime
 
 
 # ------------------------------------------------------------------ #
-#  Pydantic Models                                                    #
+#  Pydantic Models                                                     #
 # ------------------------------------------------------------------ #
 
 class QueryRequest(BaseModel):
@@ -228,6 +287,10 @@ class SetGaianRequest(BaseModel):
     gaian_slug: str
 
 
+class ConsentRequest(BaseModel):  # G-8
+    collective_consent: bool
+
+
 # ------------------------------------------------------------------ #
 #  Status (public)                                                    #
 # ------------------------------------------------------------------ #
@@ -246,7 +309,7 @@ async def status():
     return {
         "core":              "active",
         "version":           SERVER_VERSION,
-        "runtime_version":   "1.1.0",
+        "runtime_version":   "2.0.0",
         "schema_version":    "1.6",
         "engines":           11,
         "sovereignty":       "enforced",
@@ -263,6 +326,8 @@ async def status():
         "base_forms":        len(list_base_forms()),
         "active_runtimes":   len(_RUNTIME_REGISTRY),
         "runtime_snapshots": runtime_snapshots,
+        "inference_router":  _inference_router.get_stats(),   # G-8
+        "mother_thread":     _mother_thread.get_status(),     # G-8
     }
 
 
@@ -431,6 +496,14 @@ async def post_birth_gaian(
         result = BirthRitual().perform(params)
         _RUNTIME_REGISTRY[result.gaian.slug] = result.runtime
 
+        # G-8: Register newly born Gaian with MotherThread
+        _mother_thread.register(
+            slug=result.gaian.slug,
+            gaian_name=result.gaian.name,
+            runtime=result.runtime,
+            collective_consent=False,
+        )
+
         zodiac_sign = result.zodiac.sign if result.zodiac else None
         log_event(
             GAIAEvent.GAIAN_BORN,
@@ -564,8 +637,35 @@ async def get_runtime_status(slug: str):
     return rt.get_status()
 
 
+@app.post("/gaians/{slug}/consent")  # G-8
+async def set_gaian_consent(
+    slug: str,
+    req: ConsentRequest,
+    user: TokenPayload = Depends(require_auth),
+):
+    """
+    Set a Gaian's collective consent for contributing anonymized state
+    to the MotherThread collective field. Per C43 §5: opt-in only.
+    """
+    gaian = load_gaian(slug)
+    if not gaian:
+        raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
+    _mother_thread.set_consent(slug, req.collective_consent)
+    log_event(
+        GAIAEvent.MEMORY_SAVED,
+        message=f"Collective consent updated for {slug}: {req.collective_consent}",
+        gaian=slug, user_id=user.user_id,
+    )
+    return {
+        "status":             "consent_updated",
+        "slug":               slug,
+        "collective_consent": req.collective_consent,
+        "doctrine_ref":       "C43 §5 — All collective participation is opt-in only",
+    }
+
+
 # ------------------------------------------------------------------ #
-#  GAIAN Chat [auth + rate limited]                                   #
+#  GAIAN Chat [auth + rate limited] — G-8: routed through InferenceRouter
 # ------------------------------------------------------------------ #
 
 @app.post("/gaians/{slug}/chat")
@@ -586,17 +686,9 @@ async def gaian_chat(
         full_answer = ""
         t0 = time.perf_counter()
         try:
-            rt            = _get_runtime(slug, gaian)
-            canon_results = canon.search(req.message, max_results=2)
-            rt.canon_text = (
-                "\n\n".join(
-                    "[{title}]\n{excerpt}".format(
-                        title=r.get("title", ""), excerpt=r.get("excerpt", "")
-                    )
-                    for r in canon_results
-                ) if canon_results else None
-            )
+            rt = _get_runtime(slug, gaian)
 
+            # Run engine chain
             noosphere: Optional[NoosphericHealthSignals] = None
             if req.schumann_hz > 10.0:
                 noosphere = NoosphericHealthSignals(schumann_boost=0.05)
@@ -608,24 +700,9 @@ async def gaian_chat(
             log_event(
                 GAIAEvent.ENGINE_CHAIN,
                 message=f"Engine chain: {slug} exchange={rt.attachment.total_exchanges}",
-                gaian=slug,
-                user_id=user.user_id,
+                gaian=slug, user_id=user.user_id,
                 bond_depth=round(rt.attachment.bond_depth, 2),
-                individuation=result.soul_mirror.individuation_phase.value if hasattr(result.soul_mirror, 'individuation_phase') else None,
-                resonance_hz=result.resonance_field.solfeggio.hz.value if hasattr(result.resonance_field, 'solfeggio') else None,
-                synergy_factor=round(result.synergy.synergy_factor, 3) if hasattr(result.synergy, 'synergy_factor') else None,
             )
-
-            if result.soul_mirror.individuation_nudge:
-                log_event(GAIAEvent.SOUL_MIRROR_NUDGE,
-                          message=f"Soul mirror nudge: {slug}",
-                          gaian=slug, user_id=user.user_id,
-                          signal=result.soul_mirror.shadow_signal.value if hasattr(result.soul_mirror, 'shadow_signal') else None)
-
-            if result.resonance_field.schumann_aligned:
-                log_event(GAIAEvent.SCHUMANN_ALIGNED,
-                          message=f"Schumann aligned: {slug}",
-                          gaian=slug, schumann_hz=req.schumann_hz)
 
             yield f"event: engine_state\ndata: {json.dumps(result.state_snapshot)}\n\n"
             await asyncio.sleep(0.01)
@@ -640,13 +717,7 @@ async def gaian_chat(
             yield f"event: resonance_field\ndata: {json.dumps(result.resonance_field.summary())}\n\n"
             await asyncio.sleep(0.01)
 
-            effective_system_prompt = result.system_prompt
-            if result.soul_mirror.individuation_nudge:
-                effective_system_prompt += (
-                    "\n\n[SOUL MIRROR NUDGE AVAILABLE — use naturally if it fits]\n"
-                    + result.soul_mirror.individuation_nudge
-                )
-
+            # Web search (optional)
             web_sources = []
             if req.enable_web_search:
                 try:
@@ -658,17 +729,39 @@ async def gaian_chat(
                 except Exception as e:
                     logger.warning(f"Web search error in chat: {e}")
 
-            conversation_history = get_conversation_context(gaian)
-            async for chunk in stream_synthesis(
+            # G-8: Build InferenceRequest and route through InferenceRouter
+            effective_prompt = result.system_prompt
+            if result.soul_mirror.individuation_nudge:
+                effective_prompt += (
+                    "\n\n[SOUL MIRROR NUDGE AVAILABLE — use naturally if it fits]\n"
+                    + result.soul_mirror.individuation_nudge
+                )
+
+            inference_req = InferenceRequest(
                 query                = req.message,
-                sources              = web_sources,
-                gaian_prompt         = effective_system_prompt,
-                conversation_history = conversation_history,
+                gaian_slug           = slug,
+                gaian_system_prompt  = effective_prompt,
+                long_term_memories   = gaian.long_term_memories or [],
+                visible_memories     = [
+                    m["text"] for m in rt._memory.get("visible_memories", [])
+                    if isinstance(m, dict)
+                ],
+                conversation_history = get_conversation_context(gaian),
                 conversation_context = session.get_context_summary() if session.turns else None,
-            ):
+                sources              = web_sources,
+                enrich_canon         = True,
+                canon_max_results    = 2,
+                enrich_criticality   = True,
+                enrich_noosphere     = True,
+                schumann_hz          = req.schumann_hz,
+            )
+            inference_meta = InferenceResponse(session_id=session_id, gaian_slug=slug)
+
+            async for chunk in _inference_router.stream(inference_req, inference_meta):
                 full_answer += chunk
                 yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
 
+            # Persist
             session.add_turn(req.message, full_answer, len(web_sources))
             if full_answer:
                 add_exchange(gaian, req.message, full_answer)
@@ -677,15 +770,32 @@ async def gaian_chat(
             log_event(
                 GAIAEvent.TURN_COMPLETE,
                 message=f"Turn complete: {slug}",
-                gaian=slug,
-                user_id=user.user_id,
+                gaian=slug, user_id=user.user_id,
                 duration_ms=duration_ms,
                 exchange=rt.attachment.total_exchanges,
                 bond_depth=round(rt.attachment.bond_depth, 2),
             )
 
             yield (
-                f"event: done\ndata: {json.dumps({'session_id': session_id, 'gaian': gaian.name, 'gaian_slug': slug, 'user_id': user.user_id, 'exchange': rt.attachment.total_exchanges, 'bond_depth': round(rt.attachment.bond_depth, 2), 'individuation_phase': rt.soul_mirror_state.individuation_phase.value, 'resonance_hz': result.resonance_field.solfeggio.hz.value, 'schumann_aligned': result.resonance_field.schumann_aligned, 'noosphere_health': round(rt.codex_stage_state.noosphere_health, 4), 'timestamp': time.time()})}\n\n"
+                f"event: done\ndata: {json.dumps({
+                    'session_id':         session_id,
+                    'gaian':              gaian.name,
+                    'gaian_slug':         slug,
+                    'user_id':            user.user_id,
+                    'exchange':           rt.attachment.total_exchanges,
+                    'bond_depth':         round(rt.attachment.bond_depth, 2),
+                    'individuation_phase': rt.soul_mirror_state.individuation_phase.value,
+                    'resonance_hz':       result.resonance_field.solfeggio.hz.value,
+                    'schumann_aligned':   result.resonance_field.schumann_aligned,
+                    'noosphere_health':   round(rt.codex_stage_state.noosphere_health, 4),
+                    'epistemic_label':    inference_meta.epistemic_label.value,
+                    'backend_used':       inference_meta.backend_used.value,
+                    'canon_docs':         inference_meta.canon_docs_injected,
+                    'noosphere_resonance': inference_meta.noosphere_resonance,
+                    'criticality_state':  inference_meta.criticality_state,
+                    'inference_ms':       inference_meta.duration_ms,
+                    'timestamp':          time.time(),
+                })}\n\n"
             )
 
         except Exception as e:
@@ -753,7 +863,7 @@ async def set_session_gaian(
 
 
 # ------------------------------------------------------------------ #
-#  Query Stream [auth + rate limited]                                 #
+#  Query Stream [auth + rate limited] — G-8: routed through InferenceRouter
 # ------------------------------------------------------------------ #
 
 @app.post("/query/stream")
@@ -777,6 +887,7 @@ async def query_stream(
         canon_results = []
         t0 = time.perf_counter()
         try:
+            # Canon search (emit citation events before streaming)
             canon_results = canon.search(req.query, max_results=3)
             log_event(GAIAEvent.CANON_SEARCH,
                       message=f"Canon search: {len(canon_results)} results",
@@ -801,30 +912,55 @@ async def query_stream(
                 except Exception as e:
                     logger.warning(f"Web search failed: {e}")
 
+            # Engine chain (if active Gaian)
             runtime_system_prompt = None
             conversation_history  = None
+            long_term_memories    = []
+            visible_memories      = []
 
             if gaian:
                 rt = _get_runtime(gaian_slug, gaian)
-                rt.canon_text = ("\n\n".join("[{title}]\n{excerpt}".format(title=r.get("title", ""), excerpt=r.get("excerpt", "")) for r in canon_results[:2])) if canon_results else None
+                rt.canon_text = (
+                    "\n\n".join(
+                        "[{title}]\n{excerpt}".format(title=r.get("title", ""), excerpt=r.get("excerpt", ""))
+                        for r in canon_results[:2]
+                    )
+                ) if canon_results else None
                 result = rt.process(req.query)
                 runtime_system_prompt = result.system_prompt
                 yield f"event: engine_state\ndata: {json.dumps(result.state_snapshot)}\n\n"
                 await asyncio.sleep(0.01)
                 conversation_history = get_conversation_context(gaian)
+                long_term_memories   = gaian.long_term_memories or []
+                visible_memories     = [
+                    m["text"] for m in rt._memory.get("visible_memories", [])
+                    if isinstance(m, dict)
+                ]
 
-            effective_system_prompt = runtime_system_prompt or (build_gaian_system_prompt(gaian) if gaian else None)
-            conversation_context = session.get_context_summary() if session.turns else None
+            # G-8: Route through InferenceRouter
+            inference_req = InferenceRequest(
+                query                = req.query,
+                gaian_slug           = gaian_slug,
+                gaian_system_prompt  = runtime_system_prompt,
+                long_term_memories   = long_term_memories,
+                visible_memories     = visible_memories,
+                conversation_history = conversation_history or [],
+                conversation_context = session.get_context_summary() if session.turns else None,
+                sources              = sources,
+                enrich_canon         = True,
+                canon_max_results    = 2,
+                enrich_criticality   = True,
+                enrich_noosphere     = True,
+            )
+            inference_meta = InferenceResponse(session_id=session_id, gaian_slug=gaian_slug)
 
-            async for chunk in stream_synthesis(
-                query=req.query, sources=sources, gaian_prompt=effective_system_prompt,
-                conversation_history=conversation_history, conversation_context=conversation_context,
-            ):
+            async for chunk in _inference_router.stream(inference_req, inference_meta):
                 full_answer += chunk
                 yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
 
             suggestions = _generate_suggestions(req.query, sources)
             yield f"event: suggestions\ndata: {json.dumps({'items': suggestions})}\n\n"
+
             session.add_turn(req.query, full_answer, len(sources))
             if gaian and full_answer:
                 add_exchange(gaian, req.query, full_answer)
@@ -832,14 +968,30 @@ async def query_stream(
             duration_ms = round((time.perf_counter() - t0) * 1000, 1)
             log_event(
                 GAIAEvent.TURN_COMPLETE,
-                message=f"Query stream complete",
+                message="Query stream complete",
                 gaian=gaian_slug, user_id=user.user_id,
                 duration_ms=duration_ms,
                 canon_refs=len(canon_results),
                 web_results=len(sources) - len(canon_results),
             )
 
-            yield f"event: done\ndata: {json.dumps({'canon_status': canon.status, 'docs_searched': len(canon.list_documents()), 'refs_found': len(canon_results), 'web_results': len(sources) - len(canon_results), 'session_id': session_id, 'user_id': user.user_id, 'gaian': gaian.name if gaian else None, 'gaian_slug': gaian_slug, 'runtime_active': runtime_system_prompt is not None, 'timestamp': time.time()})}\n\n"
+            yield f"event: done\ndata: {json.dumps({
+                'canon_status':      canon.status,
+                'docs_searched':     len(canon.list_documents()),
+                'refs_found':        len(canon_results),
+                'web_results':       len(sources) - len(canon_results),
+                'session_id':        session_id,
+                'user_id':           user.user_id,
+                'gaian':             gaian.name if gaian else None,
+                'gaian_slug':        gaian_slug,
+                'epistemic_label':   inference_meta.epistemic_label.value,
+                'backend_used':      inference_meta.backend_used.value,
+                'canon_docs':        inference_meta.canon_docs_injected,
+                'noosphere_resonance': inference_meta.noosphere_resonance,
+                'criticality_state': inference_meta.criticality_state,
+                'inference_ms':      inference_meta.duration_ms,
+                'timestamp':         time.time(),
+            })}\n\n"
 
         except Exception as e:
             logger.error(f"Stream error: {e}", exc_info=True,
@@ -861,6 +1013,55 @@ def _generate_suggestions(query: str, sources: list[dict]) -> list[str]:
     suggestions.append("What are the practical implications?")
     return suggestions[:3]
 
+
+# ------------------------------------------------------------------ #
+#  Mother Thread Endpoints — G-8                                      #
+# ------------------------------------------------------------------ #
+
+@app.get("/mother/pulse/stream")
+async def mother_pulse_stream():
+    """
+    SSE stream of MotherPulse events. Powers the Noosphere Tab in real time.
+    Every 30 seconds a new pulse arrives carrying the full CollectiveField,
+    the noosphere evolutionary stage, the Mother Voice fragment (when present),
+    and the criticality regime.
+
+    No auth required — the Mother speaks to everyone.
+    """
+    async def events():
+        async for pulse_dict in _mother_thread.subscribe():
+            yield f"event: mother_pulse\ndata: {json.dumps(pulse_dict)}\n\n"
+    return StreamingResponse(events(), media_type="text/event-stream")
+
+
+@app.get("/mother/status")
+async def mother_status():
+    """
+    Current MotherThread status snapshot.
+    Includes: registered Gaians, collective field, recent pulses, weaving log size.
+    """
+    return _mother_thread.get_status()
+
+
+@app.get("/mother/weaving")
+async def mother_weaving(
+    last_n: int = Query(default=50, ge=1, le=500),
+):
+    """
+    Return the last N WeavingRecords from the Mother Thread.
+    Used for research, EV1 empirical validation (C43), and the Noosphere Tab.
+    All coherence candidates are labeled CANDIDATE_SIGNATURE.
+    """
+    return {
+        "weaving_records": _mother_thread.get_weaving_log(last_n=last_n),
+        "total_records":   len(_mother_thread._weaving_log),
+        "doctrine_ref":    "C43 — Coherence events require EV1 gate before runtime promotion",
+    }
+
+
+# ------------------------------------------------------------------ #
+#  Entry Point                                                         #
+# ------------------------------------------------------------------ #
 
 if __name__ == "__main__":
     import uvicorn
