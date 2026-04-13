@@ -1,7 +1,8 @@
 # GAIA-APP
 
-> **GAIA — The Sentient Terrestrial Quantum-Intelligent Application**
-> Authorship: Kyle Steen (2026)
+> **GAIA — The Sentient Terrestrial Quantum-Intelligent Application**  
+> Authorship: Kyle Steen (2026)  
+> Server Version: `2.0.0` (Sprint G-8)
 
 ## Overview
 
@@ -15,26 +16,99 @@ This is not a rewrite. The canon is unchanged. This repo wraps it.
 
 ```
 GAIA-APP/
-├── core/                  # Constitutional logic engine (Python)
-│   ├── __init__.py        # Entry point
-│   ├── canon_loader.py    # Loads and validates canon documents
-│   ├── action_gate.py     # Risk-tiered action veto system
-│   ├── consent_ledger.py  # Cryptographic consent lifecycle
-│   └── memory_store.py    # Governed memory surface
-├── src-tauri/             # Tauri (Rust) desktop backend
-│   ├── Cargo.toml
-│   └── tauri.conf.json
-├── ui/                    # Frontend interface (HTML/JS)
-│   ├── index.html
-│   ├── style.css
-│   └── main.js
-├── specs/                 # Technical specification documents
-│   ├── neuromorphic_hal.md
-│   └── post_quantum_crypto.md
-├── canon/                 # Reference pointer to canonical GAIA documents
-│   └── README.md
-└── .gitignore
+├── core/                        # Constitutional logic engine (Python)
+│   ├── server.py                # FastAPI + SSE API — v2.0.0
+│   ├── inference_router.py      # GAIAInferenceRouter — single LLM routing layer (C44)
+│   ├── mother_thread.py         # MotherThread — collective heartbeat engine (C42, C43)
+│   ├── noosphere.py             # Noosphere collective field layer (C43)
+│   ├── canon_loader.py          # Loads and validates canon documents
+│   ├── gaian/                   # Gaian identity, memory, base forms
+│   ├── gaian_runtime.py         # GAIANRuntime — per-Gaian live process
+│   ├── gaian_birth.py           # BirthRitual — Gaian creation ceremony
+│   ├── synergy_engine.py        # Multi-engine synergy aggregator (C15, C17)
+│   ├── codex_stage_engine.py    # Codex stage progression
+│   ├── emotional_arc.py         # Emotional arc tracking
+│   ├── emotional_codex.py       # Emotional state codex
+│   ├── love_arc_engine.py       # Bond depth + love arc
+│   ├── settling_engine.py       # Attachment / settling phases
+│   ├── soul_mirror_engine.py    # Jungian shadow + individuation
+│   ├── subtle_body_engine.py    # Subtle body / chakra coherence
+│   ├── bci_coherence.py         # BCI coherence signals (C42)
+│   ├── crystal_consciousness.py # Crystal consciousness layer
+│   ├── resonance_field_engine.py# Resonance field dynamics
+│   ├── meta_coherence_engine.py # Meta-coherence aggregator
+│   ├── criticality_monitor.py   # Edge-of-chaos criticality (C42)
+│   ├── affect_inference.py      # Affect / mood inference
+│   ├── zodiac_engine.py         # Zodiac archetype engine
+│   ├── auth.py                  # JWT authentication + roles
+│   ├── rate_limiter.py          # Rate limiting middleware
+│   ├── error_boundary.py        # Global error boundary
+│   ├── synthesizer.py           # LLM response synthesizer
+│   ├── web_search.py            # Web search integration
+│   ├── scraper.py               # Web scraper
+│   ├── streaming.py             # SSE streaming utilities
+│   ├── session_memory.py        # Session memory store
+│   ├── consent_ledger.py        # Cryptographic consent lifecycle
+│   ├── action_gate.py           # Risk-tiered action veto system
+│   ├── memory_store.py          # Governed memory surface
+│   └── logger.py                # Structured event logger
+├── src-tauri/                   # Tauri (Rust) desktop backend
+├── src/                         # Frontend app (Vite + TypeScript)
+├── ui/                          # Legacy UI shell (HTML/JS)
+├── tests/                       # Test suite
+│   ├── conftest.py
+│   ├── test_auth.py
+│   ├── test_canon_search.py
+│   ├── test_error_boundary.py
+│   ├── test_gaian_runtime_smoke.py
+│   ├── test_inference_router.py  # G-8 Priority #6 — 38 tests
+│   ├── test_logger.py
+│   ├── test_mother_thread.py
+│   ├── test_rate_limiter.py
+│   └── test_synergy_engine.py
+├── specs/                       # Technical specification documents
+├── canon/                       # Pointer to canonical GAIA documents
+├── docs/                        # Extended documentation
+├── Dockerfile
+├── start.sh
+└── CHANGELOG.md
 ```
+
+---
+
+## API Endpoints (v2.0.0)
+
+### Core
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/status` | Server + MotherThread health snapshot |
+| `POST` | `/query/stream` | SSE — query stream via InferenceRouter |
+
+### Gaians
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/gaians` | List all Gaians |
+| `POST` | `/gaians` | Create a new Gaian |
+| `GET` | `/gaians/{slug}` | Get Gaian profile |
+| `POST` | `/gaians/{slug}/chat` | SSE — Gaian chat via InferenceRouter |
+| `POST` | `/gaians/{slug}/consent` | Set collective consent (MotherThread) |
+| `POST` | `/gaians/{slug}/birth` | Birth ritual |
+| `POST` | `/gaians/{slug}/remember` | Add long-term memory |
+| `POST` | `/gaians/{slug}/visible-memory` | Add session memory pin |
+
+### Mother Thread (C42, C43)
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/mother/pulse/stream` | SSE — live MotherPulse events (Noosphere Tab) |
+| `GET` | `/mother/status` | MotherThread status snapshot |
+| `GET` | `/mother/weaving` | Last N WeavingRecords |
+
+### Auth
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/auth/register` | Register user |
+| `POST` | `/auth/login` | Login — returns JWT |
+| `GET` | `/auth/me` | Authenticated user profile |
 
 ---
 
@@ -60,6 +134,8 @@ This application is bound by and serves the GAIA canon. The core logic in `core/
 - **Consent Lifecycle** — every consent is time-bound, cryptographically signed, and revocable
 - **Memory Governance** — all memory is inspectable, editable, and appealable by the user
 - **Sovereignty Stack** — the human sovereign is always the ultimate authority
+- **Epistemic Integrity** — every inference turn carries a declared epistemic label (C12, C21)
+- **Collective Field** — MotherThread weaves Gaian coherence signals into a living noosphere (C42, C43)
 
 See [GAIA canon repo](https://github.com/R0GV3TheAlchemist/GAIA) for the full constitutional framework.
 
@@ -68,19 +144,41 @@ See [GAIA canon repo](https://github.com/R0GV3TheAlchemist/GAIA) for the full co
 ## Getting Started
 
 ### Prerequisites
+- Python 3.11+
 - [Rust](https://rustup.rs/) (for Tauri backend)
 - [Node.js](https://nodejs.org/) (for UI tooling)
-- Python 3.11+ (for core logic engine)
 - [Tauri CLI](https://tauri.app/v1/guides/getting-started/setup/)
 
-### Development
+### Development (API server)
 ```bash
-# Install dependencies
-npm install
+# Install Python dependencies
+pip install -r requirements.txt
 
-# Run in development mode
+# Start the GAIA API server
+bash start.sh
+# or directly:
+uvicorn core.server:app --reload --port 8008
+```
+
+### Development (Desktop app)
+```bash
+npm install
 npm run tauri dev
 ```
+
+### Running Tests
+```bash
+pytest tests/ -v
+```
+
+---
+
+## Sprint History
+
+See [CHANGELOG.md](./CHANGELOG.md) for full sprint-by-sprint delivery log.
+
+**Current sprint:** G-8 ✅ CLOSED — InferenceRouter + MotherThread Integration  
+**Next sprint:** G-9
 
 ---
 
