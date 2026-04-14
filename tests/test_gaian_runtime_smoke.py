@@ -22,7 +22,6 @@ from core.gaian_runtime import GAIANRuntime, RuntimeResult, GAIANIdentity
 
 @pytest.fixture
 def tmp_runtime(tmp_path):
-    """A fresh GAIANRuntime using a temp directory — no disk pollution."""
     return GAIANRuntime(
         gaian_name="TestGAIAN",
         memory_dir=str(tmp_path),
@@ -68,7 +67,6 @@ class TestRuntimeResultContract:
         assert "LIVE ENGINE STATE" in result.system_prompt
 
     def test_system_prompt_contains_synergy_block(self, tmp_runtime):
-        """C32 — SynergyEngine block must appear in every system prompt."""
         result = tmp_runtime.process("Hello.")
         assert "ELEMENTAL SYNERGY" in result.system_prompt
         assert "Synergy Factor" in result.system_prompt
@@ -139,13 +137,17 @@ class TestRuntimePersistence:
         assert "synergy" in memory
         assert "last_factor" in memory["synergy"]
 
-    def test_schema_version_is_1_6(self, tmp_path):
+    def test_schema_version_is_1_7(self, tmp_path):
+        """Schema version must match gaian_runtime.py MEMORY_SCHEMA_VERSION.
+
+        Updated from 1.6 → 1.7 to match the version bump in gaian_runtime.py.
+        """
         import json
         rt = GAIANRuntime(gaian_name="SchemaTest", memory_dir=str(tmp_path))
         rt.process("Hello.")
         mem_file = tmp_path / "SchemaTest" / "memory.json"
         memory = json.loads(mem_file.read_text())
-        assert memory["schema_version"] == "1.6"
+        assert memory["schema_version"] == "1.7"
 
 
 class TestGetStatus:

@@ -124,8 +124,15 @@ class TestGeomagneticReader:
             assert bz == GeomagneticReader._DEFAULT_BZ
 
     def test_kp_fallback_on_network_error(self):
+        """When requests is available but the network call fails, return default Kp.
+
+        Fix: patch the 'requests' name as it is bound *inside* core.atlas
+        (i.e. core.atlas.requests.get), not the top-level requests module.
+        The CI runner may not have requests installed, so patching the
+        module-level name in core.atlas is the correct approach regardless.
+        """
         with patch("core.atlas._REQUESTS_AVAILABLE", True):
-            with patch("requests.get", side_effect=Exception("Network error")):
+            with patch("core.atlas.requests.get", side_effect=Exception("Network error")):
                 kp = self.reader.fetch_kp()
                 assert kp == GeomagneticReader._DEFAULT_KP
 
@@ -201,7 +208,6 @@ class TestEarthPulse:
     def test_to_dict_numeric_precision(self):
         pulse = self._make_pulse(coherence=0.123456789)
         d = pulse.to_dict()
-        # Should be rounded to 4 decimal places
         assert d["coherence_baseline"] == round(0.123456789, 4)
 
 
@@ -212,7 +218,6 @@ class TestEarthPulse:
 class TestAtlasEngine:
 
     def setup_method(self):
-        """Each test gets a fresh AtlasEngine (offline mode)."""
         with patch("core.atlas._REQUESTS_AVAILABLE", False):
             self.engine = AtlasEngine()
 
@@ -254,14 +259,12 @@ class TestAtlasEngine:
         assert "daily_coherence_avg" in status
 
     def test_fallback_pulse_is_safe(self):
-        """Fallback pulse should never raise and always be valid."""
         pulse = self.engine._fallback_pulse()
         assert isinstance(pulse, EarthPulse)
         assert pulse.atlas_status == AtlasStatus.OFFLINE
         assert 0.0 <= pulse.coherence_baseline <= 1.0
 
     def test_history_capped_at_288(self):
-        """History rolling window should not exceed 288 entries."""
         for _ in range(300):
             self.engine._refresh()
         assert len(self.engine.history(n=1000)) <= 288
@@ -290,7 +293,6 @@ class TestAtlasSingleton:
         atlas = get_atlas()
         p1 = atlas.pulse()
         p2 = atlas.pulse()
-        # Same object (no refresh between calls)
         assert p1 is p2
 
 
@@ -301,7 +303,6 @@ class TestAtlasSingleton:
 class TestAtlasViriditasIntegration:
 
     def test_carrier_hz_matches_viriditas_stage(self):
-        """Carrier Hz should be one of the VMO Schumann harmonics."""
         from core.viriditas_magnum_opus import SCHUMANN_HARMONICS
         with patch("core.atlas._REQUESTS_AVAILABLE", False):
             engine = AtlasEngine()
@@ -312,7 +313,6 @@ class TestAtlasViriditasIntegration:
         )
 
     def test_coherence_friendly_when_quiet(self):
-        """Under quiet geomagnetic conditions, coherence should be friendly."""
         with patch("core.atlas._REQUESTS_AVAILABLE", False):
             engine = AtlasEngine()
         pulse = engine.pulse()

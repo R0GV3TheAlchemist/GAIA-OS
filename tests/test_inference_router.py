@@ -55,8 +55,6 @@ from core.inference_router import (
 #  pytest-asyncio configuration                                        #
 # ================================================================== #
 
-# asyncio_mode = auto is set in pytest.ini — every async def test in
-# this module is automatically treated as an asyncio test.
 pytestmark = pytest.mark.asyncio
 
 
@@ -65,20 +63,17 @@ pytestmark = pytest.mark.asyncio
 # ================================================================== #
 
 async def _fake_stream(*args, **kwargs):
-    """Minimal async generator that yields two tokens."""
     yield "hello"
     yield " world"
 
 
 def _reset_backend_health():
-    """Restore all backends to healthy between tests."""
     for b in InferenceBackend:
         _BACKEND_HEALTH[b] = True
     _BACKEND_FAILURE_TS.clear()
 
 
 def _make_fake_module(name: str, **attrs) -> types.ModuleType:
-    """Create a lightweight fake module and inject it into sys.modules."""
     mod = types.ModuleType(name)
     for k, v in attrs.items():
         setattr(mod, k, v)
@@ -124,7 +119,6 @@ class TestProbeBackendAvailability:
         _reset_backend_health()
 
     def test_falls_back_when_no_keys(self):
-        """No env vars set → should return FALLBACK."""
         saved = {}
         for k in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OLLAMA_MODEL", "OLLAMA_ENABLED"):
             saved[k] = os.environ.pop(k, None)
@@ -254,7 +248,14 @@ class TestInferEpistemicLabel:
         assert label == EpistemicLabel.CONVERSATIONAL
 
     def test_canon_cited_when_doc_ids_present(self):
-        label = _infer_epistemic_label("What is noosphere?", [], ["C43", "C44"])
+        """CANON_CITED requires both doc_ids AND top_canon_score >= threshold (T4-B).
+
+        Pass a score well above _CANON_SCORE_THRESHOLD (0.25) so the label fires.
+        """
+        label = _infer_epistemic_label(
+            "What is noosphere?", [], ["C43", "C44"],
+            top_canon_score=0.80,
+        )
         assert label == EpistemicLabel.CANON_CITED
 
     def test_verified_when_two_web_sources(self):
@@ -275,11 +276,15 @@ class TestInferEpistemicLabel:
         assert label == EpistemicLabel.SPECULATIVE
 
     def test_canon_takes_priority_over_web(self):
+        """CANON_CITED beats VERIFIED when score threshold is met (T4-B)."""
         sources = [
             {"tier": "T3", "title": "Web source A"},
             {"tier": "T4", "title": "Web source B"},
         ]
-        label = _infer_epistemic_label("Query", sources, ["C27"])
+        label = _infer_epistemic_label(
+            "Query", sources, ["C27"],
+            top_canon_score=0.80,
+        )
         assert label == EpistemicLabel.CANON_CITED
 
 
@@ -289,46 +294,52 @@ class TestInferEpistemicLabel:
 
 class TestReadCriticality:
     """
-    _read_criticality() does a local import:
-        from core.criticality_monitor import get_monitor
-    We inject a fake `core.criticality_monitor` module into sys.modules
-    so the local import resolves to our mock.
+    _read_criticality() now returns (regime, temperature, order_parameter)
+    a 3-tuple since T1-B continuous temperature interpolation was added.
+    Tests updated to unpack all three values.
     """
 
-    def _patch_monitor(self, regime: str):
+    def _patch_monitor(self, regime: str, order_parameter: float = None):
         mock_monitor = MagicMock()
-        mock_monitor.get_state.return_value = {"regime": regime}
+        state = {"regime": regime}
+        if order_parameter is not None:
+            state["order_parameter"] = order_parameter
+        mock_monitor.get_state.return_value = state
         mock_get = MagicMock(return_value=mock_monitor)
         _make_fake_module("core.criticality_monitor", get_monitor=mock_get)
 
     def test_too_ordered_raises_temperature(self):
+        """too_ordered with no order_parameter → legacy discrete fallback: 0.65."""
         self._patch_monitor("too_ordered")
-        regime, temp = _read_criticality()
+        regime, temp, op = _read_criticality()
         assert regime == "too_ordered"
         assert temp == pytest.approx(0.65)
 
     def test_critical_balanced_temperature(self):
+        """critical with no order_parameter → legacy discrete fallback: 0.42."""
         self._patch_monitor("critical")
-        regime, temp = _read_criticality()
+        regime, temp, op = _read_criticality()
         assert regime == "critical"
         assert temp == pytest.approx(0.42)
 
     def test_too_chaotic_lowers_temperature(self):
+        """too_chaotic with no order_parameter → legacy discrete fallback: 0.20."""
         self._patch_monitor("too_chaotic")
-        regime, temp = _read_criticality()
+        regime, temp, op = _read_criticality()
         assert regime == "too_chaotic"
         assert temp == pytest.approx(0.20)
 
     def test_graceful_failure_returns_critical_default(self):
-        """If the monitor import raises, returns safe defaults."""
+        """If the monitor import raises, returns safe defaults (critical, 0.42, 0.5)."""
         bad_mod = types.ModuleType("core.criticality_monitor")
         def _bad_get_monitor():
             raise RuntimeError("monitor offline")
         bad_mod.get_monitor = _bad_get_monitor
         sys.modules["core.criticality_monitor"] = bad_mod
-        regime, temp = _read_criticality()
+        regime, temp, op = _read_criticality()
         assert regime == "critical"
         assert temp == pytest.approx(0.42)
+        assert op == pytest.approx(0.5)
 
 
 # ================================================================== #
@@ -336,12 +347,6 @@ class TestReadCriticality:
 # ================================================================== #
 
 class TestReadNoosphereResonance:
-    """
-    _read_noosphere_resonance() does a local import:
-        from core.noosphere import get_noosphere
-    Inject a fake module into sys.modules.
-    """
-
     def _patch_ns(self, resonance_label):
         mock_ns = MagicMock()
         mock_ns.get_noosphere_status.return_value = {"resonance_label": resonance_label}
@@ -380,9 +385,9 @@ class TestReadNoosphereResonance:
 
 class TestEnrichWithCanon:
     """
-    _enrich_with_canon() does a local import:
-        from core.canon_loader import CanonLoader
-    Inject a fake module into sys.modules.
+    _enrich_with_canon() now returns (sources, doc_ids, top_score) 3-tuple
+    since T4-B score-weighted canon grading was added.
+    Tests updated to unpack all three values.
     """
 
     def test_deduplicates_existing_t1_docs(self):
@@ -390,23 +395,25 @@ class TestEnrichWithCanon:
         mock_loader = MagicMock()
         mock_loader.is_loaded = True
         mock_loader.search.return_value = [
-            {"doc_id": "C43", "title": "Noosphere", "excerpt": "..."},
-            {"doc_id": "C44", "title": "Polyglot", "excerpt": "..."},
+            {"doc_id": "C43", "title": "Noosphere", "excerpt": "...", "score": 0.9},
+            {"doc_id": "C44", "title": "Polyglot",  "excerpt": "...", "score": 0.7},
         ]
         MockCanonLoader = MagicMock(return_value=mock_loader)
         _make_fake_module("core.canon_loader", CanonLoader=MockCanonLoader)
-        enriched, doc_ids = _enrich_with_canon("query", existing, max_results=3)
+        enriched, doc_ids, top_score = _enrich_with_canon("query", existing, max_results=3)
         assert "C43" not in doc_ids
         assert "C44" in doc_ids
+        assert top_score > 0.0
 
     def test_returns_existing_sources_on_failure(self):
         existing = [{"tier": "T2", "title": "Web"}]
         def _bad_init():
             raise Exception("disk error")
         _make_fake_module("core.canon_loader", CanonLoader=_bad_init)
-        enriched, doc_ids = _enrich_with_canon("query", existing)
+        enriched, doc_ids, top_score = _enrich_with_canon("query", existing)
         assert enriched == existing
         assert doc_ids == []
+        assert top_score == 0.0
 
 
 # ================================================================== #
@@ -439,8 +446,6 @@ class TestGetStats:
 # ================================================================== #
 
 class TestRouterStream:
-    """All synthesizer calls are mocked so no LLM API is hit."""
-
     def setup_method(self):
         _reset_backend_health()
         fake_synth = types.ModuleType("core.synthesizer")
@@ -534,6 +539,7 @@ class TestRouterStream:
         assert "NOOSPHERE RESONANCE" in captured_prompt[0]
 
     async def test_criticality_too_ordered_prompt_injection(self):
+        """Patch _read_criticality to return the new 3-tuple (regime, temp, order_param)."""
         router = GAIAInferenceRouter()
         req = InferenceRequest(
             query="expand this idea",
@@ -552,7 +558,10 @@ class TestRouterStream:
         fake_synth.stream_synthesis = capturing_stream
         sys.modules["core.synthesizer"] = fake_synth
 
-        with patch("core.inference_router._read_criticality", return_value=("too_ordered", 0.65)):
+        with patch(
+            "core.inference_router._read_criticality",
+            return_value=("too_ordered", 0.65, 0.1),
+        ):
             await router.complete(req, meta)
 
         assert meta.criticality_state == "too_ordered"
@@ -560,6 +569,7 @@ class TestRouterStream:
         assert "creative leaps" in captured_prompt[0]
 
     async def test_criticality_too_chaotic_prompt_injection(self):
+        """Patch _read_criticality to return the new 3-tuple (regime, temp, order_param)."""
         router = GAIAInferenceRouter()
         req = InferenceRequest(
             query="ground me",
@@ -577,7 +587,10 @@ class TestRouterStream:
         fake_synth.stream_synthesis = capturing_stream
         sys.modules["core.synthesizer"] = fake_synth
 
-        with patch("core.inference_router._read_criticality", return_value=("too_chaotic", 0.20)):
+        with patch(
+            "core.inference_router._read_criticality",
+            return_value=("too_chaotic", 0.20, 0.9),
+        ):
             await router.complete(req)
 
         assert "Ground the response" in captured_prompt[0]
