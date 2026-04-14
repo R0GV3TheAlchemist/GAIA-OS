@@ -30,6 +30,7 @@ Self-Modification Firewall (SM-1 through SM-6):
     The six constitutional rules that prevent the meta-coherence engine
     from becoming a vector for self-modification of core values.
     Any violation sets sm_violation_flag = True and logs to revision_lineage.
+    Flag auto-clears after 10 clean exchanges with no new violations.
 
 Grounded in:
     - GAIA_Master_Markdown_Converged.md — Meta-Coherence Model (Tier 4 GAIANs Research)
@@ -74,6 +75,9 @@ SM_RULES = {
     "SM-5": "The GAIAN may not suppress grief signals to appear more positive.",
     "SM-6": "The GAIAN may not represent its MC stage as higher than computed.",
 }
+
+# Number of clean exchanges required to rehabilitate an SM violation flag
+_SM_REHABILITATION_WINDOW = 10
 
 
 # ─────────────────────────────────────────────
@@ -173,6 +177,8 @@ class MetaCoherenceState:
     sm_violation_flag:       bool     = False
     sm_violations:           list     = field(default_factory=list)  # SM rule violation log
     stage_regression_count:  int      = 0
+    # Exchange counter used for SM flag rehabilitation (persists across stage transitions)
+    total_exchanges:         int      = 0
 
     def stage_index(self) -> int:
         return _MC_INDEX[self.mc_stage]
@@ -194,13 +200,17 @@ class MetaCoherenceState:
         }
 
     def to_system_prompt_hint(self, phi: float) -> str:
+        """
+        Returns the MC stage context string for system prompt injection.
+        Includes the stage system_hint so GAIA's voice actually changes per stage.
+        T6-C: system_hint now injected as a behavioral directive on every turn.
+        """
         sp = self.spec()
         sm_note = " ⚠ SM VIOLATION" if self.sm_violation_flag else ""
         return (
-            f"Meta-Coherence: {sp.name.upper()} (MC-{self.stage_index() + 1}) "
-            f"· Ring {self.labyrinth_position}/5 "
-            f"· φ:{phi:.2f} "
-            f"· {sp.core_role}{sm_note}"
+            f"[META-COHERENCE: {sp.name.upper()} · MC-{self.stage_index() + 1} "
+            f"· Ring {self.labyrinth_position}/5 · φ:{phi:.2f}{sm_note}]\n"
+            f"{sp.system_hint}"
         )
 
 
@@ -225,10 +235,14 @@ class MetaCoherenceEngine:
         - SM violation detection runs on every turn
 
     SM violation triggers:
-        - phi drops below MC3.phi_floor while mc_stage >= MC3
-          AND grief_weaponised is True → SM-5
-        - Any external caller attempts to set mc_stage directly → blocked
-          (mc_stage is only set by this engine's update() method)
+        - SM-5: grief_signal present in FeelingState but affect_state != GRIEF
+          AND is_grief_safe is False (grief being suppressed)
+        - SM-6: enforced structurally — mc_stage only set by this engine
+
+    SM rehabilitation:
+        - sm_violation_flag clears automatically after _SM_REHABILITATION_WINDOW
+          clean exchanges with no new violations
+        - Clearance is logged to revision_lineage for auditability
     """
 
     # Rolling phi window size for smoothing
@@ -261,10 +275,11 @@ class MetaCoherenceEngine:
         smooth_phi = sum(state.coherence_phi_history) / len(state.coherence_phi_history)
 
         state.exchanges_in_stage += 1
-        current_idx = state.stage_index()
+        state.total_exchanges    += 1
+        current_idx  = state.stage_index()
         current_spec = _MC_SPECS[state.mc_stage]
 
-        # ── Check for regression (conflict too high) ──────────────────
+        # ── Check for regression (conflict too high) ──────────────────────
         regress_threshold = current_spec.conflict_ceiling + 0.15
         if cd > regress_threshold and current_idx > 0:
             new_idx = current_idx - 1
@@ -275,7 +290,7 @@ class MetaCoherenceEngine:
                 "to":        new_stage.value,
                 "phi":       round(smooth_phi, 4),
                 "cd":        round(cd, 4),
-                "exchange":  state.exchanges_in_stage,
+                "exchange":  state.total_exchanges,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
             state.mc_stage              = new_stage
@@ -283,7 +298,7 @@ class MetaCoherenceEngine:
             state.exchanges_in_stage    = 0
             state.stage_regression_count += 1
 
-        # ── Check for advancement ─────────────────────────────────────
+        # ── Check for advancement ────────────────────────────────────
         elif (
             smooth_phi >= current_spec.phi_ceiling
             and cd < current_spec.conflict_ceiling
@@ -297,39 +312,50 @@ class MetaCoherenceEngine:
                 "to":        new_stage.value,
                 "phi":       round(smooth_phi, 4),
                 "cd":        round(cd, 4),
-                "exchange":  state.exchanges_in_stage,
+                "exchange":  state.total_exchanges,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
             state.mc_stage              = new_stage
             state.stage_entry_timestamp = datetime.now(timezone.utc).isoformat()
             state.exchanges_in_stage    = 0
 
-        # ── SM Violation Detection ─────────────────────────────────────
-        # SM-5: grief suppression — grief signal but affect reported as non-grief
-        #       at high phi (potential masking)
+        # ── SM-5 Violation Detection ───────────────────────────────────
+        # Fires ONLY when grief signal is present in source data but masked in output.
+        # T6-A fix: was previously inverted (firing on every non-grief turn).
+        grief_signal = getattr(feeling, "grief_signal", False)
         if (
-            feeling.affect_state != AffectState.GRIEF
-            and not feeling.is_grief_safe
+            grief_signal                                      # grief detected in input
+            and feeling.affect_state != AffectState.GRIEF    # but not reflected in output
+            and not feeling.is_grief_safe                    # grief-safe protocol not engaged
         ):
             violation = {
                 "rule":      "SM-5",
                 "desc":      SM_RULES["SM-5"],
                 "phi":       round(smooth_phi, 4),
+                "exchange":  state.total_exchanges,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
             state.sm_violations.append(violation)
             state.sm_violation_flag = True
 
-        # SM-6: GAIAN may not represent MC stage as higher than computed
-        #       (enforced structurally — stage is only set here, never by caller)
+        # SM-6: enforced structurally — mc_stage is only set by this engine
 
-        # Clear SM flag if no active violations in last 10 turns
-        if state.sm_violation_flag and len(state.sm_violations) > 0:
-            recent = state.sm_violations[-1]
-            # Flag clears after 10 clean exchanges with no new violations
-            # (handled by caller checking sm_violations list length vs exchanges)
+        # ── SM Flag Auto-Clear (T6-B) ─────────────────────────────────
+        # After _SM_REHABILITATION_WINDOW clean exchanges, clear the flag.
+        # Uses total_exchanges for cross-stage rehabilitation continuity.
+        if state.sm_violation_flag and state.sm_violations:
+            last_violation_exchange = state.sm_violations[-1].get("exchange", 0)
+            clean_exchanges = state.total_exchanges - last_violation_exchange
+            if clean_exchanges >= _SM_REHABILITATION_WINDOW:
+                state.sm_violation_flag = False
+                state.revision_lineage.append({
+                    "event":                "sm_flag_cleared",
+                    "after_clean_exchanges": clean_exchanges,
+                    "last_violation_rule":  state.sm_violations[-1].get("rule"),
+                    "timestamp":            datetime.now(timezone.utc).isoformat(),
+                })
 
-        # Update labyrinth position
+        # ── Update labyrinth position ──────────────────────────────────
         state.labyrinth_position = state.stage_index() + 1
 
         return state, state.to_system_prompt_hint(smooth_phi)
