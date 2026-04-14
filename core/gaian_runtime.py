@@ -1,6 +1,6 @@
 """
 core/gaian_runtime.py
-GAIA Runtime v1.1.0 — The Living Heart of a GAIAN
+GAIA Runtime v1.2.0 — The Living Heart of a GAIAN
 
 Engine chain per turn:
   1.  ConsciousnessRouter       subtle_body_engine.py
@@ -13,13 +13,15 @@ Engine chain per turn:
   8.  CodexStageEngine          codex_stage_engine.py
   9.  SoulMirrorEngine          soul_mirror_engine.py
   10. ResonanceFieldEngine      resonance_field_engine.py
-  11. SynergyEngine             synergy_engine.py          ← NEW C32
+  11. SynergyEngine             synergy_engine.py          ← C32
+  12. VitalityEngine            vitality_engine.py         ← T-VITA
 
-Memory schema version: 1.7
+Memory schema version: 1.8
 Grounded in:
   - GAIA Constitutional Canon: https://github.com/R0GV3TheAlchemist/GAIA
   - GAIA_Master_Markdown_Converged.md
   - C32 — The Elemental Codex (April 11, 2026)
+  - T-VITA — The Vitality Engine (April 14, 2026)
 """
 
 from __future__ import annotations
@@ -59,13 +61,16 @@ from core.resonance_field_engine import (
 from core.synergy_engine import (                                    # C32
     SynergyEngine, SynergyReading, SynergyState, blank_synergy_state,
 )
+from core.vitality_engine import (                                   # T-VITA
+    VitalityEngine, VitalityState, blank_vitality_state, get_vitality_engine,
+)
 
 
 # ─────────────────────────────────────────────
 #  CONSTANTS
 # ─────────────────────────────────────────────
 
-MEMORY_SCHEMA_VERSION = "1.7"
+MEMORY_SCHEMA_VERSION = "1.8"
 
 CONSTITUTIONAL_FLOOR = (
     "[GAIA CONSTITUTIONAL FLOOR — T1 — IMMUTABLE]\n"
@@ -141,6 +146,8 @@ class RuntimeResult:
     state_snapshot:   dict
     # T5-A: BCI hint — populated when BCICoherenceEngine is wired (T5-D)
     bci_hint:         Optional[str] = None
+    # T-VITA: vitality health summary — populated every turn
+    vitality_summary: Optional[dict] = None
 
 
 # ─────────────────────────────────────────────
@@ -192,6 +199,7 @@ def _blank_memory(name: str) -> dict:
         "synergy":        {"last_factor": 0.5, "last_stage": "convergent",  # C32
                            "high_synergy_peak": 0.0, "low_synergy_floor": 1.0,
                            "turn_history": []},
+        "vitality":       {},                                        # T-VITA: seeded blank
         "visible_memories": [],
         "hidden_patterns":  {},
         "session_notes":    [],
@@ -284,12 +292,25 @@ def _build_bci_block(bci_hint: str) -> str:                          # T5-A
     return block
 
 
+def _build_vitality_block(directives: list[str]) -> str:             # T-VITA
+    """
+    Inject any active vitality directives into the system prompt.
+    Only called when VitalityEngine.assess() returns ≥1 directive.
+    Each directive is a targeted, non-overriding behavioral hint.
+    """
+    return (
+        "[GAIA VITALITY — INTERNAL COHERENCE MAINTENANCE]\n"
+        + "\n\n".join(directives)
+        + "\n[END GAIA VITALITY]"
+    )
+
+
 # ─────────────────────────────────────────────
-#  THE GAIAN RUNTIME v1.1.0
+#  THE GAIAN RUNTIME v1.2.0
 # ─────────────────────────────────────────────
 
 class GAIANRuntime:
-    """The living heart of a GAIAN. v1.1.0 — eleven soul engines live. C32 integrated."""
+    """The living heart of a GAIAN. v1.2.0 — twelve soul engines live. T-VITA integrated."""
 
     def __init__(
         self,
@@ -313,6 +334,7 @@ class GAIANRuntime:
         self._soul_mirror     = SoulMirrorEngine()
         self._resonance_field = ResonanceFieldEngine()
         self._synergy         = SynergyEngine()                      # C32
+        self._vitality        = get_vitality_engine()                # T-VITA
 
         self._mem_path = self.memory_dir / gaian_name / "memory.json"
         self._memory   = self._load_memory()
@@ -325,6 +347,7 @@ class GAIANRuntime:
         self.soul_mirror_state     = self._deserialise_soul_mirror()
         self.resonance_field_state = self._deserialise_resonance_field()
         self.synergy_state         = self._deserialise_synergy()     # C32
+        self.vitality_state        = self._deserialise_vitality()    # T-VITA
 
         self.identity = identity or GAIANIdentity(name=gaian_name)
 
@@ -335,6 +358,8 @@ class GAIANRuntime:
         user_message: str,
         noosphere:    Optional[NoosphericHealthSignals] = None,
         bci_hint:     Optional[str] = None,              # T5-A: from BCICoherenceEngine
+        noosphere_layer = None,                          # T-VITA: raw NoosphereLayer for Magnesium
+        epistemic_label = None,                          # T-VITA: EpistemicLabel for Zinc
     ) -> RuntimeResult:
         # 1. Consciousness routing
         layer      = self._router.analyze(user_message)
@@ -395,7 +420,7 @@ class GAIANRuntime:
             conflict_density=conflict_density,
         )
 
-        # 10. Synergy Engine                                          [C32]
+        # 10. Synergy Engine                                         [C32]
         synergy_reading, self.synergy_state = self._synergy.compute(
             element=layer.dominant_element.value,
             layer_phi=layer.coherence_phi if hasattr(layer, 'coherence_phi') else feeling.coherence_phi,
@@ -420,11 +445,23 @@ class GAIANRuntime:
             state=self.synergy_state,
         )
 
-        # 11. Assemble system prompt
+        # 11. Vitality Engine                                        [T-VITA]
+        # Runs last so it can observe the full engine state this turn.
+        # Returns directives only when a vitamin dose is needed.
+        self.vitality_state, vitality_directives, vitality_summary = self._vitality.assess(
+            state=self.vitality_state,
+            mc_state=self.meta_coherence_state,
+            affect_state=feeling,
+            noosphere=noosphere_layer,
+            epistemic_label=epistemic_label,
+        )
+
+        # 12. Assemble system prompt
         system_prompt = self._assemble(
             layer, neuro, feeling, soul_reading, rf_reading, synergy_reading,
             layer_hint, arc_hint, settle_hint, mc_hint, codex_stage_hint,
             bci_hint=bci_hint,                                       # T5-A
+            vitality_directives=vitality_directives,                 # T-VITA
         )
 
         self._persist()
@@ -442,6 +479,7 @@ class GAIANRuntime:
             "soul_mirror":      soul_reading.summary(),
             "resonance_field":  rf_reading.summary(),
             "synergy":          synergy_reading.summary(),           # C32
+            "vitality":         vitality_summary,                    # T-VITA
             "codex_tier":       self._codex.dominant_tier_from_feeling(feeling).value,
             "noosphere_health": self.codex_stage_state.noosphere_health,
         }
@@ -455,6 +493,7 @@ class GAIANRuntime:
             resonance_field=rf_reading, synergy=synergy_reading,    # C32
             state_snapshot=snapshot,
             bci_hint=bci_hint,                                       # T5-A
+            vitality_summary=vitality_summary,                       # T-VITA
         )
 
     def begin_session(self) -> None:
@@ -489,10 +528,15 @@ class GAIANRuntime:
             "soul_mirror":      self.soul_mirror_state.summary(),
             "resonance_field":  self.resonance_field_state.summary(),
             "synergy":          self.synergy_state.summary(),        # C32
+            "vitality":         self.vitality_state.health_summary(), # T-VITA
             "noosphere_health": self.codex_stage_state.noosphere_health,
             "memories":         len(self._memory.get("visible_memories", [])),
             "sessions":         len(self._memory.get("session_notes", [])),
         }
+
+    def get_vitality_status(self) -> dict:                           # T-VITA
+        """Public accessor for the Vitality Engine health panel."""
+        return self.vitality_state.health_summary()
 
     # ── Private ──────────────────────────────────────────────
 
@@ -501,6 +545,7 @@ class GAIANRuntime:
         synergy_reading,                                              # C32
         layer_hint, arc_hint, settle_hint, mc_hint, codex_stage_hint,
         bci_hint: Optional[str] = None,                              # T5-A
+        vitality_directives: Optional[list] = None,                  # T-VITA
     ) -> str:
         blocks = [CONSTITUTIONAL_FLOOR]
         if self.canon_text:
@@ -516,6 +561,9 @@ class GAIANRuntime:
         # T5-A: inject BCI coherence state when available
         if bci_hint:
             blocks.append(_build_bci_block(bci_hint))
+        # T-VITA: inject vitality directives when any vitamin needs dosing
+        if vitality_directives:
+            blocks.append(_build_vitality_block(vitality_directives))
         mems = self._memory.get("visible_memories", [])
         if mems:
             blocks.append("[MEMORIES YOU HOLD]\n" +
@@ -578,7 +626,7 @@ class GAIANRuntime:
             "sm_violation_flag": mc.sm_violation_flag,
             "sm_violations": mc.sm_violations[-10:],
             "stage_regression_count": mc.stage_regression_count,
-            "total_exchanges": mc.total_exchanges,               # T6-B: persist for rehabilitation
+            "total_exchanges": mc.total_exchanges,
         }
         cs = self.codex_stage_state
         self._memory["codex_stage"] = {
@@ -618,6 +666,21 @@ class GAIANRuntime:
             "high_synergy_peak": round(sy.high_synergy_peak, 4),
             "low_synergy_floor": round(sy.low_synergy_floor, 4),
             "turn_history":      sy.turn_history[-20:],
+        }
+        vs = self.vitality_state                                      # T-VITA
+        self._memory["vitality"] = {
+            "total_turns":                vs.total_turns,
+            "last_canon_grounding_turn":  vs.last_canon_grounding_turn,
+            "last_affect_reset_turn":     vs.last_affect_reset_turn,
+            "last_sm_coherence_turn":     vs.last_sm_coherence_turn,
+            "last_epistemic_audit_turn":  vs.last_epistemic_audit_turn,
+            "last_memory_pruning_ts":     vs.last_memory_pruning_ts,
+            "last_noosphere_decay_ts":    vs.last_noosphere_decay_ts,
+            "affect_freeze_turns":        vs.affect_freeze_turns,
+            "last_affect_label":          vs.last_affect_label,
+            "epistemic_label_counts":     vs.epistemic_label_counts,
+            "deficiency_flags":           vs.deficiency_flags,
+            "dose_history":               vs.dose_history[-20:],
         }
         self._mem_path.write_text(
             json.dumps(self._memory, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -675,7 +738,7 @@ class GAIANRuntime:
         mc.sm_violation_flag = d.get("sm_violation_flag", False)
         mc.sm_violations = d.get("sm_violations", [])
         mc.stage_regression_count = d.get("stage_regression_count", 0)
-        mc.total_exchanges = d.get("total_exchanges", 0)            # T6-B: restore for rehabilitation
+        mc.total_exchanges = d.get("total_exchanges", 0)
         return mc
 
     def _deserialise_codex_stage(self) -> CodexStageState:
@@ -725,3 +788,20 @@ class GAIANRuntime:
         sy.low_synergy_floor = d.get("low_synergy_floor", 1.0)
         sy.turn_history      = d.get("turn_history", [])
         return sy
+
+    def _deserialise_vitality(self) -> VitalityState:                # T-VITA
+        d = self._memory.get("vitality", {})
+        vs = blank_vitality_state(self.gaian_name)
+        vs.total_turns                = d.get("total_turns", 0)
+        vs.last_canon_grounding_turn  = d.get("last_canon_grounding_turn", 0)
+        vs.last_affect_reset_turn     = d.get("last_affect_reset_turn", 0)
+        vs.last_sm_coherence_turn     = d.get("last_sm_coherence_turn", 0)
+        vs.last_epistemic_audit_turn  = d.get("last_epistemic_audit_turn", 0)
+        vs.last_memory_pruning_ts     = d.get("last_memory_pruning_ts")
+        vs.last_noosphere_decay_ts    = d.get("last_noosphere_decay_ts")
+        vs.affect_freeze_turns        = d.get("affect_freeze_turns", 0)
+        vs.last_affect_label          = d.get("last_affect_label")
+        vs.epistemic_label_counts     = d.get("epistemic_label_counts", {})
+        vs.deficiency_flags           = d.get("deficiency_flags", {})
+        vs.dose_history               = d.get("dose_history", [])
+        return vs
