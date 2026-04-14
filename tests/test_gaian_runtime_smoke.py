@@ -1,6 +1,6 @@
 """
 tests/test_gaian_runtime_smoke.py
-Smoke tests for the full GAIANRuntime chain — v1.1.0 (eleven engines).
+Smoke tests for the full GAIANRuntime chain — v1.2.0 (twelve engines).
 
 These tests verify that the entire engine chain fires without error
 and that every output contract is satisfied. They do not test the
@@ -11,10 +11,12 @@ Strategy:
   - Run process() with a variety of message types
   - Assert every field of RuntimeResult is present and typed correctly
   - Assert system prompt contains all expected blocks
-  - Assert state snapshot contains all eleven engine keys
+  - Assert state snapshot contains all twelve engine keys
   - Assert SynergyReading is present and valid
+  - Assert VitalityState is persisted and accessible  [T-VITA]
 """
 import pytest
+import json
 import tempfile
 import os
 from core.gaian_runtime import GAIANRuntime, RuntimeResult, GAIANIdentity
@@ -81,11 +83,13 @@ class TestRuntimeResultContract:
         assert 0.0 <= result.synergy.synergy_factor <= 1.0
 
     def test_state_snapshot_has_all_engine_keys(self, tmp_runtime):
+        """v1.2.0: snapshot must include 'vitality' key from T-VITA."""
         result = tmp_runtime.process("Hello.")
         expected_keys = [
             "gaian", "layer", "neuro", "attachment", "settling",
             "feeling", "love_arc", "meta_coherence", "codex_stage",
             "soul_mirror", "resonance_field", "synergy",
+            "vitality",                                            # T-VITA
             "codex_tier", "noosphere_health",
         ]
         for key in expected_keys:
@@ -97,6 +101,11 @@ class TestRuntimeResultContract:
         for key in ["synergy_factor", "dominant_stage", "dominant_friction",
                     "is_low_synergy", "is_high_synergy", "dimensions"]:
             assert key in sy
+
+    def test_vitality_summary_present_in_result(self, tmp_runtime):  # T-VITA
+        """RuntimeResult.vitality_summary must be a dict after process()."""
+        result = tmp_runtime.process("Hello.")
+        assert isinstance(result.vitality_summary, dict)
 
 
 class TestRuntimeMultipleTurns:
@@ -120,6 +129,12 @@ class TestRuntimeMultipleTurns:
             tmp_runtime.process(msg)
         assert len(tmp_runtime.synergy_state.turn_history) == len(SAMPLE_MESSAGES)
 
+    def test_vitality_total_turns_increments(self, tmp_runtime):     # T-VITA
+        """VitalityState.total_turns must increment with each process() call."""
+        for msg in SAMPLE_MESSAGES:
+            tmp_runtime.process(msg)
+        assert tmp_runtime.vitality_state.total_turns == len(SAMPLE_MESSAGES)
+
 
 class TestRuntimePersistence:
     def test_memory_file_created_after_process(self, tmp_path):
@@ -129,7 +144,6 @@ class TestRuntimePersistence:
         assert mem_file.exists()
 
     def test_memory_contains_synergy_key(self, tmp_path):
-        import json
         rt = GAIANRuntime(gaian_name="PersistTest", memory_dir=str(tmp_path))
         rt.process("Hello.")
         mem_file = tmp_path / "PersistTest" / "memory.json"
@@ -137,17 +151,23 @@ class TestRuntimePersistence:
         assert "synergy" in memory
         assert "last_factor" in memory["synergy"]
 
-    def test_schema_version_is_1_7(self, tmp_path):
-        """Schema version must match gaian_runtime.py MEMORY_SCHEMA_VERSION.
+    def test_memory_contains_vitality_key(self, tmp_path):           # T-VITA
+        """VitalityState must be persisted in memory.json after process()."""
+        rt = GAIANRuntime(gaian_name="VitaTest", memory_dir=str(tmp_path))
+        rt.process("Hello.")
+        mem_file = tmp_path / "VitaTest" / "memory.json"
+        memory = json.loads(mem_file.read_text())
+        assert "vitality" in memory
+        assert "total_turns" in memory["vitality"]
+        assert "dose_history" in memory["vitality"]
 
-        Updated from 1.6 → 1.7 to match the version bump in gaian_runtime.py.
-        """
-        import json
+    def test_schema_version_is_1_8(self, tmp_path):                  # T-VITA: bumped 1.7 → 1.8
+        """Schema version must match MEMORY_SCHEMA_VERSION = '1.8'."""
         rt = GAIANRuntime(gaian_name="SchemaTest", memory_dir=str(tmp_path))
         rt.process("Hello.")
         mem_file = tmp_path / "SchemaTest" / "memory.json"
         memory = json.loads(mem_file.read_text())
-        assert memory["schema_version"] == "1.7"
+        assert memory["schema_version"] == "1.8"
 
 
 class TestGetStatus:
@@ -158,3 +178,12 @@ class TestGetStatus:
         status = tmp_runtime.get_status()
         assert "synergy" in status
         assert "last_factor" in status["synergy"]
+
+    def test_get_status_contains_vitality(self, tmp_runtime):        # T-VITA
+        """get_status() must include vitality health summary."""
+        status = tmp_runtime.get_status()
+        assert "vitality" in status
+
+    def test_get_vitality_status_returns_dict(self, tmp_runtime):    # T-VITA
+        """get_vitality_status() public accessor must return a dict."""
+        assert isinstance(tmp_runtime.get_vitality_status(), dict)
