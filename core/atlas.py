@@ -63,18 +63,13 @@ except ImportError:
 
 logger = logging.getLogger("gaia.atlas")
 
-# ─────────────────────────────────────────────────────────────────────────────
-CONSTANTS
-─────────────────────────────────────────────────────────────────────────────
+
+# ───────────────────────────────────────────────────────────────────────────────
+#  CONSTANTS
+# ───────────────────────────────────────────────────────────────────────────────
 
 SCHUMANN_FUNDAMENTAL: float = 7.83
-SCHUMANN_HARMONICS: List[float] = [
-    7.83,
-    14.3,
-    20.8,
-    27.3,
-    33.8,
-]
+SCHUMANN_HARMONICS: List[float] = [7.83, 14.3, 20.8, 27.3, 33.8]
 
 KP_QUIET       = 3
 KP_UNSETTLED   = 4
@@ -83,20 +78,18 @@ KP_MAJOR_STORM = 7
 
 ATLAS_POLL_INTERVAL: float = 300.0
 
-NOAA_KP_URL        = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
+NOAA_KP_URL         = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
 NOAA_SOLAR_WIND_URL = "https://services.swpc.noaa.gov/products/solar-wind/mag-5-minute.json"
 
 # T1-A: BCI feedback constants
-# Maximum coherence_baseline uplift from a single Gaian's biometric coupling.
-# Keeps individual BCI influence bounded so planetary data still dominates.
-BCI_COHERENCE_UPLIFT_MAX:     float = 0.12   # max +0.12 from bci_phi
-BCI_SUPERFLUID_BONUS:         float = 0.03   # extra for SUPERFLUID tier
-BCI_CONTRIBUTION_DECAY:       float = 0.05   # per-poll decay when no new BCI signal
+BCI_COHERENCE_UPLIFT_MAX: float = 0.12
+BCI_SUPERFLUID_BONUS:     float = 0.03
+BCI_CONTRIBUTION_DECAY:   float = 0.05
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-ENUMERATIONS
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  ENUMERATIONS
+# ───────────────────────────────────────────────────────────────────────────────
 
 class GeomagneticState(Enum):
     QUIET        = auto()
@@ -107,11 +100,11 @@ class GeomagneticState(Enum):
 
 
 class SchumannMode(Enum):
-    FUNDAMENTAL   = "7.83 Hz"
-    SECOND        = "14.3 Hz"
-    THIRD         = "20.8 Hz"
-    FOURTH        = "27.3 Hz"
-    FIFTH         = "33.8 Hz"
+    FUNDAMENTAL = "7.83 Hz"
+    SECOND      = "14.3 Hz"
+    THIRD       = "20.8 Hz"
+    FOURTH      = "27.3 Hz"
+    FIFTH       = "33.8 Hz"
 
 
 class AtlasStatus(Enum):
@@ -121,9 +114,9 @@ class AtlasStatus(Enum):
     OFFLINE  = auto()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-DATA CLASSES
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  DATA CLASSES
+# ───────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class EarthPulse:
@@ -137,19 +130,19 @@ class EarthPulse:
     the uplift is blended into coherence_baseline here so all downstream
     engines see the body↔earth coupling reflected in the pulse.
     """
-    timestamp:          float
-    schumann_hz:        float
-    schumann_amplitude: float
-    schumann_harmonics: List[float]
-    dominant_mode:      SchumannMode
-    kp_index:           float
-    geomagnetic_state:  GeomagneticState
-    solar_wind_bz:      float
-    coherence_baseline: float
+    timestamp:            float
+    schumann_hz:          float
+    schumann_amplitude:   float
+    schumann_harmonics:   List[float]
+    dominant_mode:        SchumannMode
+    kp_index:             float
+    geomagnetic_state:    GeomagneticState
+    solar_wind_bz:        float
+    coherence_baseline:   float
     viriditas_carrier_hz: float
-    atlas_status:       AtlasStatus
-    source:             str
-    bci_contribution:   float = 0.0   # T1-A: uplift from BCI planetary coupling
+    atlas_status:         AtlasStatus
+    source:               str
+    bci_contribution:     float = 0.0   # T1-A
 
     @property
     def is_coherence_friendly(self) -> bool:
@@ -184,14 +177,14 @@ class EarthPulse:
             "viriditas_carrier_hz": round(self.viriditas_carrier_hz, 2),
             "atlas_status":         self.atlas_status.name,
             "source":               self.source,
-            "bci_contribution":     round(self.bci_contribution, 4),   # T1-A
-            "bci_coupled":          self.bci_coupled,                   # T1-A
+            "bci_contribution":     round(self.bci_contribution, 4),
+            "bci_coupled":          self.bci_coupled,
             "coherence_friendly":   self.is_coherence_friendly,
             "storm_warning":        self.storm_warning,
         }
 
     def summary(self) -> str:
-        icon = "🌍" if self.is_coherence_friendly else ("⚡" if self.storm_warning else "🌐")
+        icon     = "🌍" if self.is_coherence_friendly else ("⚡" if self.storm_warning else "🌐")
         bci_note = f" | BCI +{self.bci_contribution:.3f}" if self.bci_coupled else ""
         return (
             f"{icon} Earth Pulse [{self.atlas_status.name}] | "
@@ -202,9 +195,9 @@ class EarthPulse:
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-SCHUMANN READER
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  SCHUMANN READER
+# ───────────────────────────────────────────────────────────────────────────────
 
 class SchumannReader:
     _DAILY_VARIATION: List[float] = [
@@ -217,13 +210,13 @@ class SchumannReader:
     ]
 
     def read(self, kp_index: float = 2.0) -> tuple[float, float]:
-        utc_hour   = int(time.gmtime().tm_hour)
-        base_hz    = self._DAILY_VARIATION[utc_hour % 24]
+        utc_hour     = int(time.gmtime().tm_hour)
+        base_hz      = self._DAILY_VARIATION[utc_hour % 24]
         storm_factor = max(0.3, 1.0 - (kp_index / 15.0))
-        phase      = (time.time() % 60) / 60.0
-        micro_var  = math.sin(phase * 2 * math.pi) * 0.02
-        hz         = base_hz + micro_var
-        amplitude  = storm_factor * (0.7 + 0.3 * math.sin(phase * math.pi))
+        phase        = (time.time() % 60) / 60.0
+        micro_var    = math.sin(phase * 2 * math.pi) * 0.02
+        hz           = base_hz + micro_var
+        amplitude    = storm_factor * (0.7 + 0.3 * math.sin(phase * math.pi))
         return float(hz), float(min(amplitude, 1.0))
 
     def get_harmonics(self, fundamental: float) -> List[float]:
@@ -241,9 +234,9 @@ class SchumannReader:
         return min(modes, key=lambda m: abs(m[0] - hz))[1]
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-GEOMAGNETIC READER
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  GEOMAGNETIC READER
+# ───────────────────────────────────────────────────────────────────────────────
 
 class GeomagneticReader:
     _DEFAULT_KP: float = 2.0
@@ -287,9 +280,9 @@ class GeomagneticReader:
         return GeomagneticState.MAJOR_STORM
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-ATLAS ENGINE
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  ATLAS ENGINE
+# ───────────────────────────────────────────────────────────────────────────────
 
 class AtlasEngine:
     """
@@ -311,10 +304,6 @@ class AtlasEngine:
 
         # T1-A: receive BCI feedback after processing a biometric signal
         atlas.receive_bci_feedback(bci_state)
-
-        # Calibrate another engine:
-        resonance_engine.set_carrier(pulse.viriditas_carrier_hz)
-        meta_coherence.set_planetary_baseline(pulse.coherence_baseline)
     """
 
     def __init__(self):
@@ -322,35 +311,24 @@ class AtlasEngine:
         self._geomagnetic = GeomagneticReader()
         self._current_pulse: Optional[EarthPulse] = None
         self._history: List[EarthPulse] = []
-        self._lock     = threading.Lock()
+        self._lock       = threading.Lock()
         self._poll_thread: Optional[threading.Thread] = None
-        self._running  = False
+        self._running    = False
         self._poll_count = 0
 
         # T1-A: BCI contribution state
-        self._bci_contribution: float = 0.0   # current uplift from BCI feedback
-        self._bci_coupled:      bool  = False  # whether last BCI was planetary_coupled
+        self._bci_contribution: float = 0.0
+        self._bci_coupled:      bool  = False
 
         self._refresh()
         logger.info("[Atlas] Engine initialized. Planetary interface active.")
 
-    # ── T1-A: BCI Feedback ────────────────────────────────────────────────
+    # ── T1-A: BCI Feedback ─────────────────────────────────────────────────────
 
     def receive_bci_feedback(self, bci_state) -> None:
         """
-        T1-A: Receive a BCICoherenceState and update the BCI contribution
+        T1-A: Receive BCICoherenceState and update the BCI contribution
         to coherence_baseline.
-
-        Only fires when bci_state.planetary_coupled is True (Schumann
-        delta < 0.5 Hz). Non-coupled states decay the contribution gently
-        rather than zeroing it immediately, preventing choppy transitions.
-
-        The contribution is bounded by BCI_COHERENCE_UPLIFT_MAX (0.12) so
-        planetary data always dominates. SUPERFLUID tier earns a small
-        awakening bonus on top.
-
-        Args:
-            bci_state: BCICoherenceState from BCICoherenceEngine.process()
         """
         try:
             from core.bci_coherence import BCICoherenceTier
@@ -369,36 +347,23 @@ class AtlasEngine:
                         f"contribution={self._bci_contribution:.4f}"
                     )
                 else:
-                    # Not coupled — decay gently
                     self._bci_contribution = round(
                         max(0.0, self._bci_contribution - BCI_CONTRIBUTION_DECAY), 4
                     )
                     self._bci_coupled = self._bci_contribution > 0.0
-
-            # Rebuild the current pulse with updated BCI contribution
-            # (non-blocking: just patches the live pulse, full refresh happens on next poll)
             self._patch_pulse_bci()
-
         except Exception as e:
             logger.warning(f"[Atlas] T1-A BCI feedback error: {e}")
 
     def _patch_pulse_bci(self) -> None:
-        """
-        Patch the current EarthPulse with updated bci_contribution
-        and recomputed coherence_baseline. Non-blocking — called from
-        receive_bci_feedback() between poll cycles.
-        """
+        """Patch current EarthPulse with updated bci_contribution between polls."""
         with self._lock:
             if self._current_pulse is None:
                 return
             p = self._current_pulse
             new_coherence = _compute_coherence_baseline(
-                p.schumann_amplitude,
-                p.solar_wind_bz,
-                p.kp_index,
-                self._bci_contribution,
+                p.schumann_amplitude, p.solar_wind_bz, p.kp_index, self._bci_contribution
             )
-            # Replace with updated pulse (dataclass is frozen-friendly via copy)
             import dataclasses
             self._current_pulse = dataclasses.replace(
                 p,
@@ -406,16 +371,14 @@ class AtlasEngine:
                 bci_contribution=self._bci_contribution,
             )
 
-    # ── Polling ─────────────────────────────────────────────────────────────────
+    # ── Polling ───────────────────────────────────────────────────────────────────
 
     def start_background_polling(self) -> None:
         if self._running:
             return
-        self._running = True
+        self._running     = True
         self._poll_thread = threading.Thread(
-            target=self._poll_loop,
-            daemon=True,
-            name="atlas-poll",
+            target=self._poll_loop, daemon=True, name="atlas-poll"
         )
         self._poll_thread.start()
         logger.info(f"[Atlas] Background polling started (every {ATLAS_POLL_INTERVAL}s)")
@@ -430,7 +393,6 @@ class AtlasEngine:
                 self._refresh()
 
     def _refresh(self) -> None:
-        """Fetch fresh planetary data and update the current EarthPulse."""
         try:
             kp  = self._geomagnetic.fetch_kp()
             bz  = self._geomagnetic.fetch_solar_wind_bz()
@@ -444,7 +406,6 @@ class AtlasEngine:
             harmonics     = self._schumann.get_harmonics(hz)
             mode          = self._schumann.get_dominant_mode(hz)
 
-            # T1-A: decay BCI contribution each poll cycle to prevent stale uplift
             with self._lock:
                 if self._bci_contribution > 0.0 and not self._bci_coupled:
                     self._bci_contribution = round(
@@ -452,7 +413,6 @@ class AtlasEngine:
                     )
                 bci_contribution = self._bci_contribution
 
-            # T1-A: refactored coherence computation — BCI contribution included
             coherence_baseline = _compute_coherence_baseline(
                 amplitude, bz, kp, bci_contribution
             )
@@ -476,7 +436,7 @@ class AtlasEngine:
                 viriditas_carrier_hz=carrier,
                 atlas_status=status,
                 source=source,
-                bci_contribution=bci_contribution,   # T1-A
+                bci_contribution=bci_contribution,
             )
 
             with self._lock:
@@ -538,15 +498,15 @@ class AtlasEngine:
             "status":              pulse.atlas_status.name,
             "poll_count":          self._poll_count,
             "daily_coherence_avg": round(self.daily_coherence_average(), 4),
-            "bci_contribution":    round(self._bci_contribution, 4),   # T1-A
-            "bci_coupled":         self._bci_coupled,                   # T1-A
+            "bci_contribution":    round(self._bci_contribution, 4),
+            "bci_coupled":         self._bci_coupled,
             "current_pulse":       pulse.to_dict(),
         }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-HELPER: coherence baseline computation (T1-A refactor)
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  HELPER: coherence baseline computation (T1-A refactor)
+# ───────────────────────────────────────────────────────────────────────────────
 
 def _compute_coherence_baseline(
     amplitude:        float,
@@ -555,30 +515,28 @@ def _compute_coherence_baseline(
     bci_contribution: float = 0.0,
 ) -> float:
     """
-    Compute the planetary coherence_baseline from available signals.
+    Compute planetary coherence_baseline.
 
-    Weights (original formula preserved):
+    Weights:
       amplitude     × 0.50  (Schumann field strength)
       bz_factor     × 0.30  (IMF Bz — positive = coherence-friendly)
       (1 - kp_norm) × 0.20  (geomagnetic quiet = coherence-friendly)
 
     T1-A: bci_contribution added on top (max +0.12 from BCI coupling).
-    The planetary signal weights sum to 1.0 before BCI, so BCI
-    is additive uplift, not a weight substitution.
     """
     bz_factor  = max(0.0, min(1.0, (solar_wind_bz + 20) / 40.0))
     kp_penalty = min(1.0, kp_index / 9.0)
     base = (
-        amplitude   * 0.50
-        + bz_factor * 0.30
+        amplitude    * 0.50
+        + bz_factor  * 0.30
         + (1.0 - kp_penalty) * 0.20
     )
     return round(min(1.0, base + bci_contribution), 4)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-MODULE-LEVEL SINGLETON
-─────────────────────────────────────────────────────────────────────────────
+# ───────────────────────────────────────────────────────────────────────────────
+#  MODULE-LEVEL SINGLETON
+# ───────────────────────────────────────────────────────────────────────────────
 
 _atlas: Optional[AtlasEngine] = None
 
