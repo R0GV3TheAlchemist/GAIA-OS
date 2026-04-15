@@ -1,14 +1,15 @@
 """
-GAIA Synthesizer — Perplexity-Style LLM Answer Engine
+GAIA Synthesizer — LLM Answer Engine
 
 Takes a user query + ranked sources (canon T1 + web T2-T5) and
 produces a streamed, cited, markdown-formatted answer via an LLM.
 
 Provider priority (configure via .env):
-  1. OpenAI  (OPENAI_API_KEY)
-  2. Anthropic Claude  (ANTHROPIC_API_KEY)
-  3. Ollama  (OLLAMA_MODEL, default: mistral — runs 100% locally)
-  4. Fallback: rule-based text assembly (no LLM — always works)
+  1. Perplexity  (PERPLEXITY_API_KEY)   — sonar-pro, live web + citations
+  2. OpenAI      (OPENAI_API_KEY)        — gpt-4o-mini (or OPENAI_MODEL)
+  3. Anthropic   (ANTHROPIC_API_KEY)     — claude-3-haiku (or ANTHROPIC_MODEL)
+  4. Ollama      (OLLAMA_MODEL)          — mistral, runs 100% locally
+  5. Fallback    — rule-based text assembly (no LLM, always works)
 
 Citation format: [1], [2], [3] inline, matching sources list index.
 Streaming: yields token chunks via async generator for SSE.
@@ -81,6 +82,76 @@ def build_user_prompt(query: str, sources: list[dict]) -> str:
 Question: {query}
 
 Answer (cite inline with [N]):"""
+
+
+# ------------------------------------------------------------------ #
+#  Provider: Perplexity  (sonar-pro — live web search + citations)    #
+# ------------------------------------------------------------------ #
+
+async def _stream_perplexity(
+    system_prompt: str,
+    user_prompt: str,
+    conversation_history: Optional[list[dict]] = None,
+    model: str = "sonar-pro",
+) -> AsyncGenerator[str, None]:
+    """
+    Perplexity Search API — OpenAI-compatible endpoint.
+    Yields streamed token chunks. Perplexity appends live web citations
+    automatically; these arrive in the final non-streamed chunk's
+    `citations` field which we expose via a trailing [SOURCES] block.
+
+    Env vars:
+        PERPLEXITY_API_KEY  — required
+        PERPLEXITY_MODEL    — optional, default: sonar-pro
+                              options: sonar, sonar-pro, sonar-reasoning-pro
+    """
+    try:
+        from openai import AsyncOpenAI
+    except ImportError:
+        yield "[Perplexity unavailable: openai package not installed. Run: pip install openai]"
+        return
+
+    api_key = os.environ.get("PERPLEXITY_API_KEY")
+    if not api_key:
+        yield "[Perplexity unavailable: PERPLEXITY_API_KEY not set]"
+        return
+
+    client = AsyncOpenAI(
+        api_key=api_key,
+        base_url="https://api.perplexity.ai",
+    )
+
+    messages = [{"role": "system", "content": system_prompt}]
+    if conversation_history:
+        messages.extend(conversation_history)
+    messages.append({"role": "user", "content": user_prompt})
+
+    try:
+        stream = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=True,
+            temperature=0.4,
+            max_tokens=800,
+        )
+
+        citations: list[str] = []
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+            # Perplexity exposes citations on the final chunk
+            if hasattr(chunk, "citations") and chunk.citations:
+                citations = chunk.citations
+
+        # Append citations as a clean source block if present
+        if citations:
+            yield "\n\n**Sources:**\n"
+            for i, url in enumerate(citations, 1):
+                yield f"[{i}] {url}\n"
+
+    except Exception as e:
+        yield f"[Perplexity error: {str(e)[:200]}]"
 
 
 # ------------------------------------------------------------------ #
@@ -234,10 +305,12 @@ async def _stream_fallback(
 
 
 # ------------------------------------------------------------------ #
-#  Provider Router                                                     #
+#  Provider Detection                                                  #
 # ------------------------------------------------------------------ #
 
 def _detect_provider() -> str:
+    if os.environ.get("PERPLEXITY_API_KEY"):
+        return "perplexity"
     if os.environ.get("OPENAI_API_KEY"):
         return "openai"
     if os.environ.get("ANTHROPIC_API_KEY"):
@@ -246,6 +319,10 @@ def _detect_provider() -> str:
         return "ollama"
     return "fallback"
 
+
+# ------------------------------------------------------------------ #
+#  Main Entry Point                                                    #
+# ------------------------------------------------------------------ #
 
 async def stream_synthesis(
     query: str,
@@ -275,7 +352,11 @@ async def stream_synthesis(
     system_prompt = build_system_prompt(gaian_prompt, conversation_context)
     user_prompt = build_user_prompt(query, sources)
 
-    if provider == "openai":
+    if provider == "perplexity":
+        model = os.environ.get("PERPLEXITY_MODEL", "sonar-pro")
+        async for chunk in _stream_perplexity(system_prompt, user_prompt, conversation_history, model):
+            yield chunk
+    elif provider == "openai":
         model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
         async for chunk in _stream_openai(system_prompt, user_prompt, conversation_history, model):
             yield chunk
