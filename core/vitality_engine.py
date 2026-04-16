@@ -3,7 +3,7 @@ core/vitality_engine.py
 ========================
 Vitality Engine (T-VITA) — internal coherence maintenance for a GAIAN.
 
-Tracks twelve "vitamin" dimensions across turns and emits targeted
+Tracks twelve “vitamin” dimensions across turns and emits targeted
 behavioural directives whenever a deficiency is detected.
 
 Canon Ref: T-VITA — The Vitality Engine (April 14, 2026)
@@ -70,6 +70,11 @@ class VitalityState:
             "dose_history_len":          len(self.dose_history),
         }
 
+    def _record_dose(self, vitamin: str, ts: str) -> None:
+        self.dose_history.append({"vitamin": vitamin, "ts": ts, "turn": self.total_turns})
+        if len(self.dose_history) > 20:
+            self.dose_history = self.dose_history[-20:]
+
 
 def blank_vitality_state(gaian_name: str = "unknown") -> VitalityState:
     """Return a fresh VitalityState for a new Gaian."""
@@ -80,14 +85,10 @@ def blank_vitality_state(gaian_name: str = "unknown") -> VitalityState:
 #  VITAMIN THRESHOLDS
 # ─────────────────────────────────────────────
 
-# How many turns between mandatory canon grounding injections
-_CANON_GROUNDING_INTERVAL    = 40
-# How many turns of the same affect label before a reset is triggered
-_AFFECT_FREEZE_THRESHOLD     = 8
-# How many turns between SM coherence checks
-_SM_COHERENCE_INTERVAL       = 25
-# How many turns between epistemic audits
-_EPISTEMIC_AUDIT_INTERVAL    = 30
+_CANON_GROUNDING_INTERVAL  = 40
+_AFFECT_FREEZE_THRESHOLD   = 8
+_SM_COHERENCE_INTERVAL     = 25
+_EPISTEMIC_AUDIT_INTERVAL  = 30
 
 
 # ─────────────────────────────────────────────
@@ -103,27 +104,25 @@ class VitalityEngine:
     def assess(
         self,
         state:           VitalityState,
-        mc_state:        Any   = None,   # MetaCoherenceState
-        affect_state:    Any   = None,   # FeelingState
-        noosphere:       Any   = None,   # NoosphereLayer (optional)
-        epistemic_label: Any   = None,   # EpistemicLabel (optional)
-    ) -> tuple[VitalityState, List[str], Optional[dict]]:
+        mc_state:        Any   = None,
+        affect_state:    Any   = None,
+        noosphere:       Any   = None,
+        epistemic_label: Any   = None,
+    ) -> tuple[VitalityState, List[str], dict]:
         """
         Assess vitality this turn, emit directives for any deficiencies.
 
         Returns
         -------
         state           : updated VitalityState
-        directives      : list[str] — zero or more behavioural directives for
-                          injection into the system prompt this turn
-        vitality_summary: dict snapshot (always returned, may be None if
-                          no change worth persisting)
+        directives      : list[str]
+        vitality_summary: dict  — ALWAYS a dict (never None)
         """
         state.total_turns += 1
         directives: List[str] = []
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        # ── Vitamin A: Canon Grounding ─────────────────────────
+        # ── Vitamin A: Canon Grounding ──────────────────────
         turns_since_canon = state.total_turns - state.last_canon_grounding_turn
         if turns_since_canon >= _CANON_GROUNDING_INTERVAL:
             directives.append(
@@ -137,11 +136,13 @@ class VitalityEngine:
         else:
             state.deficiency_flags["canon_grounding"] = False
 
-        # ── Vitamin B: Affect Reset ────────────────────────────
+        # ── Vitamin B: Affect Reset ───────────────────────
         if affect_state is not None:
-            current_label = getattr(affect_state, "dominant_label", None) or \
-                            getattr(affect_state, "primary_affect", None) or \
-                            str(type(affect_state).__name__)
+            current_label = (
+                getattr(affect_state, "dominant_label", None)
+                or getattr(affect_state, "primary_affect", None)
+                or str(type(affect_state).__name__)
+            )
             if current_label == state.last_affect_label:
                 state.affect_freeze_turns += 1
             else:
@@ -161,7 +162,7 @@ class VitalityEngine:
             else:
                 state.deficiency_flags["affect_reset"] = False
 
-        # ── Vitamin C: SM Coherence ────────────────────────────
+        # ── Vitamin C: SM Coherence ──────────────────────
         turns_since_sm = state.total_turns - state.last_sm_coherence_turn
         if mc_state is not None and turns_since_sm >= _SM_COHERENCE_INTERVAL:
             sm_violations = getattr(mc_state, "sm_violations", [])
@@ -177,7 +178,7 @@ class VitalityEngine:
             else:
                 state.deficiency_flags["sm_coherence"] = False
 
-        # ── Vitamin D: Epistemic Audit ─────────────────────────
+        # ── Vitamin D: Epistemic Audit ───────────────────
         if epistemic_label is not None:
             label_str = str(getattr(epistemic_label, "value", epistemic_label))
             state.epistemic_label_counts[label_str] = \
@@ -185,8 +186,10 @@ class VitalityEngine:
 
         turns_since_ep = state.total_turns - state.last_epistemic_audit_turn
         if turns_since_ep >= _EPISTEMIC_AUDIT_INTERVAL:
-            speculative_count = state.epistemic_label_counts.get("speculative", 0) + \
-                                state.epistemic_label_counts.get("uncertain", 0)
+            speculative_count = (
+                state.epistemic_label_counts.get("speculative", 0)
+                + state.epistemic_label_counts.get("uncertain", 0)
+            )
             if speculative_count > 5:
                 directives.append(
                     "[VITA-D: EPISTEMIC AUDIT] High speculative/uncertain epistemic density "
@@ -199,33 +202,20 @@ class VitalityEngine:
                 state.deficiency_flags["epistemic_audit"] = False
             state.last_epistemic_audit_turn = state.total_turns
 
-        summary = state.health_summary() if directives else None
+        # Always return a dict so tests can do isinstance(summary, dict)
+        summary = state.health_summary()
         return state, directives, summary
-
-    # ── Legacy method kept for backwards-compat ───────────────
 
     def update(
         self,
-        state:            "VitalityState",
+        state:            VitalityState,
         coherence_phi:    float = 0.5,
         noosphere_health: float = 0.5,
         conflict_density: float = 0.3,
-    ) -> "VitalityState":
-        """Stateless legacy updater. Prefer assess() for runtime use."""
+    ) -> VitalityState:
+        """Legacy updater. Prefer assess() for runtime use."""
         state.total_turns += 1
         return state
-
-
-# ── VitalityState helper (defined outside class for cleanliness) ───
-
-def _record_dose(self: VitalityState, vitamin: str, ts: str) -> None:
-    self.dose_history.append({"vitamin": vitamin, "ts": ts, "turn": self.total_turns})
-    if len(self.dose_history) > 20:
-        self.dose_history = self.dose_history[-20:]
-
-
-# Monkey-patch the helper onto VitalityState
-VitalityState._record_dose = _record_dose  # type: ignore[attr-defined]
 
 
 # ─────────────────────────────────────────────

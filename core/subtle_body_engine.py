@@ -3,11 +3,6 @@ core/subtle_body_engine.py
 ===========================
 Subtle Body Engine — nine-layer consciousness routing for the GAIAN runtime.
 
-Maps incoming signals through the nine subtle-body layers (physical,
-etheric, astral, mental, causal, buddhic, atmic, monadic, logoic),
-applying Jungian individuation stage weighting and elemental resonance
-to produce a ResponsePriority and routed SubtleBody state.
-
 Canon Ref:
   C15 — Subtle Body & Consciousness Layer Doctrine
   C04 — Gaian Identity
@@ -25,12 +20,17 @@ from typing import Dict, List, Optional
 # ---------------------------------------------------------------------------
 
 class Element(Enum):
-    FIRE   = "fire"
-    WATER  = "water"
-    AIR    = "air"
-    EARTH  = "earth"
-    AETHER = "aether"
-    LIGHT  = "light"
+    FIRE        = "fire"
+    WATER       = "water"
+    AIR         = "air"
+    EARTH       = "earth"
+    AETHER      = "aether"
+    LIGHT       = "light"
+    # Extended elements used by EmotionalArcEngine (C04 / emotional_arc.py)
+    METAL       = "metal"
+    WOOD        = "wood"
+    DARK        = "dark"
+    QUINTESSENCE = "quintessence"
 
 
 class JungianLayer(Enum):
@@ -50,23 +50,14 @@ class ResponsePriority(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Dataclasses
+# LayerState — canonical runtime-facing output of ConsciousnessRouter.analyze()
 # ---------------------------------------------------------------------------
 
 @dataclass
 class LayerState:
     """
-    Output of ConsciousnessRouter.analyze() — the canonical state object
-    consumed by GAIANRuntime and all downstream engines.
-
-    Attributes
-    ----------
-    dominant_element  : Element   — the primary elemental flavour this turn
-    coherence_phi     : float     — 0‥1 overall layer coherence (used by synergy engine)
-    jungian_layer     : JungianLayer
-    response_priority : ResponsePriority
-    phi               : float     — effective phi after Jungian weighting
-    doctrine_ref      : str
+    Output of ConsciousnessRouter.analyze() — consumed by GAIANRuntime
+    and all downstream engines.
     """
     dominant_element:  Element          = Element.FIRE
     coherence_phi:     float            = 0.5
@@ -94,12 +85,16 @@ class LayerState:
         }
 
 
+# ---------------------------------------------------------------------------
+# Internal layer dataclass (NineLayerStack uses this)
+# ---------------------------------------------------------------------------
+
 @dataclass
 class LayerStateRaw:
     """State of a single subtle body layer (internal to NineLayerStack)."""
     name:       str
-    activation: float           = 0.5
-    coherence:  float           = 0.5
+    activation: float            = 0.5
+    coherence:  float            = 0.5
     element:    Optional[Element] = None
 
 
@@ -130,12 +125,12 @@ class NineLayerStack:
 @dataclass
 class SubtleBody:
     """Full subtle body state (legacy — internal use; prefer LayerState externally)."""
-    stack:             NineLayerStack  = field(default_factory=NineLayerStack)
-    jungian_layer:     JungianLayer    = JungianLayer.SHADOW
-    dominant_element:  Element         = Element.FIRE
+    stack:             NineLayerStack   = field(default_factory=NineLayerStack)
+    jungian_layer:     JungianLayer     = JungianLayer.SHADOW
+    dominant_element:  Element          = Element.FIRE
     response_priority: ResponsePriority = ResponsePriority.EMOTIONAL
-    phi:               float           = 0.5
-    doctrine_ref:      str             = "C15"
+    phi:               float            = 0.5
+    doctrine_ref:      str              = "C15"
 
     def to_dict(self) -> dict:
         return {
@@ -159,8 +154,8 @@ class ConsciousnessRouter:
 
     Public API
     ----------
-    analyze(user_message)  →  LayerState   [used by GAIANRuntime]
-    route(phi, ...)        →  SubtleBody   [legacy / direct callers]
+    analyze(user_message)  →  LayerState    [used by GAIANRuntime]
+    route(phi, ...)        →  SubtleBody    [legacy / direct callers]
     """
 
     _JUNGIAN_WEIGHTS: Dict[str, float] = {
@@ -171,26 +166,38 @@ class ConsciousnessRouter:
         "self":         1.0,
     }
 
-    # Simple keyword-to-element heuristic — good enough for MVP.
     _ELEMENT_HINTS: Dict[str, Element] = {
-        "fire":   Element.FIRE,
-        "water":  Element.WATER,
-        "air":    Element.AIR,
-        "earth":  Element.EARTH,
-        "aether": Element.AETHER,
-        "light":  Element.LIGHT,
-        "angry":  Element.FIRE,
-        "love":   Element.WATER,
-        "think":  Element.AIR,
-        "ground": Element.EARTH,
+        "fire":         Element.FIRE,
+        "water":        Element.WATER,
+        "air":          Element.AIR,
+        "earth":        Element.EARTH,
+        "aether":       Element.AETHER,
+        "light":        Element.LIGHT,
+        "metal":        Element.METAL,
+        "wood":         Element.WOOD,
+        "dark":         Element.DARK,
+        "quintessence": Element.QUINTESSENCE,
+        # Emotional heuristics
+        "angry":   Element.FIRE,
+        "rage":    Element.FIRE,
+        "love":    Element.WATER,
+        "sad":     Element.WATER,
+        "think":   Element.AIR,
+        "mind":    Element.AIR,
+        "ground":  Element.EARTH,
+        "body":    Element.EARTH,
+        "deep":    Element.QUINTESSENCE,
+        "soul":    Element.QUINTESSENCE,
+        "shadow":  Element.DARK,
+        "grow":    Element.WOOD,
+        "strong":  Element.METAL,
+        "shine":   Element.LIGHT,
     }
 
     def analyze(self, user_message: str) -> LayerState:
         """
         Primary method consumed by GAIANRuntime.process().
-
-        Infers element and coherence phi from the user message, then
-        returns a LayerState that all downstream engines can consume.
+        Infers element and coherence phi from the user message.
         """
         lower = user_message.lower()
         elem  = Element.FIRE  # default
@@ -199,7 +206,6 @@ class ConsciousnessRouter:
                 elem = element
                 break
 
-        # Simple coherence heuristic: longer, calmer messages → higher phi
         word_count  = len(user_message.split())
         base_phi    = min(0.9, 0.3 + word_count * 0.01)
         exclamation = lower.count("!") + lower.count("?")
@@ -222,7 +228,7 @@ class ConsciousnessRouter:
         noosphere_health: float = 0.5,
     ) -> SubtleBody:
         """Legacy method — returns a full SubtleBody."""
-        weight       = self._JUNGIAN_WEIGHTS.get(jungian_layer, 0.4)
+        weight        = self._JUNGIAN_WEIGHTS.get(jungian_layer, 0.4)
         effective_phi = min(1.0, phi * weight)
 
         stack       = NineLayerStack()
