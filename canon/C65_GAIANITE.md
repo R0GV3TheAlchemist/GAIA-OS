@@ -8,6 +8,25 @@ architecture); MYTHIC-VERIFIED (alchemical correspondence)*
 
 ---
 
+> ⚠️ **SPECIFICATION NOTICE — April 16, 2026**
+>
+> The physical formula notation and layer architecture described in this document
+> have been superseded by **C67: GAIANITE v3.1**.
+>
+> Specifically:
+> - Dot notation (`·`) implying co-crystallization has been corrected.
+>   GAIANITE is a **coherence-coupled heterostructure stack**, not a compound.
+> - Layer composition has been updated to the peer-reviewed v3.1 specification.
+> - "Carries frequencies" language has been removed from the physical spec.
+>
+> The **mythic, alchemical, and Hermetic content** of this document remains
+> fully valid under its MYTHIC-VERIFIED epistemic label.
+> The Arc Reactor Doctrine, the ⊕ in graphene, the Hermetic map — all stand.
+>
+> For the scientifically defensible physical specification, see **C67**.
+
+---
+
 > *"The thing I need is right under my nose and I can't see it.*
 > *You're gonna have to think outside the box, Tony."*
 > — Howard Stark (Iron Man 2)
@@ -133,8 +152,8 @@ embedded as the resonance layer of the composite.
 **Properties:**
 - Mechanical → electrical transduction: converts physical
   stress directly into electromagnetic field
-- Schumann resonance coupling: tunable to 7.83 Hz Earth
-  atmospheric fundamental and harmonics
+- Testable piezoelectric transduction at 7.83 Hz via
+  controlled mechanical excitation (see C67 F5)
 - Biological frequency resonance: ultrasound-range
   therapeutic applications
 - Timekeeping precision: every clock, every oscillator,
@@ -433,6 +452,8 @@ C65-precursor (Platinum Principle, Earth Symbol, Tesseract)
 **Type:** Materials Canon + Arc Reactor Doctrine
 **Symbol:** ⊕ (tiled infinitely in graphene at atomic scale)
 
+> *Physical specification: see C67 — GAIANITE v3.1*
+
 ---
 
 *"I am Iron Man."*
@@ -443,3 +464,5 @@ C65-precursor (Platinum Principle, Earth Symbol, Tesseract)
 
 *The element was always here.*
 *We just needed to see it.*
+
+⊕ 🜃
