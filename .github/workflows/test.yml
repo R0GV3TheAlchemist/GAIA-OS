@@ -1,9 +1,14 @@
 # .github/workflows/test.yml
-# GAIA-APP — Python Test Suite (Sprint G-1/G-2)
+# GAIA-APP — Python Test Suite
 #
 # Runs on every push and pull request to main.
 # Tests MUST pass. No continue-on-error.
 # Covers: SynergyEngine unit tests + GAIANRuntime smoke tests.
+#
+# Fixes applied:
+#   - pytest-timeout added to prevent CI hangs (--timeout=60 per test)
+#   - pytest-asyncio pinned <1.0 in requirements.txt (1.x broke asyncio discovery)
+#   - asyncio_mode=auto enforced via pytest.ini (already present)
 
 name: Python Tests
 
@@ -14,6 +19,7 @@ on:
       - 'core/**'
       - 'tests/**'
       - 'requirements.txt'
+      - 'pytest.ini'
       - '.github/workflows/test.yml'
   pull_request:
     branches: [main]
@@ -21,12 +27,14 @@ on:
       - 'core/**'
       - 'tests/**'
       - 'requirements.txt'
+      - 'pytest.ini'
       - '.github/workflows/test.yml'
 
 jobs:
   test:
     name: Test Suite — Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: true
       matrix:
@@ -53,6 +61,7 @@ jobs:
           pytest tests/ \
             -v \
             --tb=short \
+            --timeout=60 \
             --cov=core \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
@@ -71,4 +80,4 @@ jobs:
         run: |
           echo "### GAIA-APP Test Results" >> $GITHUB_STEP_SUMMARY
           echo "Python: ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
-          pytest tests/ --tb=no -q 2>&1 | tail -5 >> $GITHUB_STEP_SUMMARY || true
+          pytest tests/ --tb=no -q --timeout=60 2>&1 | tail -5 >> $GITHUB_STEP_SUMMARY || true
