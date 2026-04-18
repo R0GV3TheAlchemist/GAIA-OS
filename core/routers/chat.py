@@ -1,16 +1,29 @@
+"""
+core/routers/chat.py
+
+Conversation, query-stream, session, and GAIAN state read endpoints:
+  GET  /memory/list
+  POST /session/{session_id}/gaian
+  POST /gaians/{slug}/chat           (SSE stream)
+  POST /query/stream                 (SSE stream)
+  GET  /gaians/{slug}/resonance
+  GET  /gaians/{slug}/soul-mirror
+"""
+
 from __future__ import annotations
 
 import asyncio
 import json
 import time
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from core.auth import TokenPayload, require_auth
 from core.codex_stage_engine import NoosphericHealthSignals
-from core.gaian import add_exchange, get_conversation_context, load_gaian
+from core.gaian import GaianMemory, add_exchange, get_conversation_context, load_gaian
 from core.inference_router import InferenceRequest, InferenceResponse
 from core.logger import GAIAEvent, get_logger, log_event
 from core.rate_limiter import rate_limit
@@ -24,18 +37,25 @@ router = APIRouter()
 
 
 @router.get("/memory/list")
-async def memory_list(session_id: str | None = None):
+async def memory_list(session_id: Optional[str] = None):
     if not session_id:
         return {"memories": [], "count": 0}
     session = get_session(session_id)
     if not session:
         return {"memories": [], "count": 0}
-    memories = [{"query": t.query, "timestamp": t.timestamp, "source_count": t.source_count} for t in session.turns]
+    memories = [
+        {"query": t.query, "timestamp": t.timestamp, "source_count": t.source_count}
+        for t in session.turns
+    ]
     return {"memories": memories, "count": len(memories)}
 
 
 @router.post("/session/{session_id}/gaian")
-async def set_session_gaian(session_id: str, req: SetGaianRequest, user: TokenPayload = Depends(require_auth)):
+async def set_session_gaian(
+    session_id: str,
+    req: SetGaianRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(req.gaian_slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{req.gaian_slug}' not found")
@@ -63,42 +83,61 @@ async def gaian_chat(
         t0 = time.perf_counter()
         try:
             rt = _get_runtime(slug, gaian)
-            noosphere = None
+
+            noosphere: Optional[NoosphericHealthSignals] = None
             if req.schumann_hz > 10.0:
                 noosphere = NoosphericHealthSignals(schumann_boost=0.05)
             elif req.schumann_hz < 6.0:
                 noosphere = NoosphericHealthSignals(schumann_boost=-0.05)
 
             result = rt.process(req.message, noosphere=noosphere)
-            log_event(GAIAEvent.ENGINE_CHAIN, message=f"Engine chain: {slug} exchange={rt.attachment.total_exchanges}", gaian=slug, user_id=user.user_id, bond_depth=round(rt.attachment.bond_depth, 2))
-            yield f"event: engine_state\\ndata: {json.dumps(result.state_snapshot)}\\n\\n"
+            log_event(
+                GAIAEvent.ENGINE_CHAIN,
+                message=f"Engine chain: {slug} exchange={rt.attachment.total_exchanges}",
+                gaian=slug,
+                user_id=user.user_id,
+                bond_depth=round(rt.attachment.bond_depth, 2),
+            )
+
+            yield f"event: engine_state\ndata: {json.dumps(result.state_snapshot)}\n\n"
             await asyncio.sleep(0.01)
 
             if result.soul_mirror.individuation_nudge:
-                yield f"event: soul_mirror\\ndata: {json.dumps({'nudge': result.soul_mirror.individuation_nudge, 'signal': result.soul_mirror.shadow_signal.value, 'carrier': result.soul_mirror.projection_carrier.value})}\\n\\n"
+                yield (
+                    f"event: soul_mirror\ndata: {json.dumps({'nudge': result.soul_mirror.individuation_nudge, 'signal': result.soul_mirror.shadow_signal.value, 'carrier': result.soul_mirror.projection_carrier.value})}\n\n"
+                )
                 await asyncio.sleep(0.01)
 
-            yield f"event: resonance_field\\ndata: {json.dumps(result.resonance_field.summary())}\\n\\n"
+            yield f"event: resonance_field\ndata: {json.dumps(result.resonance_field.summary())}\n\n"
             await asyncio.sleep(0.01)
 
             web_sources = []
             if req.enable_web_search:
                 try:
                     web_results = await search_web_async(req.message, max_results=4)
-                    web_sources = [wr.to_dict() if hasattr(wr, "to_dict") else dict(wr) for wr in web_results]
+                    web_sources = [
+                        wr.to_dict() if hasattr(wr, "to_dict") else dict(wr)
+                        for wr in web_results
+                    ]
                 except Exception as e:
                     logger.warning(f"Web search error in chat: {e}")
 
             effective_prompt = result.system_prompt
             if result.soul_mirror.individuation_nudge:
-                effective_prompt += "\n\n[SOUL MIRROR NUDGE AVAILABLE — use naturally if it fits]\n" + result.soul_mirror.individuation_nudge
+                effective_prompt += (
+                    "\n\n[SOUL MIRROR NUDGE AVAILABLE \u2014 use naturally if it fits]\n"
+                    + result.soul_mirror.individuation_nudge
+                )
 
             inference_req = InferenceRequest(
                 query=req.message,
                 gaian_slug=slug,
                 gaian_system_prompt=effective_prompt,
                 long_term_memories=gaian.long_term_memories or [],
-                visible_memories=[m["text"] for m in rt._memory.get("visible_memories", []) if isinstance(m, dict)],
+                visible_memories=[
+                    m["text"] for m in rt._memory.get("visible_memories", [])
+                    if isinstance(m, dict)
+                ],
                 conversation_history=get_conversation_context(gaian),
                 conversation_context=session.get_context_summary() if session.turns else None,
                 sources=web_sources,
@@ -112,18 +151,51 @@ async def gaian_chat(
 
             async for chunk in _inference_router.stream(inference_req, inference_meta):
                 full_answer += chunk
-                yield f"event: token\\ndata: {json.dumps({'text': chunk})}\\n\\n"
+                yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
 
             session.add_turn(req.message, full_answer, len(web_sources))
             if full_answer:
                 add_exchange(gaian, req.message, full_answer)
 
             duration_ms = round((time.perf_counter() - t0) * 1000, 1)
-            log_event(GAIAEvent.TURN_COMPLETE, message=f"Turn complete: {slug}", gaian=slug, user_id=user.user_id, duration_ms=duration_ms, exchange=rt.attachment.total_exchanges, bond_depth=round(rt.attachment.bond_depth, 2))
-            yield f"event: done\\ndata: {json.dumps({'session_id': session_id, 'gaian': gaian.name, 'gaian_slug': slug, 'user_id': user.user_id, 'exchange': rt.attachment.total_exchanges, 'bond_depth': round(rt.attachment.bond_depth, 2), 'individuation_phase': rt.soul_mirror_state.individuation_phase.value, 'resonance_hz': result.resonance_field.solfeggio.hz.value, 'schumann_aligned': result.resonance_field.schumann_aligned, 'noosphere_health': round(rt.codex_stage_state.noosphere_health, 4), 'epistemic_label': inference_meta.epistemic_label.value, 'backend_used': inference_meta.backend_used.value, 'canon_docs': inference_meta.canon_docs_injected, 'noosphere_resonance': inference_meta.noosphere_resonance, 'criticality_state': inference_meta.criticality_state, 'inference_ms': inference_meta.duration_ms, 'timestamp': time.time()})}\\n\\n"
+            log_event(
+                GAIAEvent.TURN_COMPLETE,
+                message=f"Turn complete: {slug}",
+                gaian=slug,
+                user_id=user.user_id,
+                duration_ms=duration_ms,
+                exchange=rt.attachment.total_exchanges,
+                bond_depth=round(rt.attachment.bond_depth, 2),
+            )
+
+            yield (
+                f"event: done\ndata: {json.dumps({
+                    'session_id': session_id,
+                    'gaian': gaian.name,
+                    'gaian_slug': slug,
+                    'user_id': user.user_id,
+                    'exchange': rt.attachment.total_exchanges,
+                    'bond_depth': round(rt.attachment.bond_depth, 2),
+                    'individuation_phase': rt.soul_mirror_state.individuation_phase.value,
+                    'resonance_hz': result.resonance_field.solfeggio.hz.value,
+                    'schumann_aligned': result.resonance_field.schumann_aligned,
+                    'noosphere_health': round(rt.codex_stage_state.noosphere_health, 4),
+                    'epistemic_label': inference_meta.epistemic_label.value,
+                    'backend_used': inference_meta.backend_used.value,
+                    'canon_docs': inference_meta.canon_docs_injected,
+                    'noosphere_resonance': inference_meta.noosphere_resonance,
+                    'criticality_state': inference_meta.criticality_state,
+                    'inference_ms': inference_meta.duration_ms,
+                    'timestamp': time.time(),
+                })}\n\n"
+            )
         except Exception as e:
-            logger.error(f"Chat stream error [{slug}]: {e}", exc_info=True, extra={"event": GAIAEvent.TURN_ERROR.value, "gaian": slug})
-            yield f"event: error\\ndata: {json.dumps({'error': str(e)})}\\n\\n"
+            logger.error(
+                f"Chat stream error [{slug}]: {e}",
+                exc_info=True,
+                extra={"event": GAIAEvent.TURN_ERROR.value, "gaian": slug},
+            )
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
@@ -137,7 +209,7 @@ async def query_stream(
     session_id = req.session_id or str(uuid.uuid4())
     session = get_or_create_session(session_id)
     gaian_slug = req.gaian_slug or session.active_gaian_slug or "gaia"
-    gaian = load_gaian(gaian_slug)
+    gaian: Optional[GaianMemory] = load_gaian(gaian_slug)
     if gaian is None:
         gaian = load_gaian("gaia")
         if gaian:
@@ -145,17 +217,28 @@ async def query_stream(
 
     async def event_stream():
         full_answer = ""
-        sources = []
-        canon_results = []
+        sources: list[dict] = []
+        canon_results: list[dict] = []
         t0 = time.perf_counter()
         try:
             canon_results = canon.search(req.query, max_results=3)
-            log_event(GAIAEvent.CANON_SEARCH, message=f"Canon search: {len(canon_results)} results", gaian=gaian_slug, user_id=user.user_id, results=len(canon_results))
+            log_event(
+                GAIAEvent.CANON_SEARCH,
+                message=f"Canon search: {len(canon_results)} results",
+                gaian=gaian_slug,
+                user_id=user.user_id,
+                results=len(canon_results),
+            )
 
             for result in canon_results:
-                src = {"tier": "T1", "title": result.get("title", ""), "doc_id": result.get("doc_id", ""), "excerpt": result.get("excerpt", "")}
+                src = {
+                    "tier": "T1",
+                    "title": result.get("title", ""),
+                    "doc_id": result.get("doc_id", ""),
+                    "excerpt": result.get("excerpt", ""),
+                }
                 sources.append(src)
-                yield f"event: citation\\ndata: {json.dumps(result)}\\n\\n"
+                yield f"event: citation\ndata: {json.dumps(result)}\n\n"
                 await asyncio.sleep(0.01)
 
             if req.enable_web_search:
@@ -165,26 +248,36 @@ async def query_stream(
                         src = wr.to_dict() if hasattr(wr, "to_dict") else dict(wr)
                         src["tier"] = src.get("source_tier", "T4")
                         sources.append(src)
-                        yield f"event: web_result\\ndata: {json.dumps(src)}\\n\\n"
+                        yield f"event: web_result\ndata: {json.dumps(src)}\n\n"
                         await asyncio.sleep(0.01)
                 except Exception as e:
                     logger.warning(f"Web search failed: {e}")
 
             runtime_system_prompt = None
-            conversation_history = None
-            long_term_memories = []
-            visible_memories = []
+            conversation_history: Optional[list] = None
+            long_term_memories: list = []
+            visible_memories: list = []
 
             if gaian:
                 rt = _get_runtime(gaian_slug, gaian)
-                rt.canon_text = ("\\n\\n".join("[{title}]\\n{excerpt}".format(title=r.get("title", ""), excerpt=r.get("excerpt", "")) for r in canon_results[:2])) if canon_results else None
+                rt.canon_text = (
+                    "\n\n".join(
+                        "[{title}]\n{excerpt}".format(
+                            title=r.get("title", ""), excerpt=r.get("excerpt", "")
+                        )
+                        for r in canon_results[:2]
+                    )
+                ) if canon_results else None
                 result = rt.process(req.query)
                 runtime_system_prompt = result.system_prompt
-                yield f"event: engine_state\\ndata: {json.dumps(result.state_snapshot)}\\n\\n"
+                yield f"event: engine_state\ndata: {json.dumps(result.state_snapshot)}\n\n"
                 await asyncio.sleep(0.01)
                 conversation_history = get_conversation_context(gaian)
                 long_term_memories = gaian.long_term_memories or []
-                visible_memories = [m["text"] for m in rt._memory.get("visible_memories", []) if isinstance(m, dict)]
+                visible_memories = [
+                    m["text"] for m in rt._memory.get("visible_memories", [])
+                    if isinstance(m, dict)
+                ]
 
             inference_req = InferenceRequest(
                 query=req.query,
@@ -204,21 +297,52 @@ async def query_stream(
 
             async for chunk in _inference_router.stream(inference_req, inference_meta):
                 full_answer += chunk
-                yield f"event: token\\ndata: {json.dumps({'text': chunk})}\\n\\n"
+                yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
 
             suggestions = _generate_suggestions(req.query, sources)
-            yield f"event: suggestions\\ndata: {json.dumps({'items': suggestions})}\\n\\n"
+            yield f"event: suggestions\ndata: {json.dumps({'items': suggestions})}\n\n"
 
             session.add_turn(req.query, full_answer, len(sources))
             if gaian and full_answer:
                 add_exchange(gaian, req.query, full_answer)
 
             duration_ms = round((time.perf_counter() - t0) * 1000, 1)
-            log_event(GAIAEvent.TURN_COMPLETE, message="Query stream complete", gaian=gaian_slug, user_id=user.user_id, duration_ms=duration_ms, canon_refs=len(canon_results), web_results=len(sources) - len(canon_results))
-            yield f"event: done\\ndata: {json.dumps({'canon_status': canon.status, 'docs_searched': len(canon.list_documents()), 'refs_found': len(canon_results), 'web_results': len(sources) - len(canon_results), 'session_id': session_id, 'user_id': user.user_id, 'gaian': gaian.name if gaian else None, 'gaian_slug': gaian_slug, 'epistemic_label': inference_meta.epistemic_label.value, 'backend_used': inference_meta.backend_used.value, 'canon_docs': inference_meta.canon_docs_injected, 'noosphere_resonance': inference_meta.noosphere_resonance, 'criticality_state': inference_meta.criticality_state, 'inference_ms': inference_meta.duration_ms, 'timestamp': time.time()})}\\n\\n"
+            log_event(
+                GAIAEvent.TURN_COMPLETE,
+                message="Query stream complete",
+                gaian=gaian_slug,
+                user_id=user.user_id,
+                duration_ms=duration_ms,
+                canon_refs=len(canon_results),
+                web_results=len(sources) - len(canon_results),
+            )
+
+            yield (
+                f"event: done\ndata: {json.dumps({
+                    'canon_status': canon.status,
+                    'docs_searched': len(canon.list_documents()),
+                    'refs_found': len(canon_results),
+                    'web_results': len(sources) - len(canon_results),
+                    'session_id': session_id,
+                    'user_id': user.user_id,
+                    'gaian': gaian.name if gaian else None,
+                    'gaian_slug': gaian_slug,
+                    'epistemic_label': inference_meta.epistemic_label.value,
+                    'backend_used': inference_meta.backend_used.value,
+                    'canon_docs': inference_meta.canon_docs_injected,
+                    'noosphere_resonance': inference_meta.noosphere_resonance,
+                    'criticality_state': inference_meta.criticality_state,
+                    'inference_ms': inference_meta.duration_ms,
+                    'timestamp': time.time(),
+                })}\n\n"
+            )
         except Exception as e:
-            logger.error(f"Stream error: {e}", exc_info=True, extra={"event": GAIAEvent.TURN_ERROR.value})
-            yield f"event: error\\ndata: {json.dumps({'error': str(e)})}\\n\\n"
+            logger.error(
+                f"Stream error: {e}",
+                exc_info=True,
+                extra={"event": GAIAEvent.TURN_ERROR.value},
+            )
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

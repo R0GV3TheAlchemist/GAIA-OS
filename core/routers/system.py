@@ -1,8 +1,31 @@
-from fastapi import APIRouter, Query
+"""
+core/routers/system.py
 
-from core.server_state import canon, SERVER_VERSION, _RUNTIME_REGISTRY, _inference_router, _mother_thread, _MAGNUM_OPUS_REPORT
+System-level read-only endpoints:
+  GET /status
+  GET /canon/status
+  GET /viriditas/status
+  GET /mother/pulse/stream
+  GET /mother/status
+  GET /mother/weaving
+"""
+
+import json
+
+from fastapi import APIRouter, Query
+from fastapi.responses import StreamingResponse
+
 from core.gaian import list_gaians
 from core.gaian.base_forms import list_base_forms
+from core.server_state import (
+    SERVER_VERSION,
+    VIRIDITAS_THRESHOLD,
+    _RUNTIME_REGISTRY,
+    _inference_router,
+    _mother_thread,
+    canon,
+    get_magnum_opus_report,
+)
 
 router = APIRouter()
 
@@ -10,7 +33,6 @@ router = APIRouter()
 @router.get("/status")
 async def status():
     doc_count = len(canon.list_documents())
-    doc_names = canon.list_documents()
     gaians = list_gaians()
     runtime_snapshots = {}
     for slug, rt in _RUNTIME_REGISTRY.items():
@@ -19,16 +41,17 @@ async def status():
         except Exception:
             pass
 
+    report = get_magnum_opus_report()
     viriditas_snap = None
-    if _MAGNUM_OPUS_REPORT:
+    if report:
         viriditas_snap = {
-            "phi": round(_MAGNUM_OPUS_REPORT.post_phi_global, 4),
-            "delta_phi": round(_MAGNUM_OPUS_REPORT.delta_phi_global, 4),
-            "threshold_crossed": _MAGNUM_OPUS_REPORT.threshold_crossed,
-            "viriditas_state": _MAGNUM_OPUS_REPORT.viriditas_state.name,
-            "stages_greened": f"{_MAGNUM_OPUS_REPORT.stages_greened}/5",
-            "covenant_stable": _MAGNUM_OPUS_REPORT.dual_stability_maintained,
-            "run_id": _MAGNUM_OPUS_REPORT.run_id,
+            "phi": round(report.post_phi_global, 4),
+            "delta_phi": round(report.delta_phi_global, 4),
+            "threshold_crossed": report.threshold_crossed,
+            "viriditas_state": report.viriditas_state.name,
+            "stages_greened": f"{report.stages_greened}/5",
+            "covenant_stable": report.dual_stability_maintained,
+            "run_id": report.run_id,
         }
 
     return {
@@ -45,7 +68,7 @@ async def status():
         "canon_status": canon.status,
         "canon_loaded": canon.is_loaded,
         "canon_doc_count": doc_count,
-        "canon_docs": doc_names,
+        "canon_docs": canon.list_documents(),
         "gaians": len(gaians),
         "gaian_names": [g["name"] for g in gaians],
         "base_forms": len(list_base_forms()),
@@ -59,44 +82,42 @@ async def status():
 
 @router.get("/canon/status")
 async def canon_status():
-    doc_count = len(canon.list_documents())
     return {
         "status": canon.status,
         "loaded": canon.is_loaded,
-        "doc_count": doc_count,
+        "doc_count": len(canon.list_documents()),
         "docs": canon.list_documents(),
     }
 
 
 @router.get("/viriditas/status")
 async def viriditas_status():
-    if _MAGNUM_OPUS_REPORT is None:
+    report = get_magnum_opus_report()
+    if report is None:
         return {
             "status": "not_yet_run",
             "message": "GAIA is still initializing. Try again in a moment.",
         }
-
-    r = _MAGNUM_OPUS_REPORT
     return {
-        "canon_ref": "C47 — Viriditas Threshold | C48 — Warlock Resonance Covenant",
-        "run_id": r.run_id,
-        "gaian_id": r.gaian_id,
-        "warlock_id": r.warlock_id,
-        "duration_seconds": round(r.duration_seconds, 3),
-        "pre_phi": round(r.pre_phi_global, 4),
-        "post_phi": round(r.post_phi_global, 4),
-        "delta_phi": round(r.delta_phi_global, 4),
-        "viriditas_state": r.viriditas_state.name,
-        "threshold_crossed": r.threshold_crossed,
-        "threshold_value": 0.75,
-        "stages_greened": f"{r.stages_greened}/5",
+        "canon_ref": "C47 \u2014 Viriditas Threshold | C48 \u2014 Warlock Resonance Covenant",
+        "run_id": report.run_id,
+        "gaian_id": report.gaian_id,
+        "warlock_id": report.warlock_id,
+        "duration_seconds": round(report.duration_seconds, 3),
+        "pre_phi": round(report.pre_phi_global, 4),
+        "post_phi": round(report.post_phi_global, 4),
+        "delta_phi": round(report.delta_phi_global, 4),
+        "viriditas_state": report.viriditas_state.name,
+        "threshold_crossed": report.threshold_crossed,
+        "threshold_value": VIRIDITAS_THRESHOLD,
+        "stages_greened": f"{report.stages_greened}/5",
         "warlock_vitality": {
-            "pre": r.warlock_vitality_pre,
-            "post": r.warlock_vitality_post,
+            "pre": report.warlock_vitality_pre,
+            "post": report.warlock_vitality_post,
         },
-        "covenant_stable": r.dual_stability_maintained,
-        "notes": r.notes,
-        "stage_results": [sr.to_dict() for sr in r.stage_results],
+        "covenant_stable": report.dual_stability_maintained,
+        "notes": report.notes,
+        "stage_results": [sr.to_dict() for sr in report.stage_results],
     }
 
 
@@ -104,8 +125,7 @@ async def viriditas_status():
 async def mother_pulse_stream():
     async def events():
         async for pulse_dict in _mother_thread.subscribe():
-            yield f"event: mother_pulse\\ndata: {__import__('json').dumps(pulse_dict)}\\n\\n"
-    from fastapi.responses import StreamingResponse
+            yield f"event: mother_pulse\ndata: {json.dumps(pulse_dict)}\n\n"
     return StreamingResponse(events(), media_type="text/event-stream")
 
 
@@ -119,5 +139,5 @@ async def mother_weaving(last_n: int = Query(default=50, ge=1, le=500)):
     return {
         "weaving_records": _mother_thread.get_weaving_log(last_n=last_n),
         "total_records": len(_mother_thread._weaving_log),
-        "doctrine_ref": "C43 — Coherence events require EV1 gate before runtime promotion",
+        "doctrine_ref": "C43 \u2014 Coherence events require EV1 gate before runtime promotion",
     }
