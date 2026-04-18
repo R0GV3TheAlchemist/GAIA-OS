@@ -1,5 +1,5 @@
 """
-GAIA API Server \u2014 FastAPI bootstrap v2.1.0
+GAIA API Server — FastAPI bootstrap v2.1.0
 
 Split from the monolith in Sprint C47+. All endpoints live in
 core/routers/. Shared process state lives in core/server_state.py.
@@ -24,7 +24,7 @@ from core.error_boundary import install_error_handlers
 from core.gaian import ensure_default_gaian
 from core.logger import GAIAEvent, LoggingMiddleware, get_logger, log_event
 from core.rate_limiter import RateLimitMiddleware
-from core.routers import chat_router, gaians_router, system_router, zodiac_router
+from core.routers import chat_router, gaians_router, health_router, system_router, zodiac_router
 from core.server_lifecycle import register_lifecycle
 from core.server_state import SERVER_VERSION, canon
 
@@ -41,10 +41,10 @@ _CORS_ORIGINS = [
 
 app = FastAPI(title="GAIA API", version=SERVER_VERSION)
 
-# \u2500 Error boundary (must be first) \u2500
+# — Error boundary (must be first) —
 install_error_handlers(app)
 
-# \u2500 Middleware stack: Logging \u2192 RateLimit \u2192 CORS \u2500
+# — Middleware stack: Logging → RateLimit → CORS —
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
@@ -55,17 +55,18 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Correlation-ID"],
 )
 
-# \u2500 Routers \u2500
+# — Routers —
 app.include_router(auth_router)
+app.include_router(health_router)   # /health, /health/ready — no auth, mounted first
 app.include_router(system_router)
 app.include_router(gaians_router)
 app.include_router(chat_router)
 app.include_router(zodiac_router)
 
-# \u2500 Startup / shutdown lifecycle \u2500
+# — Startup / shutdown lifecycle —
 register_lifecycle(app)
 
-# \u2500 Bootstrap \u2500
+# — Bootstrap —
 try:
     ensure_default_gaian()
     log_event(GAIAEvent.GAIAN_LOADED, message="Default GAIAN (GAIA) ready.", gaian="gaia")

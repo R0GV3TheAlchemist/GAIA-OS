@@ -1,3 +1,20 @@
+"""
+core/routers/gaians.py
+
+GAIAN management endpoints:
+  GET  /admin/me
+  GET  /gaians/base-forms
+  GET  /gaians
+  POST /gaians                       legacy create
+  POST /gaians/birth                 full Birth Ritual
+  GET  /gaians/{slug}
+  GET  /gaians/{slug}/identity
+  POST /gaians/{slug}/remember
+  POST /gaians/{slug}/memory
+  GET  /gaians/{slug}/runtime-status
+  POST /gaians/{slug}/consent
+"""
+
 from __future__ import annotations
 
 import json
@@ -6,19 +23,19 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import TokenPayload, require_admin, require_auth
-from core.gaian import list_gaians, create_gaian, load_gaian, _save_gaian
+from core.gaian import _save_gaian, create_gaian, list_gaians, load_gaian
 from core.gaian.base_forms import get_base_form, get_visual_dna, list_base_forms
-from core.server_models import (
-    CreateGaianRequest,
-    BirthRequest,
-    RememberRequest,
-    VisibleMemoryRequest,
-    ConsentRequest,
-)
-from core.server_state import GAIANS_MEMORY_DIR, _mother_thread, _RUNTIME_REGISTRY, _get_runtime
 from core.gaian_birth import BirthRitual, GaianBirthParams
 from core.logger import GAIAEvent, log_event
 from core.rate_limiter import rate_limit
+from core.server_models import (
+    BirthRequest,
+    ConsentRequest,
+    CreateGaianRequest,
+    RememberRequest,
+    VisibleMemoryRequest,
+)
+from core.server_state import GAIANS_MEMORY_DIR, _RUNTIME_REGISTRY, _get_runtime, _mother_thread
 
 router = APIRouter()
 
@@ -66,7 +83,10 @@ async def get_gaians():
 
 
 @router.post("/gaians")
-async def post_create_gaian(req: CreateGaianRequest, user: TokenPayload = Depends(require_auth)):
+async def post_create_gaian(
+    req: CreateGaianRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = create_gaian(
         name=req.name,
         base_form=req.base_form or "gaia",
@@ -74,7 +94,12 @@ async def post_create_gaian(req: CreateGaianRequest, user: TokenPayload = Depend
         avatar_color=req.avatar_color,
         user_name=req.user_name,
     )
-    log_event(GAIAEvent.GAIAN_BORN, message=f"Legacy GAIAN created: {gaian.slug}", gaian=gaian.slug, user_id=user.user_id)
+    log_event(
+        GAIAEvent.GAIAN_BORN,
+        message=f"Legacy GAIAN created: {gaian.slug}",
+        gaian=gaian.slug,
+        user_id=user.user_id,
+    )
     return {
         "status": "created",
         "id": gaian.id,
@@ -93,9 +118,14 @@ async def post_birth_gaian(
     user: TokenPayload = Depends(require_auth),
     _rl=Depends(rate_limit(max_requests=5, window_seconds=60, scope="birth")),
 ):
-    existing = load_gaian(req.name.lower().replace(" ", "_")[:24])
+    # Derive slug the same way BirthRitual does so the conflict check is accurate.
+    candidate_slug = req.name.lower().replace(" ", "_")[:24]
+    existing = load_gaian(candidate_slug)
     if existing:
-        raise HTTPException(status_code=409, detail=f"A GAIAN named '{req.name}' already exists (slug: {existing.slug}).")
+        raise HTTPException(
+            status_code=409,
+            detail=f"A GAIAN named '{req.name}' already exists (slug: {existing.slug}).",
+        )
 
     params = GaianBirthParams(
         name=req.name,
@@ -108,8 +138,19 @@ async def post_birth_gaian(
         user_id=user.user_id,
     )
     result = BirthRitual().perform(params)
+
+    # Register runtime immediately so subsequent calls don't re-initialise.
     _RUNTIME_REGISTRY[result.gaian.slug] = result.runtime
-    _mother_thread.register(slug=result.gaian.slug, gaian_name=result.gaian.name, runtime=result.runtime, collective_consent=False)
+    _mother_thread.register(
+        slug=result.gaian.slug,
+        gaian_name=result.gaian.name,
+        runtime=result.runtime,
+        collective_consent=False,
+    )
+
+    # Pronouns follow Jungian role: anima → she/her, animus → he/him, Self → they/them.
+    _PRONOUN_MAP = {"anima": "she/her", "animus": "he/him", "Self": "they/them"}
+    pronouns = _PRONOUN_MAP.get(result.jungian_role, "they/them")
 
     log_event(
         GAIAEvent.GAIAN_BORN,
@@ -118,6 +159,7 @@ async def post_birth_gaian(
         user_id=user.user_id,
         base_form=result.gaian.base_form_id,
         jungian_role=result.jungian_role,
+        pronouns=pronouns,
         zodiac=result.zodiac.sign if result.zodiac else None,
         did_prefix=result.did[:20],
     )
@@ -130,7 +172,7 @@ async def post_birth_gaian(
         "avatar_color": result.gaian.avatar_color,
         "avatar_style": result.gaian.avatar_style,
         "jungian_role": result.jungian_role,
-        "pronouns": "she/her" if result.jungian_role == "anima" else "he/him",
+        "pronouns": pronouns,
         "did": result.did,
         "first_words": result.first_words,
         "born_at": result.born_at,
@@ -179,12 +221,19 @@ async def get_gaian_identity(slug: str):
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
     identity_path = Path(GAIANS_MEMORY_DIR) / slug / "identity.json"
     if not identity_path.exists():
-        raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' has no identity.json — use POST /gaians/birth.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"GAIAN '{slug}' has no identity.json — use POST /gaians/birth.",
+        )
     return json.loads(identity_path.read_text(encoding="utf-8"))
 
 
 @router.post("/gaians/{slug}/remember")
-async def post_remember(slug: str, req: RememberRequest, user: TokenPayload = Depends(require_auth)):
+async def post_remember(
+    slug: str,
+    req: RememberRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
@@ -192,19 +241,39 @@ async def post_remember(slug: str, req: RememberRequest, user: TokenPayload = De
     if len(gaian.long_term_memories) > 50:
         gaian.long_term_memories = gaian.long_term_memories[-50:]
     _save_gaian(gaian)
-    log_event(GAIAEvent.MEMORY_SAVED, message=f"Long-term memory saved for {slug}", gaian=slug, user_id=user.user_id, total_memories=len(gaian.long_term_memories))
+    log_event(
+        GAIAEvent.MEMORY_SAVED,
+        message=f"Long-term memory saved for {slug}",
+        gaian=slug,
+        user_id=user.user_id,
+        total_memories=len(gaian.long_term_memories),
+    )
     return {"status": "remembered", "total_memories": len(gaian.long_term_memories)}
 
 
 @router.post("/gaians/{slug}/memory")
-async def post_visible_memory(slug: str, req: VisibleMemoryRequest, user: TokenPayload = Depends(require_auth)):
+async def post_visible_memory(
+    slug: str,
+    req: VisibleMemoryRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
     rt = _get_runtime(slug, gaian)
     rt.add_visible_memory(req.memory)
-    log_event(GAIAEvent.MEMORY_SAVED, message=f"Visible memory saved for {slug}", gaian=slug, user_id=user.user_id)
-    return {"status": "remembered", "slug": slug, "total_visible_memories": len(rt._memory.get("visible_memories", []))}
+    log_event(
+        GAIAEvent.MEMORY_SAVED,
+        message=f"Visible memory saved for {slug}",
+        gaian=slug,
+        user_id=user.user_id,
+        total_visible_memories=len(rt._memory.get("visible_memories", [])),
+    )
+    return {
+        "status": "remembered",
+        "slug": slug,
+        "total_visible_memories": len(rt._memory.get("visible_memories", [])),
+    }
 
 
 @router.get("/gaians/{slug}/runtime-status")
@@ -217,12 +286,22 @@ async def get_runtime_status(slug: str):
 
 
 @router.post("/gaians/{slug}/consent")
-async def set_gaian_consent(slug: str, req: ConsentRequest, user: TokenPayload = Depends(require_auth)):
+async def set_gaian_consent(
+    slug: str,
+    req: ConsentRequest,
+    user: TokenPayload = Depends(require_auth),
+):
     gaian = load_gaian(slug)
     if not gaian:
         raise HTTPException(status_code=404, detail=f"GAIAN '{slug}' not found")
     _mother_thread.set_consent(slug, req.collective_consent)
-    log_event(GAIAEvent.MEMORY_SAVED, message=f"Collective consent updated for {slug}: {req.collective_consent}", gaian=slug, user_id=user.user_id)
+    log_event(
+        GAIAEvent.CONSENT_UPDATED,          # correct event type — was MEMORY_SAVED
+        message=f"Collective consent updated for {slug}: {req.collective_consent}",
+        gaian=slug,
+        user_id=user.user_id,
+        collective_consent=req.collective_consent,
+    )
     return {
         "status": "consent_updated",
         "slug": slug,
