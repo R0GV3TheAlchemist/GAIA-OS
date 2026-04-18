@@ -1,31 +1,23 @@
 """
-core/api — GAIA modular FastAPI router package.
+core/api — GAIA-APP FastAPI router package.
 
-Phase 1 modernization: server.py split into domain-scoped routers.
+Modern FastAPI apps split endpoints into focused APIRouter modules.
+Each router handles one domain of concerns:
 
-Routers
--------
-status_router     /status  /canon/status  /memory/list
-admin_router      /admin/*
-viriditas_router  /viriditas/*
-zodiac_router     /zodiac/*
-gaians_router     /gaians/*  /session/*
-chat_router       /gaians/{slug}/chat  /resonance  /soul-mirror
-query_router      /query/stream
-mother_router     /mother/*
+  status_router   — /status, /canon/status, /memory/list
+  chat_router     — /gaians/{slug}/chat  (SSE streaming)
+  search_router   — /query/stream        (Perplexity-style search)
+  memory_router   — /gaians/{slug}/memory, /gaians/{slug}/remember
+  canon_router    — canon CRUD and ActionGate overrides
+  zodiac_router   — /zodiac/* endpoints
+  mother_router   — /mother/* endpoints
 
-All routers are imported and mounted in core/server.py via
-    app.include_router(router, tags=[...])
+Each router is registered in server.py via:
+    app.include_router(router, prefix="/api/v1")
+
+This replaces the old monolithic server.py approach.
 """
 
-from .status_router    import router as status_router
-from .admin_router     import router as admin_router
-from .viriditas_router import router as viriditas_router
-from .zodiac_router    import router as zodiac_router
+from .status_router import router as status_router
 
-__all__ = [
-    "status_router",
-    "admin_router",
-    "viriditas_router",
-    "zodiac_router",
-]
+__all__ = ["status_router"]
