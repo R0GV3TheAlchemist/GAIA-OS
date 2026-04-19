@@ -24,7 +24,15 @@ from core.error_boundary import install_error_handlers
 from core.gaian import ensure_default_gaian
 from core.logger import GAIAEvent, LoggingMiddleware, get_logger, log_event
 from core.rate_limiter import RateLimitMiddleware
-from core.routers import chat_router, gaians_router, health_router, system_router, zodiac_router
+from core.routers import (
+    admin_router,
+    chat_router,
+    gaians_router,
+    health_router,
+    query_router,
+    system_router,
+    zodiac_router,
+)
 from core.server_lifecycle import register_lifecycle
 from core.server_state import SERVER_VERSION, canon
 
@@ -62,6 +70,8 @@ app.include_router(system_router)
 app.include_router(gaians_router)
 app.include_router(chat_router)
 app.include_router(zodiac_router)
+app.include_router(query_router)    # /query, /query/stream
+app.include_router(admin_router)    # /admin/*
 
 # — Startup / shutdown lifecycle —
 register_lifecycle(app)
