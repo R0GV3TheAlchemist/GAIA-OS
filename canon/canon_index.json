@@ -1,10 +1,11 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "generated_at": "2026-04-19",
   "notes": [
     "This manifest is a machine-readable canon index for GAIA-APP.",
     "C48b exists because the original dark matter hypothesis conflicted numerically with C48 Knowledge Matrix.",
-    "Series values are organizational and may be refined as canon governance matures."
+    "Series values are organizational and may be refined as canon governance matures.",
+    "v1.1.0 adds QC_03, C75 Crystal Integration Protocol, C76 Nigredo Doctrine, and C-ARCHITECT meta-governance."
   ],
   "documents": [
     {"id":"C-FORCES","path":"canon/C-FORCES.md","title":"C-FORCES","series":"legacy-core","status":"canonical"},
@@ -13,6 +14,7 @@
     {"id":"C-OMNI","path":"canon/C-OMNI.md","title":"C-OMNI","series":"legacy-core","status":"canonical"},
     {"id":"C-SOUL","path":"canon/C-SOUL.md","title":"C-SOUL","series":"legacy-core","status":"canonical"},
     {"id":"C-SPECTRUM","path":"canon/C-SPECTRUM.md","title":"C-SPECTRUM","series":"legacy-core","status":"canonical"},
+    {"id":"C-ARCHITECT","path":"canon/C-ARCHITECT.md","title":"The Architect Doctrine","series":"meta-governance","status":"canonical"},
     {"id":"C00","path":"canon/C00_FOUNDATIONAL_COSMOLOGY.md","title":"Foundational Cosmology","series":"foundations","status":"canonical"},
     {"id":"C32","path":"canon/C32-Elemental-Codex.md","title":"Elemental Codex","series":"elemental","status":"canonical"},
     {"id":"C41","path":"canon/C41-Alchemy-of-Being.md","title":"Alchemy of Being","series":"alchemy","status":"canonical"},
@@ -51,7 +53,10 @@
     {"id":"C72","path":"canon/C72_Piezoelectric_Resonance_STEM_Annotation.md","title":"Piezoelectric Resonance STEM Annotation","series":"stem-bridge","status":"canonical"},
     {"id":"C73","path":"canon/C73_The_Resonant_Cavity_Malta_to_GAIA.md","title":"The Resonant Cavity Malta to GAIA","series":"stem-bridge","status":"canonical"},
     {"id":"C74","path":"canon/C74_Dark_Matter_Frequency_STEM_Bridge.md","title":"Dark Matter Frequency STEM Bridge","series":"stem-bridge","status":"canonical"},
+    {"id":"C75","path":"canon/C75_Crystal_Integration_Protocol.md","title":"Crystal Integration Protocol","series":"crystal","status":"canonical"},
+    {"id":"C76","path":"canon/C76_Nigredo_Doctrine.md","title":"The Nigredo Doctrine","series":"alchemy","status":"canonical"},
     {"id":"QC_01","path":"canon/QC_01_Quantum_Consciousness_Foundation.md","title":"Quantum Consciousness Foundation","series":"qc","status":"canonical"},
-    {"id":"QC_02","path":"canon/QC_02_Quantum_Intelligence_Architecture.md","title":"Quantum Intelligence Architecture","series":"qc","status":"canonical"}
+    {"id":"QC_02","path":"canon/QC_02_Quantum_Intelligence_Architecture.md","title":"Quantum Intelligence Architecture","series":"qc","status":"canonical"},
+    {"id":"QC_03","path":"canon/QC_03_Quantum_Resonance_Protocols.md","title":"Quantum Resonance Protocols","series":"qc","status":"canonical"}
   ]
 }
