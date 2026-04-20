@@ -3,7 +3,7 @@
  */
 
 import { API_BASE } from '../app';
-import { fetchBaseForms, BaseFormInfo, renderAvatarHTML } from './GaianPicker';
+import { fetchBaseForms, BaseFormInfo } from './GaianPicker';
 
 export interface GaianBirthResult {
   status:        string;
@@ -22,13 +22,6 @@ export interface GaianBirthResult {
 }
 
 export type GenderOption = 'male' | 'female' | 'non-binary' | 'prefer not' | 'unknown';
-
-const GENDER_OPTIONS: { value: GenderOption; label: string }[] = [
-  { value: 'male',       label: 'Male' },
-  { value: 'female',     label: 'Female' },
-  { value: 'non-binary', label: 'Non-binary' },
-  { value: 'prefer not', label: 'Prefer not to say' },
-];
 
 export async function birthGaian(
   name: string,
@@ -57,29 +50,27 @@ export async function birthGaian(
 
 export class GaianBirth {
   private container:  HTMLElement;
-  private _sessionId:  string;
   private onBorn:     (result: GaianBirthResult) => void;
-  private step       = 1;
-  private userName   = '';
+  private step        = 1;
+  private userName    = '';
   private userGender: GenderOption = 'unknown';
   private selectedForm: BaseFormInfo | null = null;
-  private gaianName  = '';
+  private gaianName   = '';
   private baseForms:  BaseFormInfo[] = [];
 
   constructor(
     container: HTMLElement,
-    sessionId: string,
+    _sessionId: string,
     onBorn: (result: GaianBirthResult) => void,
   ) {
     this.container = container;
-    this._sessionId = sessionId;
     this.onBorn    = onBorn;
   }
 
   async mount(): Promise<void> {
     this.container.innerHTML = '<div class="birth-loading">Loading forms…</div>';
     try {
-      this.baseForms = await fetchBaseForms();
+      this.baseForms   = await fetchBaseForms();
       this.selectedForm = this.baseForms.find(f => f.is_default) ?? this.baseForms[0];
     } catch {
       this.container.innerHTML = '<p class="birth-error">Could not load Base Forms. Is the server running?</p>';
@@ -99,8 +90,4 @@ export class GaianBirth {
   private renderStep1(): void { this.container.innerHTML = '<div></div>'; }
   private renderStep2(): void { this.container.innerHTML = '<div></div>'; }
   private renderStep3(): void { this.container.innerHTML = '<div></div>'; }
-  private async _confirm(): Promise<void> { return; }
-  private _jungianNote(_gender: GenderOption): string { return ''; }
-  private _formPreview(_form: BaseFormInfo | null): string { return ''; }
-  private _showError(_msg: string): void {}
 }

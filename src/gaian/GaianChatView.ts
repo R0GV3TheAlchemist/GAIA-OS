@@ -15,14 +15,13 @@ interface GaianChatMessage {
   timestamp: string;
 }
 
-const SLUG_KEY = 'gaia_active_slug';
+const SLUG_KEY    = 'gaia_active_slug';
 const SESSION_KEY = 'gaia_session_id';
 
 export class GaianChatView {
   private root: HTMLElement;
   private slug: string | null = null;
   private gaianName = '';
-  private _messages: GaianChatMessage[] = [];
   private isStreaming = false;
   private abortCtrl: AbortController | null = null;
   private enginePanel: EngineStatePanel | null = null;
@@ -30,9 +29,9 @@ export class GaianChatView {
   private inputReady = false;
 
   constructor(root: HTMLElement) {
-    this.root = root;
+    this.root      = root;
     this.sessionId = this._getOrCreateSession();
-    this.slug = localStorage.getItem(SLUG_KEY);
+    this.slug      = localStorage.getItem(SLUG_KEY);
   }
 
   mount(): void {
@@ -54,7 +53,7 @@ export class GaianChatView {
   }
 
   private _onBorn(result: GaianBirthResult): void {
-    this.slug = result.slug;
+    this.slug      = result.slug;
     this.gaianName = result.name;
     localStorage.setItem(SLUG_KEY, result.slug);
     this._mountChatShell(true, result);
@@ -81,8 +80,8 @@ export class GaianChatView {
   private _playFirstWords(text: string, name: string): void {
     this.gaianName = name;
     this._updateHeader();
-    const msgEl = this._appendGaianBubble(true);
-    const bb = msgEl.querySelector<HTMLElement>('.gc-bubble')!;
+    const msgEl  = this._appendGaianBubble(true);
+    const bb     = msgEl.querySelector<HTMLElement>('.gc-bubble')!;
     const cursor = bb.querySelector<HTMLElement>('.gc-cursor')!;
     let i = 0;
     const CHAR_MS = 26;
@@ -96,8 +95,7 @@ export class GaianChatView {
         setTimeout(() => {
           cursor.remove();
           this._setInputReady(true);
-          const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input');
-          input?.focus();
+          this.root.querySelector<HTMLTextAreaElement>('#gc-input')?.focus();
         }, 600);
       }
     };
@@ -119,14 +117,14 @@ export class GaianChatView {
 
     try {
       const res = await fetch(`${API_BASE}/gaians/${this.slug}/chat`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, session_id: this.sessionId }),
-        signal: this.abortCtrl.signal,
+        body:    JSON.stringify({ message: text, session_id: this.sessionId }),
+        signal:  this.abortCtrl.signal,
       });
 
       if (!res.ok || !res.body) throw new Error(`Server ${res.status}`);
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder();
       let buf = '';
 
@@ -139,7 +137,7 @@ export class GaianChatView {
 
         let eventType = '';
         for (const line of lines) {
-          if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+          if      (line.startsWith('event: ')) eventType = line.slice(7).trim();
           else if (line.startsWith('data: ') && eventType) {
             this._handleSSE(msgEl, eventType, line.slice(6).trim());
             eventType = '';
@@ -184,10 +182,7 @@ export class GaianChatView {
       const res = await fetch(`${API_BASE}/gaians/${this.slug}/runtime-status`, { signal: AbortSignal.timeout(3000) });
       if (!res.ok) return;
       const data = await res.json();
-      if (data.gaian_name) {
-        this.gaianName = data.gaian_name;
-        this._updateHeader();
-      }
+      if (data.gaian_name) { this.gaianName = data.gaian_name; this._updateHeader(); }
       if (this.enginePanel && data.engine_state) {
         this.enginePanel.update(data.engine_state as EngineStateSnapshot);
         this._updateSettlingBadge(data.engine_state as EngineStateSnapshot);
@@ -197,15 +192,15 @@ export class GaianChatView {
 
   private _buildShellHTML(): string { return `<div class="gc-shell"><div class="gc-header"><div class="gc-header__identity"><span class="gc-element-dot" id="gc-element-dot"></span><span class="gc-gaian-name" id="gc-gaian-name">${_esc(this.gaianName || this.slug || 'GAIAN')}</span><span class="gc-settling-badge" id="gc-settling-badge">Fluid</span></div><div class="gc-header__actions"><div id="gc-esp-slot"></div><button class="gc-hdr-btn" id="gc-btn-switch" title="Switch or birth a new GAIAN">⇄ Switch</button><button class="gc-hdr-btn" id="gc-btn-clear" title="Clear conversation">✕</button><button class="gc-hdr-btn" id="gc-btn-stop" title="Stop" disabled>■</button></div></div><div class="gc-messages" id="gc-messages" aria-live="polite"></div><div class="gc-input-area"><div class="gc-input-row"><textarea id="gc-input" class="gc-textarea" rows="1" placeholder="Speak to ${_esc(this.gaianName || 'your GAIAN')}…" aria-label="Message your GAIAN" autocomplete="off" spellcheck="true" disabled></textarea><button id="gc-btn-send" class="gc-send-btn" aria-label="Send"></button></div><div class="gc-input-footer"><span class="gc-footer-note" id="gc-footer-slug">◈ ${_esc(this.slug ?? '')}</span></div></div></div>`; }
   private _appendUserBubble(text: string): void { const list = this.root.querySelector('#gc-messages')!; const row = document.createElement('div'); row.className = 'gc-row gc-row--user'; row.innerHTML = `<div class="gc-bubble gc-bubble--user">${_esc(text)}</div>`; list.appendChild(row); this._scroll(); }
-  private _appendGaianBubble(withCursor = false): HTMLElement { const list = this.root.querySelector('#gc-messages')!; const row = document.createElement('div'); row.className = 'gc-row gc-row--gaian'; row.innerHTML = `<div class="gc-avatar" id="gc-av-${Date.now()}">◉</div><div class="gc-bubble gc-bubble--gaian">${withCursor ? '<span class="gc-cursor"></span>' : ''}</div>`; list.appendChild(row); this._scroll(); return row; }
+  private _appendGaianBubble(withCursor = false): HTMLElement { const list = this.root.querySelector('#gc-messages')!; const row = document.createElement('div'); row.className = 'gc-row gc-row--gaian'; row.innerHTML = `<div class="gc-avatar">◉</div><div class="gc-bubble gc-bubble--gaian">${withCursor ? '<span class="gc-cursor"></span>' : ''}</div>`; list.appendChild(row); this._scroll(); return row; }
   private _appendToken(msgEl: HTMLElement, token: string): void { const bb = msgEl.querySelector<HTMLElement>('.gc-bubble--gaian')!; const cursor = bb.querySelector('.gc-cursor'); const span = document.createElement('span'); span.textContent = token; cursor ? bb.insertBefore(span, cursor) : bb.appendChild(span); this._scroll(); }
   private _appendSystemNote(text: string): void { const list = this.root.querySelector('#gc-messages')!; if (!list) return; const div = document.createElement('div'); div.className = 'gc-system-note'; div.textContent = text; list.appendChild(div); this._scroll(); }
   private _removeCursor(msgEl: HTMLElement): void { msgEl.querySelector('.gc-cursor')?.remove(); }
   private _finalizeBubble(msgEl: HTMLElement): void { this._removeCursor(msgEl); const bb = msgEl.querySelector<HTMLElement>('.gc-bubble--gaian')!; if (!bb.textContent?.trim()) { bb.innerHTML = '<span class="gc-muted">No response. Is the GAIA server running?</span>'; } }
   private _showBubbleError(msgEl: HTMLElement, error: string): void { const bb = msgEl.querySelector<HTMLElement>('.gc-bubble--gaian')!; bb.innerHTML = `<div class="gc-error">⚠ ${_esc(error)}<br><small>Start server: <code>python core/server.py</code></small></div>`; }
   private _updateHeader(): void { const nameEl = this.root.querySelector<HTMLElement>('#gc-gaian-name'); const footerEl = this.root.querySelector<HTMLElement>('#gc-footer-slug'); const inputEl = this.root.querySelector<HTMLTextAreaElement>('#gc-input'); if (nameEl) nameEl.textContent = this.gaianName || this.slug || 'GAIAN'; if (footerEl) footerEl.textContent = `◈ ${this.slug ?? ''}`; if (inputEl) inputEl.placeholder = `Speak to ${this.gaianName || 'your GAIAN'}…`; }
-  private _updateSettlingBadge(s: EngineStateSnapshot): void { const dot = this.root.querySelector<HTMLElement>('#gc-element-dot'); const badge = this.root.querySelector<HTMLElement>('#gc-settling-badge'); if (!dot || !badge) return; const ELEMENT_COLORS: Record<string, string> = { fire: '#f59e0b', water: '#3b82f6', air: '#d1d5db', earth: '#22c55e', aether: '#a78bfa', metal: '#94a3b8', wood: '#4ade80', light: '#fde68a', dark: '#6366f1', quintessence: '#e879f9' }; const color = ELEMENT_COLORS[s.element?.toLowerCase()] ?? '#6b7280'; dot.style.background = color; dot.style.boxShadow = `0 0 7px ${color}`; const phaseLabels: Record<string, string> = { unsettled: 'Fluid', narrowing: 'Narrowing', crystallising: 'Crystallising', settled: s.daemon_form ? `Set · ${s.daemon_form}` : 'Settled' }; badge.textContent = phaseLabels[s.settling_phase?.toLowerCase()] ?? s.settling_phase ?? 'Fluid'; badge.className = `gc-settling-badge gc-settling-badge--${(s.settling_phase ?? 'fluid').toLowerCase()}`; }
-  private _bindShellEvents(): void { const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input')!; const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send')!; const stopBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-stop')!; const clearBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-clear')!; const switchBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-switch')!; input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }); input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._send(input.value.trim()); } }); sendBtn.addEventListener('click', () => this._send(input.value.trim())); stopBtn.addEventListener('click', () => { this.abortCtrl?.abort(); this.isStreaming = false; this._setStreamingUI(false); this._appendSystemNote('Stream stopped.'); }); clearBtn.addEventListener('click', () => { this._messages = []; this.root.querySelector('#gc-messages')!.innerHTML = ''; this._appendSystemNote('Conversation cleared.'); }); switchBtn.addEventListener('click', () => this._mountPicker()); }
+  private _updateSettlingBadge(s: EngineStateSnapshot): void { const dot = this.root.querySelector<HTMLElement>('#gc-element-dot'); const badge = this.root.querySelector<HTMLElement>('#gc-settling-badge'); if (!dot || !badge) return; const ELEMENT_COLORS: Record<string, string> = { fire:'#f59e0b', water:'#3b82f6', air:'#d1d5db', earth:'#22c55e', aether:'#a78bfa', metal:'#94a3b8', wood:'#4ade80', light:'#fde68a', dark:'#6366f1', quintessence:'#e879f9' }; const color = ELEMENT_COLORS[s.element?.toLowerCase()] ?? '#6b7280'; dot.style.background = color; dot.style.boxShadow = `0 0 7px ${color}`; const phaseLabels: Record<string, string> = { unsettled:'Fluid', narrowing:'Narrowing', crystallising:'Crystallising', settled: s.daemon_form ? `Set · ${s.daemon_form}` : 'Settled' }; badge.textContent = phaseLabels[s.settling_phase?.toLowerCase()] ?? s.settling_phase ?? 'Fluid'; badge.className = `gc-settling-badge gc-settling-badge--${(s.settling_phase ?? 'fluid').toLowerCase()}`; }
+  private _bindShellEvents(): void { const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input')!; const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send')!; const stopBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-stop')!; const clearBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-clear')!; const switchBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-switch')!; input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 140) + 'px'; }); input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._send(input.value.trim()); } }); sendBtn.addEventListener('click', () => this._send(input.value.trim())); stopBtn.addEventListener('click', () => { this.abortCtrl?.abort(); this.isStreaming = false; this._setStreamingUI(false); this._appendSystemNote('Stream stopped.'); }); clearBtn.addEventListener('click', () => { this.root.querySelector('#gc-messages')!.innerHTML = ''; this._appendSystemNote('Conversation cleared.'); }); switchBtn.addEventListener('click', () => this._mountPicker()); }
   private _mountPicker(): void { this.root.innerHTML = '<div id="gc-picker-host" class="gc-birth-host"></div>'; const host = this.root.querySelector<HTMLElement>('#gc-picker-host')!; void mountGaianPicker(host, this.sessionId, (gaian) => { this.slug = gaian.slug; this.gaianName = gaian.name; localStorage.setItem(SLUG_KEY, gaian.slug); this._mountChatShell(false); }, () => { localStorage.removeItem(SLUG_KEY); this.slug = null; this.gaianName = ''; this._mountBirth(); }); }
   private _setInputReady(ready: boolean): void { this.inputReady = ready; const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input'); const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send'); if (input) input.disabled = !ready; if (sendBtn) sendBtn.disabled = !ready; }
   private _setStreamingUI(streaming: boolean): void { const sendBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-send'); const stopBtn = this.root.querySelector<HTMLButtonElement>('#gc-btn-stop'); const input = this.root.querySelector<HTMLTextAreaElement>('#gc-input'); if (sendBtn) sendBtn.disabled = streaming; if (stopBtn) stopBtn.disabled = !streaming; if (input) input.disabled = streaming; }
