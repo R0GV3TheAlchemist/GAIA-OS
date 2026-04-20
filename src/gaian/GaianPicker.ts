@@ -1,22 +1,3 @@
-/**
- * GaianPicker.ts — v0.5.1
- *
- * A UI component that:
- *   1. Fetches available Base Forms from GET /gaians/base-forms
- *   2. Fetches the user's existing GAIANs from GET /gaians
- *   3. Renders a picker panel with Base Form cards + a "New GAIAN" flow
- *   4. For new creation: launches GaianBirth wizard (POST /gaians/birth)
- *   5. For existing GAIANs: activates them for the session
- *
- * v0.5.1 changes:
- *   - spawnGaian() deprecated → birthGaian() (re-exported from GaianBirth)
- *   - buildGaianPickerHTML() now renders a "+ New GAIAN" button that
- *     mounts the GaianBirth wizard in-place instead of an inline form
- *   - GaianInfo extended with jungian_role, pronouns, did (from born GAIANs)
- *
- * Usage: import { GaianPicker } from '../gaian/GaianPicker'
- */
-
 import { API_BASE } from '../app';
 
 export interface BaseFormInfo {
@@ -39,15 +20,10 @@ export interface GaianInfo {
   relationship_depth: number;
   total_exchanges: number;
   last_active: number;
-  // Fields present on GAIANs born via /gaians/birth (v0.5.1+)
   jungian_role?: string;
-  pronouns?:     string;
-  did?:          string;
+  pronouns?: string;
+  did?: string;
 }
-
-// ------------------------------------------------------------------ //
-//  API                                                                 //
-// ------------------------------------------------------------------ //
 
 export async function fetchBaseForms(): Promise<BaseFormInfo[]> {
   const res = await fetch(`${API_BASE}/gaians/base-forms`);
@@ -63,11 +39,6 @@ export async function fetchGaians(): Promise<GaianInfo[]> {
   return data.gaians;
 }
 
-/**
- * @deprecated Use birthGaian() from GaianBirth.ts for new GAIAN creation.
- * This function calls the legacy POST /gaians endpoint (no DID, no Jungian
- * assignment, no first_words). Kept for internal/admin use only.
- */
 export async function spawnGaian(
   name: string,
   baseFormId: string,
@@ -93,10 +64,6 @@ export async function setActiveGaian(
   });
 }
 
-// ------------------------------------------------------------------ //
-//  Avatar Renderer                                                     //
-// ------------------------------------------------------------------ //
-
 export function renderAvatarHTML(form: BaseFormInfo | GaianInfo, size = 64): string {
   const style = form.avatar_style;
   const color = form.avatar_color;
@@ -121,20 +88,6 @@ export function renderAvatarHTML(form: BaseFormInfo | GaianInfo, size = 64): str
     </div>`;
 }
 
-// ------------------------------------------------------------------ //
-//  Picker Panel Builder                                                //
-// ------------------------------------------------------------------ //
-
-/**
- * Builds and mounts the GAIAN picker UI into the given container.
- * Existing GAIANs are shown as clickable cards (calls setActiveGaian).
- * "+ New GAIAN" button mounts the GaianBirth wizard in-place.
- *
- * @param container  The HTMLElement to render into
- * @param sessionId  Current session ID (for setActiveGaian)
- * @param onSelect   Called when an existing GAIAN is activated
- * @param onBorn     Called when a new GAIAN completes birth sequence
- */
 export async function mountGaianPicker(
   container: HTMLElement,
   sessionId: string,
@@ -200,7 +153,6 @@ export async function mountGaianPicker(
     </div>
   `;
 
-  // Existing GAIAN cards
   container.querySelectorAll<HTMLElement>('.gaian-card')
     .forEach(card => {
       card.addEventListener('click', async () => {
@@ -212,7 +164,6 @@ export async function mountGaianPicker(
       });
     });
 
-  // New GAIAN birth wizard
   container.querySelector('#open-birth-wizard')!
     .addEventListener('click', async () => {
       const mount = container.querySelector<HTMLElement>('#birth-wizard-mount')!;
@@ -228,11 +179,7 @@ export async function mountGaianPicker(
     });
 }
 
-/**
- * @deprecated Use mountGaianPicker() instead.
- * Kept for backwards-compatibility with any existing callers.
- */
-export async function buildGaianPickerHTML(sessionId: string): Promise<string> {
+export async function buildGaianPickerHTML(_sessionId: string): Promise<string> {
   const [baseForms, myGaians] = await Promise.all([fetchBaseForms(), fetchGaians()]);
 
   const baseFormCards = baseForms.map(f => `

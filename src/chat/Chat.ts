@@ -33,24 +33,12 @@ function makeId(): string { return `msg-${Date.now()}-${Math.random().toString(3
 function ts():     string { return new Date().toISOString(); }
 
 function _makeSessionId(): string {
-  // Persist session ID across page reloads so conversation history is maintained
   const key = 'gaia_session_id';
   let id = sessionStorage.getItem(key);
   if (!id) { id = `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; sessionStorage.setItem(key, id); }
   return id;
 }
 
-// ------------------------------------------------------------------ //
-//  Public API                                                          //
-// ------------------------------------------------------------------ //
-
-/**
- * Mount the chat UI into root.
- *
- * @param root       Target element
- * @param gaianSlug  Slug of the active GAIAN (from birth or picker). Defaults to 'gaia'.
- * @param sessionId  Optional session ID override (defaults to sessionStorage-persisted ID).
- */
 export function mountChat(
   root: HTMLElement,
   gaianSlug = 'gaia',
@@ -61,7 +49,6 @@ export function mountChat(
 
   root.innerHTML = buildChatHTML();
 
-  // Mount EngineStatePanel into the header slot
   const espContainer = root.querySelector<HTMLElement>('#esp-container')!;
   _enginePanel = new EngineStatePanel(espContainer);
   _enginePanel.mount();
@@ -71,16 +58,9 @@ export function mountChat(
   checkCanonStatus(root);
 }
 
-/**
- * Update the active GAIAN slug mid-session (e.g. user switches companions).
- */
 export function setGaianSlug(slug: string): void {
   _gaianSlug = slug;
 }
-
-// ------------------------------------------------------------------ //
-//  HTML Template                                                       //
-// ------------------------------------------------------------------ //
 
 function buildChatHTML(): string {
   return `
@@ -128,10 +108,6 @@ function buildChatHTML(): string {
 `;
 }
 
-// ------------------------------------------------------------------ //
-//  Events                                                              //
-// ------------------------------------------------------------------ //
-
 function bindEvents(root: HTMLElement): void {
   const input     = root.querySelector<HTMLTextAreaElement>('#chat-input')!;
   const sendBtn   = root.querySelector<HTMLButtonElement>('#btn-send')!;
@@ -170,10 +146,6 @@ function bindEvents(root: HTMLElement): void {
       : 'Web search disabled. Canon-only mode.');
   });
 }
-
-// ------------------------------------------------------------------ //
-//  Send & Stream                                                       //
-// ------------------------------------------------------------------ //
 
 async function sendMessage(root: HTMLElement, text: string): Promise<void> {
   if (!text || _isStreaming) return;
@@ -238,7 +210,7 @@ async function sendMessage(root: HTMLElement, text: string): Promise<void> {
     }
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') return;
-    showBackendError(root, msgEl, err instanceof Error ? err.message : String(err));
+    showBackendError(msgEl, err instanceof Error ? err.message : String(err));
   } finally {
     gaiaMsg.streaming = false;
     _isStreaming = false;
@@ -257,7 +229,6 @@ function handleSSEEvent(
   try {
     const payload = JSON.parse(data);
     switch (event) {
-
       case 'citation':
         msg.citations.push(payload as CanonCitation);
         renderCitationCard(msgEl, payload as CanonCitation);
@@ -267,13 +238,11 @@ function handleSSEEvent(
         renderWebResultCard(msgEl, payload as WebResult);
         break;
 
-      // ---- NEW v0.5.1 -------------------------------------------- //
       case 'engine_state':
         if (_enginePanel) {
           _enginePanel.update(payload as EngineStateSnapshot);
         }
         break;
-      // ------------------------------------------------------------ //
 
       case 'token':
         msg.text += payload.text;
@@ -294,12 +263,8 @@ function handleSSEEvent(
         updateCanonBadge(root, payload.canon_status);
         break;
     }
-  } catch { /* malformed SSE — skip */ }
+  } catch { }
 }
-
-// ------------------------------------------------------------------ //
-//  Render Helpers                                                      //
-// ------------------------------------------------------------------ //
 
 function renderUserBubble(root: HTMLElement, msg: ChatMessage): void {
   const list = root.querySelector('#chat-messages')!;
@@ -395,7 +360,7 @@ function finalizeMessage(msgEl: HTMLElement, msg: ChatMessage): void {
   }
 }
 
-function showBackendError(root: HTMLElement, msgEl: HTMLElement, error: string): void {
+function showBackendError(msgEl: HTMLElement, error: string): void {
   const bb = msgEl.querySelector<HTMLElement>('[id^="bb-"]')!;
   bb.innerHTML = `
 <div class="backend-error">
@@ -413,10 +378,6 @@ function appendSystemMessage(root: HTMLElement, text: string): void {
   list.appendChild(div);
   scrollToBottom(root);
 }
-
-// ------------------------------------------------------------------ //
-//  UI State                                                            //
-// ------------------------------------------------------------------ //
 
 function setStreamingUI(root: HTMLElement, streaming: boolean): void {
   (root.querySelector<HTMLButtonElement>('#btn-send')!).disabled  =  streaming;
