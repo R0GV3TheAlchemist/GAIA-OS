@@ -1,7 +1,7 @@
 {
   "productName": "GAIA",
   "version": "0.1.0",
-  "identifier": "earth.gaia.app",
+  "identifier": "com.gaia.app",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420"
