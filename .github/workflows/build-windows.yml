@@ -61,7 +61,18 @@ jobs:
         run: npm ci
 
       - name: Build TypeScript frontend
-        run: npm run build
+        run: npx vite build
+
+      - name: Verify dist output
+        run: |
+          if (Test-Path dist) {
+            Write-Host "dist/ exists - OK"
+            Get-ChildItem dist
+          } else {
+            Write-Error "dist/ not found after vite build!"
+            exit 1
+          }
+        shell: pwsh
 
       - name: Build GAIA Windows installer
         run: npm run tauri build
