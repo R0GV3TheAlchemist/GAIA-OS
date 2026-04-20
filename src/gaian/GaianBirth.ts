@@ -49,14 +49,14 @@ export async function birthGaian(
 }
 
 export class GaianBirth {
-  private container:  HTMLElement;
-  private onBorn:     (result: GaianBirthResult) => void;
-  private step        = 1;
-  private userName    = '';
-  private userGender: GenderOption = 'unknown';
-  private selectedForm: BaseFormInfo | null = null;
-  private gaianName   = '';
-  private baseForms:  BaseFormInfo[] = [];
+  private container:     HTMLElement;
+  private _onBorn:       (result: GaianBirthResult) => void;
+  private step           = 1;
+  private _userName      = '';
+  private _userGender:   GenderOption = 'unknown';
+  private _selectedForm: BaseFormInfo | null = null;
+  private _gaianName     = '';
+  private baseForms:     BaseFormInfo[] = [];
 
   constructor(
     container: HTMLElement,
@@ -64,14 +64,14 @@ export class GaianBirth {
     onBorn: (result: GaianBirthResult) => void,
   ) {
     this.container = container;
-    this.onBorn    = onBorn;
+    this._onBorn   = onBorn;
   }
 
   async mount(): Promise<void> {
     this.container.innerHTML = '<div class="birth-loading">Loading forms…</div>';
     try {
-      this.baseForms   = await fetchBaseForms();
-      this.selectedForm = this.baseForms.find(f => f.is_default) ?? this.baseForms[0];
+      this.baseForms    = await fetchBaseForms();
+      this._selectedForm = this.baseForms.find(f => f.is_default) ?? this.baseForms[0];
     } catch {
       this.container.innerHTML = '<p class="birth-error">Could not load Base Forms. Is the server running?</p>';
       return;

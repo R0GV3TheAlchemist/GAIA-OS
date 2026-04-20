@@ -7,14 +7,6 @@ import { EngineStatePanel, type EngineStateSnapshot } from '../chat/EngineStateP
 import '../chat/engine-state.css';
 import { API_BASE } from '../app';
 
-interface GaianChatMessage {
-  id: string;
-  role: 'user' | 'gaian' | 'system';
-  text: string;
-  streaming: boolean;
-  timestamp: string;
-}
-
 const SLUG_KEY    = 'gaia_active_slug';
 const SESSION_KEY = 'gaia_session_id';
 
