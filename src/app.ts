@@ -18,9 +18,8 @@ import {
   unmountNoosphereTab,
 } from './noosphere';
 
-const BASE_URL = (import.meta as Record<string,unknown>).env
-  ? ((import.meta as Record<string,unknown>).env as Record<string,string>).VITE_API_BASE ?? 'http://localhost:8008'
-  : 'http://localhost:8008';
+const metaEnv = ((import.meta as unknown as { env?: Record<string, string> }).env) ?? {};
+const BASE_URL = metaEnv.VITE_API_BASE ?? 'http://localhost:8008';
 
 export const API_BASE = BASE_URL;
 
@@ -56,7 +55,7 @@ mountMemory(document.getElementById('view-memory')!);
 
 // Noosphere Tab has an SSE lifecycle — mount on boot; the tab-switch
 // handler below unmounts/remounts it as the user navigates in and out.
-mountNoosphereTab(document.getElementById('view-noosphere')!, { apiBase: API_BASE });
+mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
 
 // ── Tab switching ─────────────────────────────────────────────────────
 let _activeView = 'search';
@@ -68,7 +67,7 @@ document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach(btn => {
 
     // Tear down SSE connection when leaving Noosphere
     if (_activeView === 'noosphere') {
-      unmountNoosphereTab(document.getElementById('view-noosphere')!);
+      unmountNoosphereTab();
     }
 
     // Update nav + view visibility
@@ -80,7 +79,7 @@ document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach(btn => {
 
     // Re-establish SSE connection when entering Noosphere
     if (view === 'noosphere') {
-      mountNoosphereTab(document.getElementById('view-noosphere')!, { apiBase: API_BASE });
+      mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
     }
   });
 });
