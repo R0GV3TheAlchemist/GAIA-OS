@@ -51,7 +51,10 @@ jobs:
             patchelf
 
       - name: Install Node dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Build TypeScript frontend
+        run: npx vite build
 
       - name: Build Tauri app
         run: npm run tauri build
