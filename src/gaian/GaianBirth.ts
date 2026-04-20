@@ -1,7 +1,6 @@
 /**
  * GaianBirth.ts — The Moment a GAIAN Comes Into Being
  * Stub: full wizard wired up in a future sprint.
- * Fields and callbacks will be re-added when renderStep1/2/3 are implemented.
  */
 
 import { API_BASE } from '../app';
@@ -52,8 +51,7 @@ export async function birthGaian(
 
 export class GaianBirth {
   private container: HTMLElement;
-  private step       = 1;
-  private baseForms: BaseFormInfo[] = [];
+  private step = 1;
 
   constructor(
     container: HTMLElement,
@@ -66,7 +64,7 @@ export class GaianBirth {
   async mount(): Promise<void> {
     this.container.innerHTML = '<div class="birth-loading">Loading forms…</div>';
     try {
-      this.baseForms = await fetchBaseForms();
+      await fetchBaseForms() as BaseFormInfo[];
     } catch {
       this.container.innerHTML = '<p class="birth-error">Could not load Base Forms. Is the server running?</p>';
       return;
