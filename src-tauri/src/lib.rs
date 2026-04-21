@@ -3,6 +3,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
+use tauri_plugin_shell::ShellExt;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -12,6 +13,39 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn get_backend_status() -> String {
     "online".to_string()
+}
+
+/// Spawn the Python sidecar and poll /health until it responds.
+/// Runs on a background thread so it never blocks the UI.
+fn start_python_sidecar(app: &tauri::App) {
+    let shell = app.shell();
+    let sidecar_cmd = shell
+        .sidecar("gaia-backend")
+        .expect("gaia-backend sidecar not found — run PyInstaller first");
+
+    // Spawn and ignore stdout/stderr (they go to the OS log)
+    tauri::async_runtime::spawn(async move {
+        let (_rx, _child) = sidecar_cmd
+            .spawn()
+            .expect("failed to spawn gaia-backend sidecar");
+
+        // Poll /health until the backend is ready (max 30 s)
+        let client = reqwest::Client::new();
+        for _ in 0..60 {
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            if let Ok(resp) = client
+                .get("http://127.0.0.1:8008/health")
+                .send()
+                .await
+            {
+                if resp.status().is_success() {
+                    println!("[GAIA] Python backend is ready ✓");
+                    return;
+                }
+            }
+        }
+        eprintln!("[GAIA] WARNING: backend did not become ready within 30 s");
+    });
 }
 
 pub fn run() {
@@ -29,6 +63,10 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
+            // ── Sidecar ───────────────────────────────────────────────────
+            start_python_sidecar(app);
+
+            // ── Tray ──────────────────────────────────────────────────────
             let open = MenuItem::with_id(app, "open", "Open GAIA", true, None::<&str>)?;
             let check_updates = MenuItem::with_id(app, "updates", "Check for Updates", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

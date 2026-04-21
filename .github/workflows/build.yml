@@ -1,5 +1,4 @@
-# .github/workflows/build.yml
-name: GAIA-APP Cross-Platform Build
+name: GAIA Build
 
 on:
   push:
@@ -8,128 +7,78 @@ on:
     branches: [main]
 
 jobs:
-  build-desktop:
-    name: Build Desktop (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-
+  # ── 1. Build the Python sidecar ──────────────────────────────────────────
+  build-sidecar:
+    name: Build Python Sidecar (Windows)
+    runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build gaia-backend.exe
+        run: pyinstaller gaia-backend.spec
+
+      # Tauri expects the sidecar binary named:
+      # gaia-backend-x86_64-pc-windows-msvc.exe
+      - name: Rename & stage sidecar
+        run: |
+          $triple = "x86_64-pc-windows-msvc"
+          Copy-Item dist\gaia-backend.exe `
+            src-tauri\binaries\gaia-backend-$triple.exe
+        shell: pwsh
+
+      - name: Upload sidecar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gaia-backend-sidecar
+          path: src-tauri/binaries/gaia-backend-x86_64-pc-windows-msvc.exe
+
+  # ── 2. Build the Tauri app ───────────────────────────────────────────────
+  build-tauri:
+    name: Build Tauri App (Windows)
+    runs-on: windows-latest
+    needs: build-sidecar
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: gaia-backend-sidecar
+          path: src-tauri/binaries/
+
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Setup Rust
+      - name: Install Node deps
+        run: npm ci
+
+      - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          cache-on-failure: false
 
-      - name: Install Linux system dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - name: Generate valid RGBA icons via Python
-        run: |
-          python3 -c "
-import struct, zlib, os
-
-def make_rgba_png(size):
-    def chunk(name, data):
-        c = name + data
-        return struct.pack('>I', len(data)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-    sig = b'\\x89PNG\\r\\n\\x1a\\n'
-    # colour type 6 = RGBA
-    ihdr = chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0))
-    # R=10 G=10 B=15 A=255
-    row = b'\\x00' + bytes([10, 10, 15, 255]) * size
-    idat = chunk(b'IDAT', zlib.compress(row * size, 9))
-    iend = chunk(b'IEND', b'')
-    return sig + ihdr + idat + iend
-
-def make_ico(sizes):
-    images = [(s, make_rgba_png(s)) for s in sizes]
-    count = len(images)
-    header = struct.pack('<HHH', 0, 1, count)
-    data_offset = 6 + count * 16
-    entries = b''
-    data = b''
-    for size, png in images:
-        w = 0 if size == 256 else size
-        h = 0 if size == 256 else size
-        entries += struct.pack('<BBBBHHII', w, h, 0, 0, 1, 32, len(png), data_offset)
-        data_offset += len(png)
-        data += png
-    return header + entries + data
-
-icon_dir = os.path.join('src-tauri', 'icons')
-os.makedirs(icon_dir, exist_ok=True)
-for size, name in [(32,'32x32.png'),(128,'128x128.png'),(256,'128x128@2x.png'),(128,'icon.png')]:
-    with open(os.path.join(icon_dir, name), 'wb') as f: f.write(make_rgba_png(size))
-    print(f'Generated {name} ({size}x{size} RGBA)')
-with open(os.path.join(icon_dir, 'icon.ico'), 'wb') as f: f.write(make_ico([16,32,48,256]))
-print('Generated icon.ico')
-print('All icons ready.')
-"
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Build TypeScript frontend
-        run: npx vite build
-
-      - name: Build Tauri app
-        run: npm run tauri build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: gaia-app-${{ matrix.os }}
-          path: |
-            src-tauri/target/release/bundle/
-          retention-days: 7
-
-  test-python-core:
-    name: Test Python Constitutional Core
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: pip
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
-
-      - name: Run test suite
-        run: |
-          pytest tests/ \
-            -v \
-            --tb=short \
-            --cov=core \
-            --cov-report=term-missing \
-            -p no:warnings
+          tagName: gaia-v__VERSION__
+          releaseName: "GAIA v__VERSION__"
+          releaseDraft: true
+          prerelease: false

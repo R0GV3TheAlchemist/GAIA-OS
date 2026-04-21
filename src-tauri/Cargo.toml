@@ -1,11 +1,15 @@
 [package]
-name = "gaia-app"
+name = "gaia"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "gaia_app_lib"
+name = "gaia_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "gaia"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -19,11 +23,7 @@ tauri-plugin-process = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-updater = "2"
+reqwest = { version = "0.12", features = ["json"] }
+tokio = { version = "1", features = ["time"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-strip = true
