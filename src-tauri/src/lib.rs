@@ -36,7 +36,7 @@ pub fn run() {
 
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("GAIA \u2014 Your Sovereign AI")
+                .tooltip("GAIA - Your Sovereign AI")
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "open" => {
                         if let Some(window) = app.get_webview_window("main") {
