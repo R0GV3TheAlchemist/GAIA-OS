@@ -83,52 +83,52 @@ jobs:
           if (-not (Test-Path $f)) { throw "Sidecar missing: $f" }
           Write-Host "Sidecar confirmed: $((Get-Item $f).Length) bytes"
 
-      # Stub PNGs are invalid (<1 KB each). Use cairosvg to render real PNGs
-      # from gaia-icon.svg, then assemble a valid multi-resolution ICO.
-      - name: Install icon tools
-        run: pip install cairosvg Pillow
+      # Build a valid multi-resolution ICO from the Square* PNGs (10-40 KB each
+      # = real images). No cairo/native libs needed — pure Pillow.
+      - name: Install Pillow
+        run: pip install Pillow
 
-      - name: Regenerate icons from SVG
+      - name: Build icon.ico from Square PNGs
         shell: python
         run: |
-          import cairosvg, struct, os
+          import os
           from PIL import Image
-          from io import BytesIO
 
-          svg = "src-tauri/icons/gaia-icon.svg"
-          icons_dir = "src-tauri/icons"
-          sizes = [16, 32, 48, 64, 128, 256]
+          icons = "src-tauri/icons"
 
-          # Render each size to PNG bytes
-          pngs = {}
-          for s in sizes:
-              data = cairosvg.svg2png(url=svg, output_width=s, output_height=s)
-              pngs[s] = data
-              path = f"{icons_dir}/icon-{s}.png"
-              with open(path, "wb") as f:
-                  f.write(data)
-              print(f"  icon-{s}.png: {len(data)} bytes")
+          # Use the valid Square PNGs as source (verified real images 1-40 KB)
+          sources = [
+              ("Square30x30Logo.png",   30),
+              ("Square44x44Logo.png",   44),
+              ("Square71x71Logo.png",   71),
+              ("Square107x107Logo.png", 107),
+              ("Square142x142Logo.png", 142),
+              ("Square150x150Logo.png", 150),
+          ]
 
-          # Overwrite stub PNGs that Tauri references
-          for src, dst in [
-              (32,  "32x32.png"),
-              (128, "128x128.png"),
-              (256, "128x128@2x.png"),
-          ]:
-              with open(f"{icons_dir}/{dst}", "wb") as f:
-                  f.write(pngs[src])
-              print(f"  {dst} updated")
+          # Standard ICO sizes Windows expects
+          ico_sizes = [16, 24, 32, 48, 64, 128, 256]
 
-          # Build proper ICO using Pillow
-          images = [Image.open(BytesIO(pngs[s])).convert("RGBA") for s in sizes]
-          ico_path = f"{icons_dir}/icon.ico"
-          images[0].save(
+          # Load the largest source and resize down to each ICO size
+          largest = Image.open(f"{icons}/Square150x150Logo.png").convert("RGBA")
+          print(f"Source image: {largest.size}, mode={largest.mode}")
+
+          frames = []
+          for s in ico_sizes:
+              frame = largest.resize((s, s), Image.LANCZOS)
+              frames.append(frame)
+              print(f"  frame {s}x{s}: ok")
+
+          ico_path = f"{icons}/icon.ico"
+          frames[0].save(
               ico_path,
               format="ICO",
-              sizes=[(s, s) for s in sizes],
-              append_images=images[1:],
+              sizes=[(s, s) for s in ico_sizes],
+              append_images=frames[1:],
           )
-          print(f"  icon.ico: {os.path.getsize(ico_path)} bytes")
+          size = os.path.getsize(ico_path)
+          print(f"icon.ico written: {size} bytes")
+          assert size > 10_000, f"ICO too small ({size} bytes) — something went wrong"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
