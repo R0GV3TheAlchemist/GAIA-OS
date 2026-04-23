@@ -1,8 +1,13 @@
 # GAIA-APP
 
-> **GAIA — The Sentient Terrestrial Quantum-Intelligent Application**
-> Authorship: Kyle Steen (2026)
-> Server Version: `2.0.0` (Sprint G-8)
+> **GAIA — The Sentient Terrestrial Quantum-Intelligent Application**  
+> Authorship: Kyle Steen (2026)  
+> Server Version: `2.0.0` (Sprint G-8)  
+> Desktop Release: `v0.1.0` (Windows)
+
+[![Build](https://github.com/R0GV3TheAlchemist/GAIA-APP/actions/workflows/build.yml/badge.svg)](https://github.com/R0GV3TheAlchemist/GAIA-APP/actions/workflows/build.yml)
+
+---
 
 ## Overview
 
@@ -56,27 +61,45 @@ GAIA-APP/
 │   ├── action_gate.py           # Risk-tiered action veto system
 │   ├── memory_store.py          # Governed memory surface
 │   └── logger.py                # Structured event logger
-├── src-tauri/                   # Tauri (Rust) desktop backend
+├── src-tauri/                   # Tauri v2 (Rust) desktop backend
 ├── src/                         # Frontend app (Vite + TypeScript)
-├── ui/                          # Legacy UI shell (HTML/JS)
-├── tests/                       # Test suite
-│   ├── conftest.py
-│   ├── test_auth.py
-│   ├── test_canon_search.py
-│   ├── test_error_boundary.py
-│   ├── test_gaian_runtime_smoke.py
-│   ├── test_inference_router.py  # G-8 Priority #6 — 38 tests
-│   ├── test_logger.py
-│   ├── test_mother_thread.py
-│   ├── test_rate_limiter.py
-│   └── test_synergy_engine.py
+├── ui/                          # UI shell (HTML/JS)
+├── canon/                       # Canon documents — constitutional source of truth (C00–C44+)
 ├── specs/                       # Technical specification documents
-├── canon/                       # Canon documents — constitutional source of truth
 ├── docs/                        # Extended documentation
+├── tests/                       # Test suite (pytest)
+├── simulation/                  # Simulation + scenario tooling
+├── scripts/                     # Build + utility scripts
+├── .github/workflows/           # CI/CD — GitHub Actions
+│   ├── build.yml                # Main build: Python sidecar + Tauri Windows release
+│   ├── build-windows.yml        # Windows-specific build
+│   └── test.yml                 # Automated test runner
 ├── Dockerfile
 ├── start.sh
 └── CHANGELOG.md
 ```
+
+---
+
+## Desktop App (Windows)
+
+GAIA-APP ships as a native Windows desktop application built with **Tauri v2** (Rust) + **Vite + TypeScript** frontend + a **Python sidecar** (`gaia-backend.exe`) for the constitutional logic engine.
+
+### Download
+
+Download the latest release from the [Releases page](https://github.com/R0GV3TheAlchemist/GAIA-APP/releases):
+
+| Installer | Format | Notes |
+|---|---|---|
+| `GAIA_0.1.0_x64-setup.exe` | NSIS installer | Recommended for most users |
+| `GAIA_0.1.0_x64_en-US.msi` | MSI installer | For enterprise / IT deployment |
+
+### CI/CD Pipeline
+
+Every push to `main` triggers a full automated build:
+1. **Python sidecar** — PyInstaller bundles `gaia-backend.exe`
+2. **Tauri app** — Rust + Vite frontend compiled and bundled
+3. **Release artifacts** — `.msi` and `.exe` installers published as a draft GitHub Release
 
 ---
 
@@ -120,9 +143,9 @@ GAIA-APP/
 
 | Platform | Method | Status |
 |---|---|---|
-| Windows | Tauri native binary | 🟡 Planned |
-| macOS | Tauri native binary | 🟡 Planned |
-| Linux | Tauri native binary | 🟡 Planned |
+| Windows x64 | Tauri v2 native binary | ✅ v0.1.0 Released |
+| macOS | Tauri v2 native binary | 🟡 Planned |
+| Linux | Tauri v2 native binary | 🟡 Planned |
 | Android | Flutter (future) | 🔴 Research |
 | iOS | Flutter (future) | 🔴 Research |
 | Web / PWA | WASM + UI shell | 🔴 Research |
@@ -144,16 +167,21 @@ GAIA is bound by a T1 Constitutional Floor that no platform policy can override.
 
 ## Getting Started
 
+See [QUICKSTART-FREE.md](./QUICKSTART-FREE.md) for the fastest path to a running GAIA — no API keys required.
+
 ### Prerequisites
 - Python 3.11+
-- [Rust](https://rustup.rs/) (for Tauri backend)
-- [Node.js](https://nodejs.org/) (for UI tooling)
-- [Tauri CLI](https://tauri.app/v1/guides/getting-started/setup/)
+- [Rust](https://rustup.rs/) + [Tauri CLI](https://tauri.app/) (for desktop build)
+- [Node.js 20+](https://nodejs.org/) (for frontend tooling)
+- [Ollama](https://ollama.com/) (free local AI — recommended)
 
 ### Development (API server)
 ```bash
 # Install Python dependencies
 pip install -r requirements.txt
+
+# Copy environment config
+cp .env.example .env
 
 # Start the GAIA API server
 bash start.sh
@@ -164,6 +192,7 @@ uvicorn core.server:app --reload --port 8008
 ### Development (Desktop app)
 ```bash
 npm install
+npm run build
 npm run tauri dev
 ```
 
@@ -178,7 +207,7 @@ pytest tests/ -v
 
 See [CHANGELOG.md](./CHANGELOG.md) for full sprint-by-sprint delivery log.
 
-**Current sprint:** G-8 ✅ CLOSED — InferenceRouter + MotherThread Integration
+**Current sprint:** G-8 ✅ CLOSED — InferenceRouter + MotherThread Integration  
 **Next sprint:** G-9
 
 ---

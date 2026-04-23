@@ -7,6 +7,61 @@ All notable changes to GAIA-APP are recorded here in reverse-chronological sprin
 
 ---
 
+## [v0.1.0] — 2026-04-23  ·  First Windows Desktop Release
+
+**Desktop version:** `0.1.0`  
+**Server version:** `2.0.0`  
+**Status:** 🚀 RELEASED
+
+### Summary
+
+First official desktop release of GAIA-APP for Windows x64. This release packages the complete constitutional logic engine, Tauri v2 native shell, Vite + TypeScript frontend, and Python sidecar (`gaia-backend.exe`) into two signed Windows installers.
+
+### Release Artifacts
+
+| Artifact | Format | Platform |
+|---|---|---|
+| `GAIA_0.1.0_x64-setup.exe` | NSIS installer | Windows x64 |
+| `GAIA_0.1.0_x64_en-US.msi` | MSI installer | Windows x64 |
+
+### CI/CD Pipeline Established
+
+- **`build.yml`** — Full automated pipeline: Python sidecar (PyInstaller) → Tauri build → GitHub Release
+- **`build-windows.yml`** — Windows-specific build workflow
+- **`test.yml`** — Automated pytest runner on every push
+- GitHub Actions `GITHUB_TOKEN` granted `contents: write` for release creation
+- Rust cache via `Swatinem/rust-cache@v2` — build time ~5 min from cache
+- Both `.msi` and `.nsis` bundles produced and uploaded as release assets
+
+### What's Included in v0.1.0
+
+This release bundles all work from Sprints G-1 through G-8:
+
+- Full constitutional logic engine (`core/`) — 30+ Python modules
+- `GAIAInferenceRouter` — single authoritative LLM routing layer (C44)
+- `MotherThread` + Noosphere collective field (C42, C43)
+- Epistemic labelling on every inference turn (C12, C21)
+- JWT authentication + role system
+- Risk-tiered Action Gate veto system
+- Cryptographic consent lifecycle
+- Governed memory surface
+- Synergy engine (C15, C17, C27, C30)
+- BCI coherence + criticality monitor (C42)
+- Crystal consciousness, resonance field, subtle body engines
+- Soul mirror engine (Jungian individuation)
+- Emotional arc, codex, love arc, settling engines
+- Zodiac + affect inference engines
+- Noosphere SSE endpoints + frontend Noosphere Tab
+- Rate limiter, error boundary, structured logger
+- Web search + scraper integration
+- Tauri v2 (Rust) desktop backend with Python sidecar
+- Vite + TypeScript frontend
+- 38-test `test_inference_router.py` suite + full test harness
+- `canon/` — C00–C44+ constitutional source documents
+- `specs/` — technical specification documents
+
+---
+
 ## [G-8] — 2026-04-13  ·  InferenceRouter + MotherThread Integration
 
 **Server version:** `2.0.0`  
@@ -81,7 +136,7 @@ All notable changes to GAIA-APP are recorded here in reverse-chronological sprin
 - Synthesizer (`core/synthesizer.py`)
 - Streaming utilities (`core/streaming.py`)
 - Session memory (`core/session_memory.py`)
-- Tauri (Rust) desktop backend (`src-tauri/`)
+- Tauri v2 (Rust) desktop backend (`src-tauri/`)
 - Frontend app shell (`src/`, `ui/`)
 - Docker + start script (`Dockerfile`, `start.sh`)
 - Test harness foundation (`tests/conftest.py`)

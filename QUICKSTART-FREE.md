@@ -6,10 +6,13 @@ You can run GAIA completely free using **Ollama** — an app that runs AI models
 
 ## What You Need
 
-- A computer (Windows, Mac, or Linux)
-- Python 3.11+ — [Download here](https://www.python.org/downloads/)
-- Node.js 18+ — [Download here](https://nodejs.org/)
-- Ollama — [Download here](https://ollama.com/) *(free forever)*
+| Requirement | Version | Download |
+|---|---|---|
+| Python | 3.11+ | [python.org](https://www.python.org/downloads/) |
+| Node.js | 20+ | [nodejs.org](https://nodejs.org/) |
+| Ollama | Latest | [ollama.com](https://ollama.com/) |
+
+> **Just want the Windows app?** Download the installer directly from the [Releases page](https://github.com/R0GV3TheAlchemist/GAIA-APP/releases) — no Python or Node needed.
 
 ---
 
@@ -57,13 +60,31 @@ cp .env.example .env
 copy .env.example .env
 ```
 
-That's it. The default config already points to Ollama — no editing needed.
+The default config already points to Ollama — no editing needed.
+
+### Optional: Add a Paid API Key
+
+If you have an OpenAI, Anthropic, or Perplexity key, open `.env` and uncomment the relevant line:
+
+```env
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Perplexity Search
+PERPLEXITY_API_KEY=pplx-...
+PERPLEXITY_MODEL=sonar-pro
+```
+
+GAIA works great without any of these.
 
 ---
 
 ## Step 4 — Start GAIA
 
-**Start Ollama first** (if it’s not already running):
+**Start Ollama first** (if it's not already running):
 ```bash
 ollama serve
 ```
@@ -96,15 +117,40 @@ GAIA is running. Talk to her. 🌍
 
 ---
 
+## Running as Desktop App (Windows)
+
+If you want to run the native Windows desktop app instead of the browser:
+
+```bash
+# Development mode
+npm run tauri dev
+
+# Or download the pre-built installer from:
+# https://github.com/R0GV3TheAlchemist/GAIA-APP/releases
+```
+
+The desktop app bundles the Python backend as a sidecar — no separate terminal needed.
+
+---
+
+## Running Tests
+
+```bash
+pytest tests/ -v
+```
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `ModuleNotFoundError: No module named 'core'` | You must run `python -m core.server` from the **root GAIA-APP folder** |
+| `ModuleNotFoundError: No module named 'core'` | Run `python -m core.server` from the **root GAIA-APP folder** |
 | `Connection refused` on port 8008 | Make sure the backend started without errors |
 | `ollama: command not found` | Install Ollama from [ollama.com](https://ollama.com) |
-| Slow responses | Try `ollama pull phi3:mini` — it’s smaller and faster |
-| Port 5173 already in use | Close other terminals and try again |
+| Slow responses | Try `ollama pull phi3:mini` — smaller and faster |
+| Port 5173 already in use | Close other dev terminals and try again |
+| Desktop app won't launch | Make sure Rust is installed: [rustup.rs](https://rustup.rs/) |
 
 ---
 
@@ -121,4 +167,5 @@ Change the model anytime by editing `OLLAMA_MODEL=` in your `.env` file.
 
 ---
 
-*GAIA is open-source and free. Built with love. ✨*
+*GAIA is free. Built with love. ✨*  
+*© 2026 Kyle Steen — All rights reserved.*
