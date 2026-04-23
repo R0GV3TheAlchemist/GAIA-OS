@@ -83,52 +83,67 @@ jobs:
           if (-not (Test-Path $f)) { throw "Sidecar missing: $f" }
           Write-Host "Sidecar confirmed: $((Get-Item $f).Length) bytes"
 
-      # Build a valid multi-resolution ICO from the Square* PNGs (10-40 KB each
-      # = real images). No cairo/native libs needed — pure Pillow.
       - name: Install Pillow
         run: pip install Pillow
 
-      - name: Build icon.ico from Square PNGs
+      # Pillow's append_images ICO API is broken on Windows (writes 583 bytes).
+      # Build the ICO file manually using the raw ICO binary format spec.
+      - name: Build icon.ico manually
         shell: python
         run: |
-          import os
+          import os, struct
+          from io import BytesIO
           from PIL import Image
 
           icons = "src-tauri/icons"
-
-          # Use the valid Square PNGs as source (verified real images 1-40 KB)
-          sources = [
-              ("Square30x30Logo.png",   30),
-              ("Square44x44Logo.png",   44),
-              ("Square71x71Logo.png",   71),
-              ("Square107x107Logo.png", 107),
-              ("Square142x142Logo.png", 142),
-              ("Square150x150Logo.png", 150),
-          ]
-
-          # Standard ICO sizes Windows expects
           ico_sizes = [16, 24, 32, 48, 64, 128, 256]
 
-          # Load the largest source and resize down to each ICO size
-          largest = Image.open(f"{icons}/Square150x150Logo.png").convert("RGBA")
-          print(f"Source image: {largest.size}, mode={largest.mode}")
+          # Load source and render each size as raw PNG bytes
+          src = Image.open(f"{icons}/Square150x150Logo.png").convert("RGBA")
+          print(f"Source: {src.size} {src.mode}")
 
-          frames = []
+          png_frames = []
           for s in ico_sizes:
-              frame = largest.resize((s, s), Image.LANCZOS)
-              frames.append(frame)
-              print(f"  frame {s}x{s}: ok")
+              buf = BytesIO()
+              frame = src.resize((s, s), Image.LANCZOS)
+              frame.save(buf, format="PNG")
+              png_frames.append(buf.getvalue())
+              print(f"  PNG {s}x{s}: {len(buf.getvalue())} bytes")
+
+          # Build ICO binary manually per spec:
+          # Header: 6 bytes
+          # Directory: 16 bytes * n_images
+          # Image data: concatenated PNG blobs
+          n = len(ico_sizes)
+          header = struct.pack("<HHH", 0, 1, n)  # reserved, type=1 (ICO), count
+
+          # Calculate offsets: header(6) + directory(16*n) + sum of prior blobs
+          dir_entries = b""
+          data_offset = 6 + 16 * n
+          for i, (s, png) in enumerate(zip(ico_sizes, png_frames)):
+              w = s if s < 256 else 0   # 256 stored as 0 per spec
+              h = s if s < 256 else 0
+              dir_entries += struct.pack(
+                  "<BBBBHHII",
+                  w, h,        # width, height
+                  0,           # color count (0 = no palette)
+                  0,           # reserved
+                  1,           # color planes
+                  32,          # bits per pixel
+                  len(png),    # size of image data
+                  data_offset, # offset to image data
+              )
+              data_offset += len(png)
 
           ico_path = f"{icons}/icon.ico"
-          frames[0].save(
-              ico_path,
-              format="ICO",
-              sizes=[(s, s) for s in ico_sizes],
-              append_images=frames[1:],
-          )
+          with open(ico_path, "wb") as f:
+              f.write(header + dir_entries)
+              for png in png_frames:
+                  f.write(png)
+
           size = os.path.getsize(ico_path)
           print(f"icon.ico written: {size} bytes")
-          assert size > 10_000, f"ICO too small ({size} bytes) — something went wrong"
+          assert size > 10_000, f"ICO too small ({size} bytes)"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
