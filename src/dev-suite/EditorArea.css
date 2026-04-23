@@ -1,0 +1,68 @@
+/* GAIA Dev Suite — Editor Area */
+
+.editor-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-tabs {
+  display: flex;
+  background: #252525;
+  border-bottom: 1px solid #333;
+  overflow-x: auto;
+  flex-shrink: 0;
+  height: 35px;
+}
+
+.editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid #333;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #888;
+  font-size: 12px;
+  min-width: 100px;
+}
+
+.editor-tab.active {
+  background: #1e1e1e;
+  color: #e0e0e0;
+  border-top: 2px solid #00b4a6;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+.tab-close:hover { color: #e0e0e0; background: #444; }
+
+.editor-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.editor-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #555;
+  text-align: center;
+  gap: 12px;
+}
+
+.editor-welcome h2 { color: #00b4a6; font-size: 22px; }
+.shortcut-hint { font-size: 11px; color: #444; }
