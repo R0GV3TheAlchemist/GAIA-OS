@@ -1,0 +1,50 @@
+#gaia-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 16, 0.97);
+  flex-direction: column;
+}
+
+.gaia-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.gaia-loading-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #7efff5;
+  letter-spacing: 0.2em;
+  margin: 0;
+}
+
+.gaia-loading-sub {
+  font-size: 0.95rem;
+  color: #a0aec0;
+  margin: 0;
+}
+
+.gaia-loading-attempt {
+  font-size: 0.8rem;
+  color: #4a5568;
+  margin: 0;
+}
+
+.gaia-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba(126, 255, 245, 0.15);
+  border-top-color: #7efff5;
+  border-radius: 50%;
+  animation: gaia-spin 0.9s linear infinite;
+}
+
+@keyframes gaia-spin {
+  to { transform: rotate(360deg); }
+}
