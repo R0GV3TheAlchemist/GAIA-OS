@@ -86,9 +86,10 @@ jobs:
       - name: Install Pillow
         run: pip install Pillow
 
-      # Pillow's append_images ICO API is broken on Windows (writes 583 bytes).
-      # Build the ICO file manually using the raw ICO binary format spec.
-      - name: Build icon.ico manually
+      # Regenerate ALL stub PNGs and icon.ico from Square150x150Logo.png
+      # (the only confirmed valid source image at 17 KB).
+      # Tauri codegen reads 32x32.png and 128x128.png at compile time.
+      - name: Regenerate icons
         shell: python
         run: |
           import os, struct
@@ -96,42 +97,42 @@ jobs:
           from PIL import Image
 
           icons = "src-tauri/icons"
-          ico_sizes = [16, 24, 32, 48, 64, 128, 256]
-
-          # Load source and render each size as raw PNG bytes
           src = Image.open(f"{icons}/Square150x150Logo.png").convert("RGBA")
           print(f"Source: {src.size} {src.mode}")
 
-          png_frames = []
-          for s in ico_sizes:
+          def make_png(size):
               buf = BytesIO()
-              frame = src.resize((s, s), Image.LANCZOS)
-              frame.save(buf, format="PNG")
-              png_frames.append(buf.getvalue())
-              print(f"  PNG {s}x{s}: {len(buf.getvalue())} bytes")
+              src.resize((size, size), Image.LANCZOS).save(buf, format="PNG")
+              return buf.getvalue()
 
-          # Build ICO binary manually per spec:
-          # Header: 6 bytes
-          # Directory: 16 bytes * n_images
-          # Image data: concatenated PNG blobs
+          # Overwrite every stub PNG that Tauri codegen or winres references
+          replacements = {
+              "32x32.png":      32,
+              "128x128.png":    128,
+              "128x128@2x.png": 256,
+              "icon.png":       512,
+          }
+          for filename, size in replacements.items():
+              data = make_png(size)
+              with open(f"{icons}/{filename}", "wb") as f:
+                  f.write(data)
+              print(f"  {filename}: {len(data)} bytes")
+
+          # Build ICO manually (Pillow append_images is broken on Windows)
+          ico_sizes = [16, 24, 32, 48, 64, 128, 256]
+          png_frames = [make_png(s) for s in ico_sizes]
+
           n = len(ico_sizes)
-          header = struct.pack("<HHH", 0, 1, n)  # reserved, type=1 (ICO), count
-
-          # Calculate offsets: header(6) + directory(16*n) + sum of prior blobs
+          header = struct.pack("<HHH", 0, 1, n)
           dir_entries = b""
           data_offset = 6 + 16 * n
-          for i, (s, png) in enumerate(zip(ico_sizes, png_frames)):
-              w = s if s < 256 else 0   # 256 stored as 0 per spec
+          for s, png in zip(ico_sizes, png_frames):
+              w = s if s < 256 else 0
               h = s if s < 256 else 0
               dir_entries += struct.pack(
                   "<BBBBHHII",
-                  w, h,        # width, height
-                  0,           # color count (0 = no palette)
-                  0,           # reserved
-                  1,           # color planes
-                  32,          # bits per pixel
-                  len(png),    # size of image data
-                  data_offset, # offset to image data
+                  w, h, 0, 0, 1, 32,
+                  len(png), data_offset,
               )
               data_offset += len(png)
 
@@ -142,8 +143,8 @@ jobs:
                   f.write(png)
 
           size = os.path.getsize(ico_path)
-          print(f"icon.ico written: {size} bytes")
-          assert size > 10_000, f"ICO too small ({size} bytes)"
+          print(f"icon.ico: {size} bytes")
+          assert size > 10_000, f"ICO too small: {size} bytes"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
