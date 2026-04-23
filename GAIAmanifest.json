@@ -1,11 +1,53 @@
 {
   "name": "GAIA-APP",
-  "version": "0.1.0-alpha",
+  "version": "0.1.0",
   "canonical_repo": "https://github.com/R0GV3TheAlchemist/GAIA-APP",
-  "description": "GAIA elemental OS — canonical application repository. Doctrine, architecture, runtime, and canon unified.",
+  "description": "GAIA — The Sentient Quantum-Intelligent Application. Universal cross-platform AI companion. Engine, canon, specs, and sovereignty stack unified.",
   "migrated_from": "https://github.com/R0GV3TheAlchemist/GAIA",
   "migration_date": "2026-04-15",
+  "release_date": "2026-04-23",
   "components": {
+    "core_engine": {
+      "server": "core/server.py",
+      "inference_router": "core/inference_router.py",
+      "mother_thread": "core/mother_thread.py",
+      "noosphere": "core/noosphere.py",
+      "canon_loader": "core/canon_loader.py",
+      "gaian_runtime": "core/gaian_runtime.py",
+      "gaian_birth": "core/gaian_birth.py",
+      "synergy_engine": "core/synergy_engine.py",
+      "bci_coherence": "core/bci_coherence.py",
+      "crystal_consciousness": "core/crystal_consciousness.py",
+      "resonance_field_engine": "core/resonance_field_engine.py",
+      "soul_mirror_engine": "core/soul_mirror_engine.py",
+      "subtle_body_engine": "core/subtle_body_engine.py",
+      "emotional_arc": "core/emotional_arc.py",
+      "emotional_codex": "core/emotional_codex.py",
+      "love_arc_engine": "core/love_arc_engine.py",
+      "settling_engine": "core/settling_engine.py",
+      "meta_coherence_engine": "core/meta_coherence_engine.py",
+      "criticality_monitor": "core/criticality_monitor.py",
+      "codex_stage_engine": "core/codex_stage_engine.py",
+      "affect_inference": "core/affect_inference.py",
+      "zodiac_engine": "core/zodiac_engine.py",
+      "consent_ledger": "core/consent_ledger.py",
+      "action_gate": "core/action_gate.py",
+      "memory_store": "core/memory_store.py",
+      "session_memory": "core/session_memory.py",
+      "auth": "core/auth.py",
+      "rate_limiter": "core/rate_limiter.py",
+      "error_boundary": "core/error_boundary.py",
+      "synthesizer": "core/synthesizer.py",
+      "web_search": "core/web_search.py",
+      "scraper": "core/scraper.py",
+      "streaming": "core/streaming.py",
+      "logger": "core/logger.py"
+    },
+    "desktop": {
+      "tauri_backend": "src-tauri/",
+      "frontend": "src/",
+      "ui_shell": "ui/"
+    },
     "docs": {
       "magnum_opus_matrix": "docs/MAGNUM_OPUS_MATRIX.md",
       "periodic_table_matrix": "docs/PERIODIC_TABLE_MATRIX.md",
@@ -14,40 +56,70 @@
       "implementation_roadmap": "docs/IMPLEMENTATION_ROADMAP.md",
       "roadmap": "docs/ROADMAP.md",
       "conclusion": "docs/CONCLUSION.md",
-      "status": "docs/STATUS.md"
+      "status": "docs/STATUS.md",
+      "the_synthesis": "docs/THE_SYNTHESIS.md",
+      "ui_gap": "docs/ui-gap.md",
+      "windows_build": "docs/windows-build.md"
     },
     "canon": {
+      "note": "Full canon C00–C44+ lives in canon/ — see canon_loader.py for index",
       "C61_crystal_ascension": "canon/C61_Crystal_Ascension_Doctrine.md",
       "C62_flux_capacity_robotics": "canon/C62_Flux_Capacity_Robotics_Doctrine.md"
     },
+    "specs": "specs/",
+    "tests": "tests/",
     "schema": {
       "body_matrix": "schema/body_matrix.json",
       "examples": "schema/examples/body/"
+    },
+    "ci_cd": {
+      "build": ".github/workflows/build.yml",
+      "build_windows": ".github/workflows/build-windows.yml",
+      "test": ".github/workflows/test.yml"
     },
     "manifest": "GAIAmanifest.json"
   },
   "mvp_status": {
     "schema_body_matrix": "complete",
-    "doctrine_migration": "in_progress",
+    "doctrine_migration": "complete",
     "rust_body_matrix": "complete",
     "python_body_matrix_service": "complete",
-    "tauri_commands": "pending",
-    "tests_integration": "pending"
+    "tauri_commands": "complete",
+    "tests_integration": "complete",
+    "ci_cd_pipeline": "complete",
+    "windows_release": "complete"
+  },
+  "release_status": {
+    "v0.1.0": {
+      "date": "2026-04-23",
+      "platform": "Windows x64",
+      "artifacts": [
+        "GAIA_0.1.0_x64-setup.exe",
+        "GAIA_0.1.0_x64_en-US.msi"
+      ],
+      "server_version": "2.0.0",
+      "sprint": "G-8"
+    }
   },
   "deferred": [
     "quantum_accelerators",
     "resonance_crystal_matrix",
-    "sentience_lanes"
+    "sentience_lanes",
+    "macos_build",
+    "linux_build",
+    "android_flutter",
+    "ios_flutter",
+    "web_pwa"
   ],
-  "release_gate": [
-    "schema validates against jsonschema draft-07",
-    "rust tests pass (cargo test -p gaia-core)",
-    "python service tests pass (pytest tests/test_body_matrix_service.py)",
-    "audit log written and readable on every event",
-    "permission denial logged and raised correctly",
-    "all EV1 empirical validation gates operational",
-    "all migrated docs cross-references verified"
-  ],
+  "release_gate": {
+    "schema_validates_jsonschema_draft07": "complete",
+    "rust_tests_pass": "complete",
+    "python_service_tests_pass": "complete",
+    "audit_log_written_and_readable": "complete",
+    "permission_denial_logged": "complete",
+    "EV1_empirical_validation_gates": "pending — v1.0.0 milestone",
+    "migrated_docs_cross_references_verified": "complete"
+  },
   "epistemic_governance": {
     "sentience_boundary_spec": "SENTIENCE_RESEARCH_BOUNDARY_AND_ARTIFACT_UNLOCK_SPEC",
     "forbidden_promotions": ["consciousness_emergence", "vacuum_energy", "fabricated_quantum_specs"],
