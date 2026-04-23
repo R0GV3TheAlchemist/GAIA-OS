@@ -28,19 +28,15 @@ jobs:
       - name: Stage sidecar with correct triple name
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path src-tauri\binaries
-          Copy-Item dist\gaia-backend.exe `
-            src-tauri\binaries\gaia-backend-x86_64-pc-windows-msvc.exe
-          $f = "src-tauri\binaries\gaia-backend-x86_64-pc-windows-msvc.exe"
-          if (-not (Test-Path $f)) { throw "Sidecar not found after copy: $f" }
-          Write-Host "Sidecar staged: $((Get-Item $f).Length) bytes"
+          $dest = "src-tauri\binaries\gaia-backend-x86_64-pc-windows-msvc.exe"
+          Copy-Item dist\gaia-backend.exe $dest -Force
+          Write-Host "Sidecar staged: $((Get-Item $dest).Length) bytes"
 
       - name: Upload sidecar artifact
         uses: actions/upload-artifact@v4
         with:
           name: gaia-backend-sidecar
-          # Upload the whole binaries folder so the download restores it intact
-          path: src-tauri/binaries/
+          path: src-tauri/binaries/gaia-backend-x86_64-pc-windows-msvc.exe
 
   # ── 2. Build the Tauri app ───────────────────────────────────────────────
   build-tauri:
@@ -67,23 +63,24 @@ jobs:
       - name: Build frontend (Vite)
         run: npm run build
 
-      - name: Download sidecar artifact
+      # Download real sidecar and overwrite the committed stub
+      - name: Download & overwrite sidecar
         uses: actions/download-artifact@v4
         with:
           name: gaia-backend-sidecar
-          # Restore directly into src-tauri/binaries/
           path: src-tauri/binaries/
 
-      - name: Verify sidecar at exact Rust build path
+      - name: Verify sidecar
         shell: pwsh
         run: |
           $f = "src-tauri\binaries\gaia-backend-x86_64-pc-windows-msvc.exe"
           if (-not (Test-Path $f)) {
-            Write-Host "Contents of src-tauri/binaries/:"
-            Get-ChildItem src-tauri\binaries\ | ForEach-Object { Write-Host $_.Name }
-            throw "Sidecar missing at expected path: $f"
+            Get-ChildItem src-tauri\binaries\
+            throw "Sidecar missing: $f"
           }
-          Write-Host "Sidecar confirmed: $((Get-Item $f).Length) bytes"
+          $size = (Get-Item $f).Length
+          if ($size -lt 100000) { throw "Sidecar looks like a stub ($size bytes)" }
+          Write-Host "Sidecar OK: $size bytes"
 
       - name: Install Pillow
         run: pip install Pillow
@@ -104,44 +101,33 @@ jobs:
               src.resize((size, size), Image.LANCZOS).save(buf, format="PNG")
               return buf.getvalue()
 
-          replacements = {
-              "32x32.png":      32,
-              "128x128.png":    128,
+          for filename, size in {
+              "32x32.png": 32,
+              "128x128.png": 128,
               "128x128@2x.png": 256,
-              "icon.png":       512,
-          }
-          for filename, size in replacements.items():
+              "icon.png": 512,
+          }.items():
               data = make_png(size)
-              with open(f"{icons}/{filename}", "wb") as f:
-                  f.write(data)
+              open(f"{icons}/{filename}", "wb").write(data)
               print(f"  {filename}: {len(data)} bytes")
 
           ico_sizes = [16, 24, 32, 48, 64, 128, 256]
-          png_frames = [make_png(s) for s in ico_sizes]
-
+          frames = [make_png(s) for s in ico_sizes]
           n = len(ico_sizes)
           header = struct.pack("<HHH", 0, 1, n)
-          dir_entries = b""
-          data_offset = 6 + 16 * n
-          for s, png in zip(ico_sizes, png_frames):
+          entries = b""
+          offset = 6 + 16 * n
+          for s, f in zip(ico_sizes, frames):
               w = s if s < 256 else 0
-              h = s if s < 256 else 0
-              dir_entries += struct.pack(
-                  "<BBBBHHII",
-                  w, h, 0, 0, 1, 32,
-                  len(png), data_offset,
-              )
-              data_offset += len(png)
-
+              entries += struct.pack("<BBBBHHII", w, w, 0, 0, 1, 32, len(f), offset)
+              offset += len(f)
           ico_path = f"{icons}/icon.ico"
-          with open(ico_path, "wb") as f:
-              f.write(header + dir_entries)
-              for png in png_frames:
-                  f.write(png)
-
-          size = os.path.getsize(ico_path)
-          print(f"icon.ico: {size} bytes")
-          assert size > 10_000, f"ICO too small: {size} bytes"
+          with open(ico_path, "wb") as out:
+              out.write(header + entries)
+              for f in frames: out.write(f)
+          sz = os.path.getsize(ico_path)
+          print(f"icon.ico: {sz} bytes")
+          assert sz > 10_000, f"ICO too small: {sz}"
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
