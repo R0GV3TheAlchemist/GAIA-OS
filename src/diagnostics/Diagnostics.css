@@ -1,0 +1,141 @@
+/* GAIA Diagnostics Panel */
+
+.diag-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #171614;
+  color: #cdccca;
+  font-family: 'Geist Mono', 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  overflow: hidden;
+}
+
+.diag-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #262523;
+  flex-shrink: 0;
+}
+
+.diag-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #cdccca;
+  letter-spacing: 0.02em;
+}
+
+.diag-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.diag-btn {
+  background: #22211f;
+  border: 1px solid #393836;
+  color: #cdccca;
+  border-radius: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.diag-btn:hover { background: #2d2c2a; }
+.diag-btn:active { background: #393836; }
+
+/* KPI grid */
+.diag-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #262523;
+  border-bottom: 1px solid #262523;
+  flex-shrink: 0;
+}
+
+.diag-card {
+  background: #1c1b19;
+  padding: 0.6rem 1rem;
+}
+
+.diag-card-label {
+  font-size: 0.7rem;
+  color: #5a5957;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.2rem;
+}
+
+.diag-card-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #cdccca;
+}
+
+/* Log section */
+.diag-log-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.diag-log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid #262523;
+  flex-shrink: 0;
+}
+
+.diag-log-title {
+  font-size: 0.75rem;
+  color: #5a5957;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex: 1;
+}
+
+.diag-select {
+  background: #22211f;
+  border: 1px solid #393836;
+  color: #cdccca;
+  border-radius: 0.3rem;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+.diag-log-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.25rem 0;
+}
+
+.diag-log-empty {
+  padding: 1rem;
+  color: #5a5957;
+  font-style: italic;
+}
+
+.diag-log-row {
+  display: grid;
+  grid-template-columns: 7rem 3.5rem 6rem 1fr;
+  gap: 0.5rem;
+  padding: 0.15rem 1rem;
+  border-bottom: 1px solid #1d1c1a;
+  align-items: baseline;
+}
+.diag-log-row:hover { background: #1c1b19; }
+
+.diag-log-time   { color: #5a5957; font-size: 0.75rem; }
+.diag-log-module { color: #4f98a3; font-size: 0.75rem; }
+.diag-log-msg    { color: #cdccca; word-break: break-all; }
+
+.diag-log-level         { font-weight: 700; font-size: 0.7rem; text-transform: uppercase; }
+.diag-log-level-debug   { color: #5a5957; }
+.diag-log-level-info    { color: #4f98a3; }
+.diag-log-level-warn    { color: #fdab43; }
+.diag-log-level-error   { color: #dd6974; }

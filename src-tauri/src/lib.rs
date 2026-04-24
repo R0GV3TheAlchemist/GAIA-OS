@@ -73,13 +73,11 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
         .inner()
         .clone();
 
-    // Kill existing process tree
     {
         let mut guard = handle.lock().map_err(|e| e.to_string())?;
         kill_sidecar(&mut guard);
     }
 
-    // Spawn a fresh sidecar
     let shell = app.shell();
     let cmd = shell
         .sidecar("gaia-backend")
@@ -92,6 +90,30 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
     }
 
     Ok("restarted".to_string())
+}
+
+/// Open the GAIA log directory in the OS file explorer.
+/// Path: %APPDATA%\GAIA\logs  (Windows) or ~/.local/share/GAIA/logs (Linux/macOS)
+#[tauri::command]
+async fn open_log_dir(app: tauri::AppHandle) -> Result<(), String> {
+    let app_data = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let logs_dir = app_data.join("logs");
+
+    // Create the dir if it doesn't exist yet (no logs written before first open)
+    if !logs_dir.exists() {
+        std::fs::create_dir_all(&logs_dir).map_err(|e| e.to_string())?;
+    }
+
+    // Use the shell plugin to open the folder in Explorer / Finder / Nautilus
+    let opener = app.shell();
+    opener
+        .open(logs_dir.to_string_lossy().to_string(), None)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 // ── Sidecar startup ───────────────────────────────────────────────────────────
@@ -108,12 +130,10 @@ fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
                 reason: reason.to_string(),
             },
         );
-        // Reveal the window even on error so the user isn't left with nothing
         let _ = window.show();
         let _ = window.set_focus();
     }
 
-    // Native OS dialog as a hard fallback
     let app_clone = app.clone();
     let reason_owned = reason.to_string();
     tauri::async_runtime::spawn(async move {
@@ -138,7 +158,7 @@ fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
 ///   1. Window is hidden (visible: false in tauri.conf.json)
 ///   2. Sidecar spawns in the background
 ///   3. /health is polled with exponential back-off (max 30 s)
-///   4a. On success  → emit sidecar:ready → show + focus window  ← cold start complete
+///   4a. On success  → emit sidecar:ready → show + focus window
 ///   4b. On failure  → emit sidecar:error → show window with error state
 fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
     let shell = app.shell();
@@ -170,7 +190,6 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
                     *guard = Some(child);
                 }
 
-                // Poll /health with exponential back-off — max 30 s
                 let client = reqwest::Client::new();
                 let mut delay_ms = 300u64;
                 let mut ready = false;
@@ -195,9 +214,7 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
 
                 if ready {
                     if let Some(window) = app_handle.get_webview_window("main") {
-                        // Emit to frontend first so it can finish any last render
                         let _ = window.emit("sidecar:ready", ());
-                        // Then reveal — user sees a fully-loaded UI, never a blank flash
                         let _ = window.show();
                         let _ = window.set_focus();
                     }
@@ -233,13 +250,11 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            // ── Sidecar ───────────────────────────────────────────────────
-            // Window is hidden at this point (visible: false in tauri.conf.json).
+            // Window is hidden (visible: false in tauri.conf.json).
             // start_python_sidecar will show it once /health responds 200.
             let handle = app.state::<SidecarHandle>().inner().clone();
             start_python_sidecar(app, handle);
 
-            // ── System tray ───────────────────────────────────────────────
             let open = MenuItem::with_id(app, "open", "Open GAIA", true, None::<&str>)?;
             let check_updates =
                 MenuItem::with_id(app, "updates", "Check for Updates", true, None::<&str>)?;
@@ -284,7 +299,6 @@ pub fn run() {
 
             Ok(())
         })
-        // ── Graceful shutdown on window close ─────────────────────────────
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 let app = window.app_handle();
@@ -298,7 +312,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_backend_status,
-            restart_backend
+            restart_backend,
+            open_log_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running GAIA");
