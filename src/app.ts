@@ -21,6 +21,7 @@ import { appDataDir, join, resolveResource } from '@tauri-apps/api/path';
 import { exists, mkdir, copyFile, readDir } from '@tauri-apps/plugin-fs';
 import { listen }          from '@tauri-apps/api/event';
 import { checkForUpdates } from './updater';
+import { logInfo, logWarn, logError } from './diagnostics';
 
 const metaEnv = ((import.meta as unknown as { env?: Record<string, string> }).env) ?? {};
 const BASE_URL = metaEnv.VITE_API_BASE ?? 'http://localhost:8008';
@@ -35,7 +36,7 @@ async function ensureAppDataDirs(): Promise<void> {
       const dirPath = await join(appData, dir);
       if (!(await exists(dirPath))) {
         await mkdir(dirPath, { recursive: true });
-        console.log(`[GAIA] Created ${dirPath}`);
+        logInfo('app', `Created AppData dir: ${dir}`);
       }
     }
 
@@ -47,27 +48,25 @@ async function ensureAppDataDirs(): Promise<void> {
         const canonSrc = await resolveResource('canon');
         const srcEntries = await readDir(canonSrc);
         for (const entry of srcEntries) {
-          const srcFile  = await join(canonSrc,   entry.name);
+          const srcFile  = await join(canonSrc,  entry.name);
           const destFile = await join(canonDest, entry.name);
           await copyFile(srcFile, destFile);
         }
-        console.log(`[GAIA] Seeded ${srcEntries.length} canon docs to AppData`);
+        logInfo('app', `Seeded ${srcEntries.length} canon docs to AppData`);
       } catch (e) {
-        console.warn('[GAIA] Could not seed canon docs (may not be bundled yet):', e);
+        logWarn('app', 'Could not seed canon docs (may not be bundled yet)', e);
       }
     }
   } catch (e) {
-    console.warn('[GAIA] ensureAppDataDirs failed:', e);
+    logError('app', 'ensureAppDataDirs failed', e);
   }
 }
 
 // ── Updater: check once after the backend is confirmed ready ─────────────────
-// We listen for sidecar:ready so we only check when the app is fully up.
-// checkForUpdates() is silent on network failure — never blocks the UI.
 async function initUpdater(): Promise<void> {
   const unlisten = await listen('sidecar:ready', async () => {
-    unlisten(); // one-shot listener
-    // Small delay so the user sees the UI settle before a banner might appear
+    unlisten();
+    logInfo('updater', 'sidecar:ready received — scheduling update check');
     await new Promise(r => setTimeout(r, 2000));
     await checkForUpdates();
   });
@@ -75,6 +74,7 @@ async function initUpdater(): Promise<void> {
 
 export class App {
   constructor() {
+    logInfo('app', 'GAIA App initialising');
     this.mount();
     ensureAppDataDirs();
     initUpdater();
@@ -109,6 +109,7 @@ export class App {
     mountShell(document.getElementById('view-shell')!);
     mountMemory(document.getElementById('view-memory')!);
     mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
+    logInfo('app', 'All views mounted');
 
     let _activeView = 'search';
     document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach(btn => {
@@ -120,6 +121,7 @@ export class App {
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById(`view-${view}`)!.classList.add('active');
+        logInfo('app', `View switched: ${_activeView} → ${view}`);
         _activeView = view;
         if (view === 'noosphere') {
           mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });

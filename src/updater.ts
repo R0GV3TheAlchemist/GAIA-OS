@@ -5,6 +5,7 @@
 
 import { check, Update } from '@tauri-apps/plugin-updater';
 import { relaunch }      from '@tauri-apps/plugin-process';
+import { logInfo, logWarn, logError } from './diagnostics';
 import './updater.css';
 
 let _banner: HTMLElement | null = null;
@@ -17,21 +18,24 @@ let _banner: HTMLElement | null = null;
  * Never throws — all errors are caught and logged.
  */
 export async function checkForUpdates(): Promise<void> {
+  logInfo('updater', 'Checking for updates');
   try {
     const update = await check();
     if (update?.available) {
+      logInfo('updater', `Update available`, { version: update.version });
       showUpdateBanner(update);
+    } else {
+      logInfo('updater', 'No update available — app is current');
     }
   } catch (e) {
-    // Network offline, endpoint unreachable — silent fail is correct here
-    console.info('[GAIA Updater] Check skipped:', e);
+    logWarn('updater', 'Update check skipped', e instanceof Error ? e.message : String(e));
   }
 }
 
 // ── Banner UI ─────────────────────────────────────────────────────────────────
 
 function showUpdateBanner(update: Update): void {
-  if (_banner) return; // already showing
+  if (_banner) return;
 
   const version = update.version ?? 'unknown';
   const notes   = update.body   ?? '';
@@ -61,10 +65,12 @@ function showUpdateBanner(update: Update): void {
   document.body.appendChild(_banner);
 
   document.getElementById('gaia-update-install')!.addEventListener('click', () => {
+    logInfo('updater', 'User initiated update install', { version });
     installUpdate(update);
   });
 
   document.getElementById('gaia-update-dismiss')!.addEventListener('click', () => {
+    logInfo('updater', 'User dismissed update banner', { version });
     dismissBanner();
   });
 }
@@ -79,7 +85,6 @@ function dismissBanner(): void {
 // ── Install flow ──────────────────────────────────────────────────────────────
 
 async function installUpdate(update: Update): Promise<void> {
-  // Swap buttons for progress bar
   const actionsEl  = _banner?.querySelector<HTMLElement>('.update-actions');
   const progressEl = document.getElementById('gaia-update-progress');
   if (actionsEl)  actionsEl.hidden  = true;
@@ -97,28 +102,31 @@ async function installUpdate(update: Update): Promise<void> {
         case 'Started':
           total = event.data.contentLength ?? 0;
           labelEl.textContent = 'Downloading…';
+          logInfo('updater', 'Download started', { totalBytes: total });
           break;
         case 'Progress':
           downloaded += event.data.chunkLength;
           if (total > 0) {
             const pct = Math.round((downloaded / total) * 100);
-            fillEl.style.width    = `${pct}%`;
-            labelEl.textContent   = `Downloading… ${pct}%`;
+            fillEl.style.width  = `${pct}%`;
+            labelEl.textContent = `Downloading… ${pct}%`;
           }
           break;
         case 'Finished':
           fillEl.style.width  = '100%';
           labelEl.textContent = 'Installing…';
+          logInfo('updater', 'Download finished — installing');
           break;
       }
     });
 
     labelEl.textContent = 'Done — restarting GAIA…';
+    logInfo('updater', 'Install complete — relaunching');
     await new Promise(r => setTimeout(r, 800));
     await relaunch();
 
   } catch (e) {
-    console.error('[GAIA Updater] Install failed:', e);
+    logError('updater', 'Install failed', e);
     if (actionsEl)  actionsEl.hidden  = false;
     if (progressEl) progressEl.hidden = true;
     labelEl.textContent = 'Update failed — please try again.';

@@ -6,6 +6,7 @@
  */
 
 import { invoke } from '@tauri-apps/api/core';
+import { logInfo, logWarn, logError } from './diagnostics';
 
 const HEALTH_URL = 'http://localhost:8008/health';
 const MAX_POLL_ATTEMPTS = 40;   // ~30 s total
@@ -52,7 +53,10 @@ async function pollHealth(attempts = MAX_POLL_ATTEMPTS): Promise<boolean> {
     await new Promise(r => setTimeout(r, delay));
     try {
       const res = await fetch(HEALTH_URL, { signal: AbortSignal.timeout(2000) });
-      if (res.ok) return true;
+      if (res.ok) {
+        logInfo('sidecar', `Backend healthy after ${i + 1} attempt(s)`);
+        return true;
+      }
     } catch (_) {}
     delay = Math.min(delay * 1.5, 3000);
     setOverlayMsg(
@@ -65,6 +69,7 @@ async function pollHealth(attempts = MAX_POLL_ATTEMPTS): Promise<boolean> {
 
 // ── Public init ────────────────────────────────────────────────────────
 export async function initSidecar(): Promise<void> {
+  logInfo('sidecar', 'Starting health-check polling');
   const overlay = createOverlay();
   let retries = 0;
 
@@ -72,12 +77,14 @@ export async function initSidecar(): Promise<void> {
     const ready = await pollHealth();
     if (ready) {
       removeOverlay();
+      logInfo('sidecar', 'Sidecar ready — overlay dismissed');
       return;
     }
 
     retries++;
     if (retries > MAX_AUTO_RETRIES) break;
 
+    logWarn('sidecar', `Backend unresponsive — restarting`, { attempt: retries, max: MAX_AUTO_RETRIES });
     setOverlayMsg(
       `Backend unresponsive — restarting… (${retries}/${MAX_AUTO_RETRIES})`,
       'Please wait',
@@ -85,22 +92,22 @@ export async function initSidecar(): Promise<void> {
 
     try {
       await invoke<string>('restart_backend');
+      logInfo('sidecar', 'restart_backend invoked successfully');
     } catch (e) {
-      console.error('[GAIA] restart_backend failed:', e);
+      logError('sidecar', 'restart_backend failed', e);
     }
 
-    // Give the fresh process a moment before polling again
     await new Promise(r => setTimeout(r, 1500));
   }
 
-  // All retries exhausted — show error state but don't block UI forever
+  // All retries exhausted
+  logError('sidecar', 'All retries exhausted — backend failed to start', { maxRetries: MAX_AUTO_RETRIES });
   setOverlayMsg(
     '⚠ Backend failed to start',
     'Some features may be unavailable. Check logs.',
   );
   overlay.style.background = 'rgba(20,4,4,0.97)';
 
-  // Auto-dismiss error overlay after 6 s so the UI is still usable
   await new Promise(r => setTimeout(r, 6000));
   removeOverlay();
 }
