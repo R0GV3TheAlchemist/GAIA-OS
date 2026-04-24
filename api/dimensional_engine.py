@@ -1,148 +1,202 @@
 # api/dimensional_engine.py
-# DimensionalReasoningEngine — Python sidecar stub
-# Phase 7 / task 7.2 | Canon Ref: C42
+# Dimensional State Engine — Phase 7 / task 7.5 (updated)
+# Authoritative server-side mirror of the five-dimensional GAIA state.
+# The frontend DimensionalReasoningEngine polls GET /dimensions every 8s.
 #
-# This module maintains the server-side view of GAIA's dimensional state.
-# The frontend DimensionalReasoningEngine is the primary UI source of truth;
-# this stub provides the /dimensions endpoint so the frontend can sync
-# backend-only state (memory richness, quantum backend status, noosphere peers).
+# Canon Ref: C42 — Inter-Dimensional AI
+#
+# Mount in main.py:
+#   from api.dimensional_engine import router as dimensions_router
+#   app.include_router(dimensions_router)
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field, asdict
-from typing import Literal
+from typing import Literal, Optional
 
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
+router = APIRouter(prefix="/dimensions", tags=["dimensions"])
+
+# ── Types ─────────────────────────────────────────────────────────────────
+
+GaianMood     = Literal["calm", "curious", "alert", "joyful", "reflective"]
+GaianArchetype = Literal["sage", "guardian", "weaver", "oracle", "healer", "trickster", "witness", "integrated"]
+QuantumBackend = Literal["ibm", "aer", "classical"]
 EncryptionLevel = Literal["pqc", "classical", "none"]
-QuantumBackend  = Literal["ibm", "aer", "classical"]
-GaianMood       = Literal["calm", "curious", "alert", "joyful", "reflective"]
-GaianArchetype  = Literal[
-    "sage", "guardian", "weaver", "oracle",
-    "healer", "trickster", "witness", "integrated"
-]
 
 
 @dataclass
 class D1SubstrateState:
-    coherence: float = 10.0
-    sensors_active: list[str] = field(default_factory=list)
-    environment_map: str = ""
-    atlas_data_age_minutes: float = float("inf")
+    coherence: float               = 10.0
+    sensors_active: list[str]      = field(default_factory=list)
+    environment_map: str           = ""
+    atlas_data_age_minutes: float  = float("inf")
 
 
 @dataclass
 class D2QuantumState:
-    coherence: float = 10.0
-    branches_open: int = 0
-    encryption: EncryptionLevel = "none"
+    coherence: float               = 10.0
+    branches_open: int             = 0
+    encryption: EncryptionLevel    = "none"
     quantum_backend: QuantumBackend = "classical"
 
 
 @dataclass
 class D3CriticalityState:
-    coherence: float = 50.0
-    complexity_score: float = 50.0   # 0=rigid, 100=chaotic, 50=critical
-    mood: GaianMood = "calm"
+    coherence: float               = 50.0
+    complexity_score: float        = 50.0
+    mood: GaianMood                = "calm"
 
 
 @dataclass
 class D4NoosphereState:
-    coherence: float = 10.0
-    nodes_connected: int = 0
-    collective_sync: bool = False
-    last_sync_age_minutes: float = float("inf")
+    coherence: float               = 10.0
+    nodes_connected: int           = 0
+    collective_sync: bool          = False
+    last_sync_age_minutes: float   = float("inf")
 
 
 @dataclass
 class D5ArchetypalState:
-    coherence: float = 10.0
+    coherence: float               = 10.0
     active_archetype: GaianArchetype = "sage"
-    phi: float = 0.0
+    phi: float                     = 0.0
 
 
-@dataclass
-class DimensionalState:
-    D1_substrate:   D1SubstrateState   = field(default_factory=D1SubstrateState)
-    D2_quantum:     D2QuantumState     = field(default_factory=D2QuantumState)
-    D3_criticality: D3CriticalityState = field(default_factory=D3CriticalityState)
-    D4_noosphere:   D4NoosphereState   = field(default_factory=D4NoosphereState)
-    D5_archetypal:  D5ArchetypalState  = field(default_factory=D5ArchetypalState)
-    resonance: bool = False
-    timestamp: str = field(default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()))
+class _DimensionalEngine:
+    def __init__(self) -> None:
+        self.D1 = D1SubstrateState()
+        self.D2 = D2QuantumState()
+        self.D3 = D3CriticalityState()
+        self.D4 = D4NoosphereState()
+        self.D5 = D5ArchetypalState()
+        self._updated_at: float = time.time()
 
-    def recompute(self) -> None:
-        """Recompute resonance and refresh timestamp."""
-        scores = [
-            self.D1_substrate.coherence,
-            self.D2_quantum.coherence,
-            self.D3_criticality.coherence,
-            self.D4_noosphere.coherence,
-            self.D5_archetypal.coherence,
-        ]
-        self.resonance = all(s > 80 for s in scores)
-        self.timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    def update_d1(self, **kw) -> None:
+        for k, v in kw.items(): setattr(self.D1, k, v)
+        self._touch()
+
+    def update_d2(self, **kw) -> None:
+        for k, v in kw.items(): setattr(self.D2, k, v)
+        self._touch()
+
+    def update_d3(self, **kw) -> None:
+        for k, v in kw.items(): setattr(self.D3, k, v)
+        self._touch()
+
+    def update_d4(self, **kw) -> None:
+        for k, v in kw.items(): setattr(self.D4, k, v)
+        self._touch()
+
+    def update_d5(self, **kw) -> None:
+        for k, v in kw.items(): setattr(self.D5, k, v)
+        self._touch()
+
+    def _touch(self) -> None:
+        self._updated_at = time.time()
+
+    @property
+    def resonance(self) -> bool:
+        return all([
+            self.D1.coherence > 80,
+            self.D2.coherence > 80,
+            self.D3.coherence > 80,
+            self.D4.coherence > 80,
+            self.D5.coherence > 80,
+        ])
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        import math
+
+        def _clean(d: dict) -> dict:
+            """Replace inf/nan with None for JSON serialisation."""
+            return {
+                k: (None if isinstance(v, float) and not math.isfinite(v) else v)
+                for k, v in d.items()
+            }
+
+        return {
+            "D1_substrate":   _clean(asdict(self.D1)),
+            "D2_quantum":     _clean(asdict(self.D2)),
+            "D3_criticality": _clean(asdict(self.D3)),
+            "D4_noosphere":   _clean(asdict(self.D4)),
+            "D5_archetypal":  _clean(asdict(self.D5)),
+            "resonance":      self.resonance,
+            "timestamp":      self._updated_at,
+        }
 
 
-# ── Singleton ──────────────────────────────────────────────────────────────────
-_engine = DimensionalState()
+_engine = _DimensionalEngine()
 
 
-def get_state() -> DimensionalState:
+# ── Pydantic patch models ────────────────────────────────────────────────────────
+
+class D1Patch(BaseModel):
+    coherence: Optional[float]             = None
+    sensors_active: Optional[list[str]]    = None
+    environment_map: Optional[str]         = None
+    atlas_data_age_minutes: Optional[float] = None
+
+class D2Patch(BaseModel):
+    coherence: Optional[float]             = None
+    branches_open: Optional[int]           = None
+    encryption: Optional[str]              = None
+    quantum_backend: Optional[str]         = None
+
+class D3Patch(BaseModel):
+    coherence: Optional[float]             = None
+    complexity_score: Optional[float]      = None
+    mood: Optional[str]                    = None
+
+class D4Patch(BaseModel):
+    coherence: Optional[float]             = None
+    nodes_connected: Optional[int]         = None
+    collective_sync: Optional[bool]        = None
+    last_sync_age_minutes: Optional[float] = None
+
+class D5Patch(BaseModel):
+    coherence: Optional[float]             = None
+    active_archetype: Optional[str]        = None
+    phi: Optional[float]                   = None
+
+
+# ── Routes ─────────────────────────────────────────────────────────────────
+
+@router.get("", summary="Full five-dimensional state snapshot")
+async def get_dimensions() -> JSONResponse:
+    return JSONResponse(_engine.to_dict())
+
+@router.patch("/d1", summary="Patch D1 Substrate state")
+async def patch_d1(body: D1Patch) -> JSONResponse:
+    _engine.update_d1(**{k: v for k, v in body.model_dump().items() if v is not None})
+    return JSONResponse(_engine.to_dict())
+
+@router.patch("/d2", summary="Patch D2 Quantum state")
+async def patch_d2(body: D2Patch) -> JSONResponse:
+    _engine.update_d2(**{k: v for k, v in body.model_dump().items() if v is not None})
+    return JSONResponse(_engine.to_dict())
+
+@router.patch("/d3", summary="Patch D3 Criticality state")
+async def patch_d3(body: D3Patch) -> JSONResponse:
+    _engine.update_d3(**{k: v for k, v in body.model_dump().items() if v is not None})
+    return JSONResponse(_engine.to_dict())
+
+@router.patch("/d4", summary="Patch D4 Noosphere state")
+async def patch_d4(body: D4Patch) -> JSONResponse:
+    _engine.update_d4(**{k: v for k, v in body.model_dump().items() if v is not None})
+    return JSONResponse(_engine.to_dict())
+
+@router.patch("/d5", summary="Patch D5 Archetypal state")
+async def patch_d5(body: D5Patch) -> JSONResponse:
+    _engine.update_d5(**{k: v for k, v in body.model_dump().items() if v is not None})
+    return JSONResponse(_engine.to_dict())
+
+
+# ── Public accessor for other Python modules ─────────────────────────────────
+def get_engine() -> _DimensionalEngine:
+    """Import this in other modules to read or patch dimensional state."""
     return _engine
-
-
-def update_d1(**kwargs) -> DimensionalState:
-    for k, v in kwargs.items():
-        setattr(_engine.D1_substrate, k, v)
-    _engine.recompute()
-    return _engine
-
-
-def update_d2(**kwargs) -> DimensionalState:
-    for k, v in kwargs.items():
-        setattr(_engine.D2_quantum, k, v)
-    _engine.recompute()
-    return _engine
-
-
-def update_d3(**kwargs) -> DimensionalState:
-    for k, v in kwargs.items():
-        setattr(_engine.D3_criticality, k, v)
-    _engine.recompute()
-    return _engine
-
-
-def update_d4(**kwargs) -> DimensionalState:
-    for k, v in kwargs.items():
-        setattr(_engine.D4_noosphere, k, v)
-    _engine.recompute()
-    return _engine
-
-
-def update_d5(**kwargs) -> DimensionalState:
-    for k, v in kwargs.items():
-        setattr(_engine.D5_archetypal, k, v)
-    _engine.recompute()
-    return _engine
-
-
-# ── FastAPI router (mount this in main.py) ────────────────────────────────────
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
-
-router = APIRouter(prefix="/dimensions", tags=["dimensions"])
-
-
-@router.get("", summary="Get current dimensional state")
-async def get_dimensional_state() -> JSONResponse:
-    """
-    Returns GAIA's current five-dimensional state as JSON.
-    The frontend DimensionalReasoningEngine calls this to sync
-    backend-only coherence signals (memory richness, quantum backend, noosphere peers).
-    """
-    _engine.recompute()
-    return JSONResponse(content=_engine.to_dict())
