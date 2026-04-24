@@ -7,6 +7,70 @@ All notable changes to GAIA-APP are recorded here in reverse-chronological sprin
 
 ---
 
+## [Phase 6] — 2026-04-24  ·  Sidecar Hardening & Process Lifecycle
+
+**Status:** ✅ CLOSED
+
+### Summary
+
+Production hardening of the Tauri ↔ Python sidecar boundary. Eliminates zombie processes on Windows, adds user-facing error dialogs for backend failures, wires the auto-updater endpoint end-to-end, and establishes a graceful shutdown + state-flush sequence on both the Rust and Python sides.
+
+### Delivered
+
+| Step | File(s) | Description |
+|---|---|---|
+| **6.1** | `src-tauri/src/lib.rs` | **PyInstaller zombie fix** — replaced all `child.kill()` calls with `kill_sidecar()`, which on Windows runs `taskkill /F /T /PID` (full process tree kill) and on Linux/macOS uses `killpg(SIGKILL)`. Covers window close, tray Quit, and `restart_backend` command. |
+| **6.2** | `src-tauri/src/lib.rs`, `Cargo.toml`, `capabilities/default.json` | **User-facing error dialog** — added `emit_backend_error()` that fires a `sidecar:error` event to the frontend AND shows a native OS error dialog (via `tauri-plugin-dialog`) when the sidecar fails to spawn or the 30-second health check times out. Added `sidecar:ready` event on successful startup. |
+| **6.3** | `.github/workflows/release.yml` | **`tauri-action` migration** — replaced manual `npm run tauri build` + `softprops/action-gh-release` with `tauri-apps/tauri-action@v0`. Now auto-generates `latest.json` via `includeUpdaterJson: true`, completing the auto-updater chain end-to-end. Icon regeneration step added to match other workflows. |
+| **6.4** | `main.py` | **Graceful Python shutdown** — added `SIGTERM`/`SIGINT` signal handlers, FastAPI `lifespan()` context manager, and `_flush_state()` which writes a clean-shutdown tombstone to `data/last_shutdown.txt`. Extensible hook for future engine state persistence (soul mirror, shadow log, coherence snapshots). |
+| **6.5** | `CHANGELOG.md` | Sprint record updated. |
+
+### Shutdown Sequence (Full Stack)
+
+```
+User closes GAIA
+  └─ Rust: kill_sidecar() → taskkill /F /T /PID        [6.1]
+      └─ Python receives SIGTERM → _signal_handler()     [6.4]
+          └─ FastAPI lifespan exits → _flush_state()    [6.4]
+              └─ Tombstone written → data/last_shutdown.txt
+                  └─ Process fully terminated ✓
+```
+
+### Frontend Events Added
+
+| Event | Payload | When fired |
+|---|---|---|
+| `sidecar:ready` | `()` | Backend health check passes |
+| `sidecar:error` | `{ reason: string }` | Spawn failure or health check timeout |
+
+---
+
+## [Phase 5] — 2026-04-23  ·  CI Pipeline Hardening
+
+**Status:** ✅ CLOSED
+
+### Summary
+
+Full audit and repair of all three GitHub Actions workflows. Eliminated icon format failures, sidecar staging bugs, and missing release infrastructure. All pipelines went from failing to all-green.
+
+### Delivered
+
+| Step | File(s) | Description |
+|---|---|---|
+| **5.1** | `.github/workflows/test.yml` | Verified green — pytest pipeline confirmed healthy. |
+| **5.2** | `.github/workflows/build.yml` | Added Pillow-based icon regeneration step — fixes `RC2175: icon.ico not in Windows 3.00 format` error. Sidecar staging verified with size guard. |
+| **5.3** | `.github/workflows/build-windows.yml` | Mirrored icon regeneration fix from `build.yml`. Added `TAURI_SIGNING_PRIVATE_KEY` env wiring. |
+| **5.4** | `src-tauri/tauri.conf.json` | Configured `tauri-plugin-updater` with update endpoint URL pattern and pubkey placeholder. |
+| **5.5** | `.github/workflows/release.yml` | Created release pipeline triggered on `v*` tags. Produces signed `.msi` + `.nsis` installers. Pre-release auto-detected from tag hyphen (e.g. `v1.0.0-beta`). |
+
+### Errors Resolved
+
+- `RC2175: resource file is not in 3.00 format` — fixed via runtime ICO regeneration
+- `sidecar binary not found` — fixed via correct triple-name staging
+- Missing `latest.json` for auto-updater — resolved in Phase 6.3
+
+---
+
 ## [v0.1.0] — 2026-04-23  ·  First Windows Desktop Release
 
 **Desktop version:** `0.1.0`  
@@ -33,7 +97,7 @@ First official desktop release of GAIA-APP for Windows x64. This release package
 - Rust cache via `Swatinem/rust-cache@v2` — build time ~5 min from cache
 - Both `.msi` and `.nsis` bundles produced and uploaded as release assets
 
-### What's Included in v0.1.0
+### What’s Included in v0.1.0
 
 This release bundles all work from Sprints G-1 through G-8:
 
@@ -143,5 +207,5 @@ This release bundles all work from Sprints G-1 through G-8:
 
 ---
 
-*"The pattern beneath the pattern, willed into being."*  
+*“The pattern beneath the pattern, willed into being.”*  
 — R0GV3TheAlchemist, Builder & Architect
