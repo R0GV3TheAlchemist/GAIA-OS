@@ -1,3 +1,5 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use std::sync::{Arc, Mutex};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -8,6 +10,42 @@ use tauri_plugin_shell::{process::CommandChild, ShellExt};
 
 /// Shared handle to the sidecar child process so we can kill it on exit.
 type SidecarHandle = Arc<Mutex<Option<CommandChild>>>;
+
+// ── Process-tree kill ────────────────────────────────────────────────────────
+//
+// PyInstaller on Windows spawns a parent + child pair.  `CommandChild::kill()`
+// only terminates the immediate child, leaving the bootloader alive as a zombie.
+// On Windows we use `taskkill /F /T /PID <pid>` which recursively kills the
+// entire tree.  On other platforms the standard SIGKILL is sufficient.
+
+#[cfg(target_os = "windows")]
+fn kill_process_tree(pid: u32) {
+    let _ = std::process::Command::new("taskkill")
+        .args(["/F", "/T", "/PID", &pid.to_string()])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW — no console flash
+        .status();
+}
+
+#[cfg(not(target_os = "windows"))]
+fn kill_process_tree(pid: u32) {
+    // On Linux/macOS kill the process group so all children die together.
+    unsafe {
+        libc::killpg(pid as i32, libc::SIGKILL);
+    }
+}
+
+/// Kill the sidecar and its entire process tree, then clear the stored handle.
+fn kill_sidecar(guard: &mut Option<CommandChild>) {
+    if let Some(child) = guard.take() {
+        let pid = child.pid();
+        // First ask Tauri to kill its handle (best-effort — may fail on Windows)
+        let _ = child.kill();
+        // Then nuke the whole tree by PID
+        kill_process_tree(pid);
+    }
+}
+
+// ── Tauri commands ───────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -27,12 +65,10 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
         .inner()
         .clone();
 
-    // Kill existing process if running
+    // Kill existing process tree
     {
         let mut guard = handle.lock().map_err(|e| e.to_string())?;
-        if let Some(child) = guard.take() {
-            let _ = child.kill();
-        }
+        kill_sidecar(&mut guard);
     }
 
     // Spawn a fresh sidecar
@@ -50,6 +86,8 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
     Ok("restarted".to_string())
 }
 
+// ── Sidecar startup ──────────────────────────────────────────────────────────
+
 /// Spawn the Python sidecar, store handle, poll /health until ready.
 fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
     let shell = app.shell();
@@ -58,11 +96,9 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
         .expect("gaia-backend sidecar not found — run PyInstaller first");
 
     tauri::async_runtime::spawn(async move {
-        let spawn_result = sidecar_cmd.spawn();
-        match spawn_result {
+        match sidecar_cmd.spawn() {
             Err(e) => {
                 eprintln!("[GAIA] Failed to spawn sidecar: {e}");
-                return;
             }
             Ok((_rx, child)) => {
                 {
@@ -70,7 +106,7 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
                     *guard = Some(child);
                 }
 
-                // Poll /health with exponential backoff — max 30 s
+                // Poll /health with exponential back-off — max 30 s
                 let client = reqwest::Client::new();
                 let mut delay_ms = 300u64;
                 for attempt in 0..20 {
@@ -95,6 +131,8 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
     });
 }
 
+// ── App entry point ──────────────────────────────────────────────────────────
+
 pub fn run() {
     let sidecar_handle: SidecarHandle = Arc::new(Mutex::new(None));
 
@@ -114,15 +152,13 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // ── Sidecar ───────────────────────────────────────────────────
-            let handle = app
-                .state::<SidecarHandle>()
-                .inner()
-                .clone();
+            let handle = app.state::<SidecarHandle>().inner().clone();
             start_python_sidecar(app, handle);
 
-            // ── Tray ──────────────────────────────────────────────────────
+            // ── System tray ───────────────────────────────────────────────
             let open = MenuItem::with_id(app, "open", "Open GAIA", true, None::<&str>)?;
-            let check_updates = MenuItem::with_id(app, "updates", "Check for Updates", true, None::<&str>)?;
+            let check_updates =
+                MenuItem::with_id(app, "updates", "Check for Updates", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &check_updates, &quit])?;
 
@@ -137,12 +173,9 @@ pub fn run() {
                         }
                     }
                     "quit" => {
-                        // Gracefully kill sidecar before exit
                         if let Some(state) = app.try_state::<SidecarHandle>() {
                             if let Ok(mut guard) = state.lock() {
-                                if let Some(child) = guard.take() {
-                                    let _ = child.kill();
-                                }
+                                kill_sidecar(&mut guard);
                             }
                         }
                         app.exit(0);
@@ -167,20 +200,22 @@ pub fn run() {
 
             Ok(())
         })
-        // Graceful shutdown on window close
+        // ── Graceful shutdown on window close ─────────────────────────────
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 let app = window.app_handle();
                 if let Some(state) = app.try_state::<SidecarHandle>() {
                     if let Ok(mut guard) = state.lock() {
-                        if let Some(child) = guard.take() {
-                            let _ = child.kill();
-                        }
+                        kill_sidecar(&mut guard);
                     }
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![greet, get_backend_status, restart_backend])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            get_backend_status,
+            restart_backend
+        ])
         .run(tauri::generate_context!())
         .expect("error while running GAIA");
 }
