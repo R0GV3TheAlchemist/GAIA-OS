@@ -28,3 +28,15 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["time"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# ── Release profile — optimise for size + speed ───────────────────────────────
+# LTO eliminates dead code across crates; codegen-units=1 lets LLVM do
+# whole-program optimisation.  strip="symbols" shaves ~30 % off binary size
+# without affecting runtime behaviour.  panic="abort" avoids the unwinding
+# machinery entirely (safe for a GUI app where we control all panic sites).
+[profile.release]
+opt-level     = 3          # Maximum LLVM optimisation
+lto           = "thin"     # Cross-crate dead-code elimination (thin = fast)
+codegen-units = 1          # Single LLVM codegen unit — best inlining
+strip         = "symbols"  # Strip debug symbols from the final binary
+panic         = "abort"    # No unwinding tables — smaller + faster

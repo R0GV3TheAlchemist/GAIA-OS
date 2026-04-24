@@ -14,7 +14,7 @@ type SidecarHandle = Arc<Mutex<Option<CommandChild>>>;
 // ── Sidecar status broadcast ──────────────────────────────────────────────────
 //
 // We emit these events on the main window so the frontend can react:
-//   "sidecar:ready"   — backend is up and healthy
+//   "sidecar:ready"   — backend is up and healthy  → window is shown here
 //   "sidecar:error"   — backend failed to start (payload = human-readable reason)
 
 #[derive(Clone, serde::Serialize)]
@@ -97,10 +97,10 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
 // ── Sidecar startup ───────────────────────────────────────────────────────────
 
 /// Emit a sidecar:error event and show a native dialog.
+/// Also reveals the window so the user sees the error state rather than nothing.
 fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
     eprintln!("[GAIA] Backend error: {reason}");
 
-    // Emit to frontend so the UI can show a banner/overlay
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.emit(
             "sidecar:error",
@@ -108,6 +108,9 @@ fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
                 reason: reason.to_string(),
             },
         );
+        // Reveal the window even on error so the user isn't left with nothing
+        let _ = window.show();
+        let _ = window.set_focus();
     }
 
     // Native OS dialog as a hard fallback
@@ -130,7 +133,13 @@ fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
 }
 
 /// Spawn the Python sidecar, store the handle, poll /health until ready.
-/// Emits `sidecar:ready` on success or `sidecar:error` on failure.
+///
+/// Startup sequence:
+///   1. Window is hidden (visible: false in tauri.conf.json)
+///   2. Sidecar spawns in the background
+///   3. /health is polled with exponential back-off (max 30 s)
+///   4a. On success  → emit sidecar:ready → show + focus window  ← cold start complete
+///   4b. On failure  → emit sidecar:error → show window with error state
 fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
     let shell = app.shell();
     let app_handle = app.handle().clone();
@@ -185,9 +194,12 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
                 }
 
                 if ready {
-                    // Notify the frontend the backend is up
                     if let Some(window) = app_handle.get_webview_window("main") {
+                        // Emit to frontend first so it can finish any last render
                         let _ = window.emit("sidecar:ready", ());
+                        // Then reveal — user sees a fully-loaded UI, never a blank flash
+                        let _ = window.show();
+                        let _ = window.set_focus();
                     }
                 } else {
                     emit_backend_error(
@@ -222,6 +234,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             // ── Sidecar ───────────────────────────────────────────────────
+            // Window is hidden at this point (visible: false in tauri.conf.json).
+            // start_python_sidecar will show it once /health responds 200.
             let handle = app.state::<SidecarHandle>().inner().clone();
             start_python_sidecar(app, handle);
 
