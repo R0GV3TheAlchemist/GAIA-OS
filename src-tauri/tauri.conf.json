@@ -74,8 +74,7 @@
     "copyright": "Copyright \u00a9 2026 R0GV3 the Alchemist",
     "category": "Productivity",
     "shortDescription": "GAIA \u2014 Sovereign AI Companion",
-    "longDescription": "GAIA is a sovereign cross-platform AI companion built on alchemical principles, quantum cognition, and deep human-AI partnership.",
-    "supportUrl": "https://github.com/R0GV3TheAlchemist/GAIA-OS/issues"
+    "longDescription": "GAIA is a sovereign cross-platform AI companion built on alchemical principles, quantum cognition, and deep human-AI partnership."
   },
   "plugins": {
     "updater": {
