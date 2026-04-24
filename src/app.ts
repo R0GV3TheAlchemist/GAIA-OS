@@ -1,6 +1,6 @@
 // GAIA App — Top-level layout with tab navigation
-// Views: SEARCH | CHAT | GAIAN | SHELL | MEMORY | NOOSPHERE
-// Canon Ref: C43, C44
+// Views: SEARCH | CHAT | GAIAN | SHELL | MEMORY | NOOSPHERE | CANON
+// Canon Ref: C42, C43, C44
 
 import './app.css';
 import './search/Search.css';
@@ -8,6 +8,7 @@ import './shell/Shell.css';
 import './chat/Chat.css';
 import './memory/Memory.css';
 import './noosphere/NoosphereTab.css';
+import './canon/CanonTab.css';
 import { mountSearch }     from './search/Search';
 import { mountShell }      from './shell/Shell';
 import { mountChat }       from './chat/Chat';
@@ -17,6 +18,7 @@ import {
   mountNoosphereTab,
   unmountNoosphereTab,
 } from './noosphere';
+import { mountCanonTab }   from './canon/CanonTab';
 import { appDataDir, join, resolveResource } from '@tauri-apps/api/path';
 import { exists, mkdir, copyFile, readDir } from '@tauri-apps/plugin-fs';
 import { listen }          from '@tauri-apps/api/event';
@@ -91,6 +93,7 @@ export class App {
     <button class="tab-btn"        data-view="shell">&gt; Shell</button>
     <button class="tab-btn"        data-view="memory">&#9638; Memory</button>
     <button class="tab-btn"        data-view="noosphere">&#127760; Noosphere</button>
+    <button class="tab-btn"        data-view="canon">&#128220; Canon</button>
   </nav>
   <div class="view-container">
     <div id="view-search"     class="view active"></div>
@@ -99,6 +102,7 @@ export class App {
     <div id="view-shell"      class="view"></div>
     <div id="view-memory"     class="view"></div>
     <div id="view-noosphere"  class="view"></div>
+    <div id="view-canon"      class="view"></div>
   </div>
 </div>
 `;
@@ -109,6 +113,8 @@ export class App {
     mountShell(document.getElementById('view-shell')!);
     mountMemory(document.getElementById('view-memory')!);
     mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
+    // Canon tab: lazy-mount on first visit so file reads don't block startup
+    let canonMounted = false;
     logInfo('app', 'All views mounted');
 
     let _activeView = 'search';
@@ -125,6 +131,10 @@ export class App {
         _activeView = view;
         if (view === 'noosphere') {
           mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
+        }
+        if (view === 'canon' && !canonMounted) {
+          mountCanonTab(document.getElementById('view-canon')!);
+          canonMounted = true;
         }
       });
     });
