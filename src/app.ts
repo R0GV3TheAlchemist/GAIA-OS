@@ -121,13 +121,18 @@ export class App {
     mountMemory(document.getElementById('view-memory')!);
     mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
 
-    // Lazy-mount tabs that do async I/O or heavy work on first visit
+    // Lazy-mount flags
     let canonMounted      = false;
     let quantumMounted    = false;
     let dimensionsMounted = false;
     let archetypesMounted = false;
-    let _dimensionsTeardown:  (() => void) | null = null;
-    let _archetypesTeardown:  (() => void) | null = null;
+
+    // Teardown registry — keyed by view name, called when navigating away
+    const teardowns: Record<string, (() => void) | null> = {
+      dimensions: null,
+      archetypes: null,
+    };
+
     logInfo('app', 'All views mounted');
 
     let _activeView = 'search';
@@ -135,7 +140,11 @@ export class App {
       btn.addEventListener('click', () => {
         const view = btn.dataset.view!;
         if (view === _activeView) return;
+
+        // Run teardown for the view being left
         if (_activeView === 'noosphere') unmountNoosphereTab();
+        teardowns[_activeView]?.();
+
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
         btn.classList.add('active');
@@ -155,12 +164,12 @@ export class App {
           quantumMounted = true;
         }
         if (view === 'dimensions' && !dimensionsMounted) {
-          _dimensionsTeardown = mountDimensionalMonitor(document.getElementById('view-dimensions')!);
-          dimensionsMounted  = true;
+          teardowns.dimensions = mountDimensionalMonitor(document.getElementById('view-dimensions')!);
+          dimensionsMounted = true;
         }
         if (view === 'archetypes' && !archetypesMounted) {
-          _archetypesTeardown = mountArchetypalTab(document.getElementById('view-archetypes')!);
-          archetypesMounted  = true;
+          teardowns.archetypes = mountArchetypalTab(document.getElementById('view-archetypes')!);
+          archetypesMounted = true;
         }
       });
     });
