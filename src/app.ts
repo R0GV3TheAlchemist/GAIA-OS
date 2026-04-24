@@ -1,5 +1,5 @@
 // GAIA App — Top-level layout with tab navigation
-// Views: SEARCH | GAIAN | CHAT | SHELL | MEMORY | NOOSPHERE | CANON | QUANTUM | DIMENSIONS
+// Views: SEARCH | GAIAN | CHAT | SHELL | MEMORY | NOOSPHERE | CANON | QUANTUM | DIMENSIONS | ARCHETYPES
 // Canon Ref: C42, C43, C44
 
 import './app.css';
@@ -10,22 +10,23 @@ import './memory/Memory.css';
 import './noosphere/NoosphereTab.css';
 import './canon/CanonTab.css';
 import './dimensions/DimensionalMonitor.css';
-import { mountSearch }            from './search/Search';
-import { mountShell }             from './shell/Shell';
-import { mountChat }              from './chat/Chat';
-import { mountMemory }            from './memory/Memory';
-import { mountGaianChat }         from './gaian/GaianChatView';
+import { mountSearch }             from './search/Search';
+import { mountShell }              from './shell/Shell';
+import { mountChat }               from './chat/Chat';
+import { mountMemory }             from './memory/Memory';
+import { mountGaianChat }          from './gaian/GaianChatView';
 import {
   mountNoosphereTab,
   unmountNoosphereTab,
 } from './noosphere';
-import { mountCanonTab }          from './canon/CanonTab';
-import { mountQuantumTab }        from './quantum/QuantumTab';
+import { mountCanonTab }           from './canon/CanonTab';
+import { mountQuantumTab }         from './quantum/QuantumTab';
 import { mountDimensionalMonitor } from './dimensions/DimensionalMonitor';
+import { mountArchetypalTab }      from './archetypes/ArchetypalTab';
 import { appDataDir, join, resolveResource } from '@tauri-apps/api/path';
 import { exists, mkdir, copyFile, readDir }  from '@tauri-apps/plugin-fs';
-import { listen }                 from '@tauri-apps/api/event';
-import { checkForUpdates }        from './updater';
+import { listen }                  from '@tauri-apps/api/event';
+import { checkForUpdates }         from './updater';
 import { logInfo, logWarn, logError } from './diagnostics';
 import { API_BASE } from './config';
 
@@ -96,6 +97,7 @@ export class App {
     <button class="tab-btn"        data-view="canon">&#128220; Canon</button>
     <button class="tab-btn"        data-view="quantum">&#10731; Quantum</button>
     <button class="tab-btn"        data-view="dimensions">&#11042; Dimensions</button>
+    <button class="tab-btn"        data-view="archetypes">&#9672; Archetypes</button>
   </nav>
   <div class="view-container">
     <div id="view-search"      class="view active"></div>
@@ -107,6 +109,7 @@ export class App {
     <div id="view-canon"       class="view"></div>
     <div id="view-quantum"     class="view"></div>
     <div id="view-dimensions"  class="view"></div>
+    <div id="view-archetypes"  class="view"></div>
   </div>
 </div>
 `;
@@ -122,7 +125,9 @@ export class App {
     let canonMounted      = false;
     let quantumMounted    = false;
     let dimensionsMounted = false;
-    let dimensionsTeardown: (() => void) | null = null;
+    let archetypesMounted = false;
+    let dimensionsTeardown:  (() => void) | null = null;
+    let archetypesTeardown:  (() => void) | null = null;
     logInfo('app', 'All views mounted');
 
     let _activeView = 'search';
@@ -151,7 +156,11 @@ export class App {
         }
         if (view === 'dimensions' && !dimensionsMounted) {
           dimensionsTeardown = mountDimensionalMonitor(document.getElementById('view-dimensions')!);
-          dimensionsMounted = true;
+          dimensionsMounted  = true;
+        }
+        if (view === 'archetypes' && !archetypesMounted) {
+          archetypesTeardown = mountArchetypalTab(document.getElementById('view-archetypes')!);
+          archetypesMounted  = true;
         }
       });
     });
