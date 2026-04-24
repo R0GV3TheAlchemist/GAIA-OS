@@ -110,7 +110,7 @@ jobs:
 
       # 6. Node deps
       - name: Install Node dependencies
-        run: npm ci
+        run: npm install
 
       # 7. Build + publish via tauri-action
       #    - Compiles the Tauri app (signed)
