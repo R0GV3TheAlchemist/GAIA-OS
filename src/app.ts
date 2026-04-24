@@ -19,6 +19,8 @@ import {
 } from './noosphere';
 import { appDataDir, join, resolveResource } from '@tauri-apps/api/path';
 import { exists, mkdir, copyFile, readDir } from '@tauri-apps/plugin-fs';
+import { listen }          from '@tauri-apps/api/event';
+import { checkForUpdates } from './updater';
 
 const metaEnv = ((import.meta as unknown as { env?: Record<string, string> }).env) ?? {};
 const BASE_URL = metaEnv.VITE_API_BASE ?? 'http://localhost:8008';
@@ -59,10 +61,23 @@ async function ensureAppDataDirs(): Promise<void> {
   }
 }
 
+// ── Updater: check once after the backend is confirmed ready ─────────────────
+// We listen for sidecar:ready so we only check when the app is fully up.
+// checkForUpdates() is silent on network failure — never blocks the UI.
+async function initUpdater(): Promise<void> {
+  const unlisten = await listen('sidecar:ready', async () => {
+    unlisten(); // one-shot listener
+    // Small delay so the user sees the UI settle before a banner might appear
+    await new Promise(r => setTimeout(r, 2000));
+    await checkForUpdates();
+  });
+}
+
 export class App {
   constructor() {
     this.mount();
     ensureAppDataDirs();
+    initUpdater();
   }
 
   private mount() {
