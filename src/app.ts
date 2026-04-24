@@ -1,5 +1,5 @@
 // GAIA App — Top-level layout with tab navigation
-// Views: SEARCH | CHAT | GAIAN | SHELL | MEMORY | NOOSPHERE | CANON
+// Views: SEARCH | CHAT | GAIAN | SHELL | MEMORY | NOOSPHERE | CANON | QUANTUM
 // Canon Ref: C42, C43, C44
 
 import './app.css';
@@ -9,24 +9,24 @@ import './chat/Chat.css';
 import './memory/Memory.css';
 import './noosphere/NoosphereTab.css';
 import './canon/CanonTab.css';
-import { mountSearch }     from './search/Search';
-import { mountShell }      from './shell/Shell';
-import { mountChat }       from './chat/Chat';
-import { mountMemory }     from './memory/Memory';
-import { mountGaianChat }  from './gaian/GaianChatView';
+import { mountSearch }       from './search/Search';
+import { mountShell }        from './shell/Shell';
+import { mountChat }         from './chat/Chat';
+import { mountMemory }       from './memory/Memory';
+import { mountGaianChat }    from './gaian/GaianChatView';
 import {
   mountNoosphereTab,
   unmountNoosphereTab,
 } from './noosphere';
-import { mountCanonTab }   from './canon/CanonTab';
+import { mountCanonTab }     from './canon/CanonTab';
+import { mountQuantumTab }   from './quantum/QuantumTab';
 import { appDataDir, join, resolveResource } from '@tauri-apps/api/path';
 import { exists, mkdir, copyFile, readDir } from '@tauri-apps/plugin-fs';
-import { listen }          from '@tauri-apps/api/event';
-import { checkForUpdates } from './updater';
+import { listen }            from '@tauri-apps/api/event';
+import { checkForUpdates }   from './updater';
 import { logInfo, logWarn, logError } from './diagnostics';
 import { API_BASE } from './config';
 
-// Re-export so existing consumers keep working without change
 export { API_BASE };
 
 // ── First-launch: seed %APPDATA%\GAIA\canon\ from bundled resources ────
@@ -41,8 +41,6 @@ async function ensureAppDataDirs(): Promise<void> {
         logInfo('app', `Created AppData dir: ${dir}`);
       }
     }
-
-    // Seed canon docs from bundled resources on first launch
     const canonDest = await join(appData, 'canon');
     const canonDestEntries = await readDir(canonDest);
     if (canonDestEntries.length === 0) {
@@ -64,7 +62,7 @@ async function ensureAppDataDirs(): Promise<void> {
   }
 }
 
-// ── Updater: check once after the backend is confirmed ready ─────────────────
+// ── Updater ─────────────────────────────────────────────────────────────────
 async function initUpdater(): Promise<void> {
   const unlisten = await listen('sidecar:ready', async () => {
     unlisten();
@@ -94,6 +92,7 @@ export class App {
     <button class="tab-btn"        data-view="memory">&#9638; Memory</button>
     <button class="tab-btn"        data-view="noosphere">&#127760; Noosphere</button>
     <button class="tab-btn"        data-view="canon">&#128220; Canon</button>
+    <button class="tab-btn"        data-view="quantum">&#10731; Quantum</button>
   </nav>
   <div class="view-container">
     <div id="view-search"     class="view active"></div>
@@ -103,6 +102,7 @@ export class App {
     <div id="view-memory"     class="view"></div>
     <div id="view-noosphere"  class="view"></div>
     <div id="view-canon"      class="view"></div>
+    <div id="view-quantum"    class="view"></div>
   </div>
 </div>
 `;
@@ -113,8 +113,10 @@ export class App {
     mountShell(document.getElementById('view-shell')!);
     mountMemory(document.getElementById('view-memory')!);
     mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
-    // Canon tab: lazy-mount on first visit so file reads don't block startup
-    let canonMounted = false;
+
+    // Lazy-mount tabs that do async I/O or heavy work on first visit
+    let canonMounted   = false;
+    let quantumMounted = false;
     logInfo('app', 'All views mounted');
 
     let _activeView = 'search';
@@ -129,12 +131,17 @@ export class App {
         document.getElementById(`view-${view}`)!.classList.add('active');
         logInfo('app', `View switched: ${_activeView} → ${view}`);
         _activeView = view;
+
         if (view === 'noosphere') {
           mountNoosphereTab({ root: document.getElementById('view-noosphere')!, apiBase: API_BASE });
         }
         if (view === 'canon' && !canonMounted) {
           mountCanonTab(document.getElementById('view-canon')!);
           canonMounted = true;
+        }
+        if (view === 'quantum' && !quantumMounted) {
+          mountQuantumTab(document.getElementById('view-quantum')!);
+          quantumMounted = true;
         }
       });
     });
