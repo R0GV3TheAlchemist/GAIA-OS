@@ -1,0 +1,242 @@
+/* ArchetypalTab — D5 Archetypal Intelligence */
+
+.at-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--color-bg, #0a0c10);
+  font-family: var(--font-body, 'Inter', sans-serif);
+  color: var(--color-text, #cdccca);
+  padding: 1.5rem 2rem;
+  gap: 1.25rem;
+}
+
+/* Header */
+.at-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-shrink: 0;
+}
+.at-sigil {
+  font-size: 2rem;
+  font-family: monospace;
+  line-height: 1;
+  transition: color 400ms ease;
+}
+.at-title  { font-size: 1.1rem; font-weight: 700; color: #fff; margin: 0; }
+.at-subtitle {
+  font-size: 0.68rem;
+  color: var(--color-text-muted, #797876);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Hero card */
+.at-hero {
+  background: oklch(from var(--archetype-colour, #4f98a3) l c h / 0.06);
+  border: 1px solid oklch(from var(--archetype-colour, #4f98a3) l c h / 0.22);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  transition: border-color 400ms ease, background 400ms ease;
+  flex-shrink: 0;
+}
+.at-hero-name {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--archetype-colour, #4f98a3);
+  text-transform: capitalize;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  transition: color 400ms ease;
+}
+.at-hero-domain {
+  font-size: 0.78rem;
+  color: var(--color-text-muted, #797876);
+  letter-spacing: 0.05em;
+}
+
+/* Phi meter */
+.at-phi-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+.at-phi-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--archetype-colour, #4f98a3);
+  width: 1.2rem;
+  flex-shrink: 0;
+}
+.at-phi-track {
+  flex: 1;
+  height: 5px;
+  background: oklch(from var(--archetype-colour, #4f98a3) l c h / 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.at-phi-fill {
+  height: 100%;
+  background: var(--archetype-colour, #4f98a3);
+  border-radius: 999px;
+  transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.at-phi-value {
+  font-size: 0.8rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--archetype-colour, #4f98a3);
+  width: 3.5rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Invocation */
+.at-invocation {
+  font-size: 0.9rem;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--color-text, #cdccca);
+  min-height: 1.4em;
+  transition: opacity 300ms ease;
+  padding-top: 0.1rem;
+}
+
+/* Section label */
+.at-section-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #797876);
+  flex-shrink: 0;
+}
+
+/* Glyph grid */
+.at-glyph-section { display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0; }
+.at-glyph-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+.at-glyph-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.7rem 0.5rem;
+  background: var(--color-surface, #111318);
+  border: 1px solid oklch(from var(--glyph-colour, #4f98a3) l c h / 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease, transform 100ms ease;
+  font-family: inherit;
+}
+.at-glyph-btn:hover {
+  background: oklch(from var(--glyph-colour, #4f98a3) l c h / 0.07);
+  border-color: oklch(from var(--glyph-colour, #4f98a3) l c h / 0.3);
+}
+.at-glyph-btn--active {
+  background: oklch(from var(--glyph-colour, #4f98a3) l c h / 0.1);
+  border-color: oklch(from var(--glyph-colour, #4f98a3) l c h / 0.45);
+  box-shadow: 0 0 12px oklch(from var(--glyph-colour, #4f98a3) l c h / 0.15);
+}
+.at-glyph-btn--invoking {
+  transform: scale(0.94);
+  opacity: 0.7;
+}
+.at-glyph-sigil {
+  font-size: 1.15rem;
+  color: var(--glyph-colour, #4f98a3);
+  font-family: monospace;
+  line-height: 1;
+}
+.at-glyph-name {
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: capitalize;
+  color: var(--color-text-muted, #797876);
+}
+
+/* Stats row */
+.at-stats-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 0.75rem 1rem;
+  background: var(--color-surface, #111318);
+  border-radius: 8px;
+  border: 1px solid oklch(from var(--color-primary, #4f98a3) l c h / 0.08);
+}
+.at-stat { display: flex; flex-direction: column; gap: 0.15rem; }
+.at-stat-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint, #5a5957);
+}
+.at-stat-value {
+  font-size: 0.85rem;
+  font-family: monospace;
+  color: var(--color-text, #cdccca);
+}
+
+/* Transition history */
+.at-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--color-surface, #111318);
+  border-radius: 8px;
+  border: 1px solid oklch(from var(--color-primary, #4f98a3) l c h / 0.08);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.at-history-empty {
+  padding: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--color-text-faint, #5a5957);
+  text-align: center;
+}
+.at-history-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid oklch(from var(--color-primary, #4f98a3) l c h / 0.06);
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+}
+.at-history-entry:last-child { border-bottom: none; }
+.at-history-from, .at-history-to { font-weight: 600; font-family: monospace; }
+.at-history-arrow { color: var(--color-text-faint, #5a5957); }
+.at-history-phi {
+  font-family: monospace;
+  color: var(--color-text-faint, #5a5957);
+  margin-left: auto;
+}
+.at-history-time  { font-family: monospace; color: var(--color-text-faint, #5a5957); font-size: 0.65rem; }
+.at-history-trigger {
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--color-text-faint, #5a5957);
+  padding: 0.1rem 0.4rem;
+  background: oklch(from var(--color-primary, #4f98a3) l c h / 0.06);
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .at-root         { padding: 1rem; }
+  .at-glyph-grid   { grid-template-columns: repeat(2, 1fr); }
+  .at-hero-name    { font-size: 1.2rem; }
+  .at-history-entry { font-size: 0.7rem; }
+}
