@@ -4,19 +4,30 @@ use std::sync::{Arc, Mutex};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 
 /// Shared handle to the sidecar child process so we can kill it on exit.
 type SidecarHandle = Arc<Mutex<Option<CommandChild>>>;
 
-// ── Process-tree kill ────────────────────────────────────────────────────────
+// ── Sidecar status broadcast ──────────────────────────────────────────────────
+//
+// We emit these events on the main window so the frontend can react:
+//   "sidecar:ready"   — backend is up and healthy
+//   "sidecar:error"   — backend failed to start (payload = human-readable reason)
+
+#[derive(Clone, serde::Serialize)]
+struct SidecarErrorPayload {
+    reason: String,
+}
+
+// ── Process-tree kill ─────────────────────────────────────────────────────────
 //
 // PyInstaller on Windows spawns a parent + child pair.  `CommandChild::kill()`
 // only terminates the immediate child, leaving the bootloader alive as a zombie.
 // On Windows we use `taskkill /F /T /PID <pid>` which recursively kills the
-// entire tree.  On other platforms the standard SIGKILL is sufficient.
+// entire tree.  On other platforms a standard SIGKILL on the process group works.
 
 #[cfg(target_os = "windows")]
 fn kill_process_tree(pid: u32) {
@@ -28,7 +39,6 @@ fn kill_process_tree(pid: u32) {
 
 #[cfg(not(target_os = "windows"))]
 fn kill_process_tree(pid: u32) {
-    // On Linux/macOS kill the process group so all children die together.
     unsafe {
         libc::killpg(pid as i32, libc::SIGKILL);
     }
@@ -38,14 +48,12 @@ fn kill_process_tree(pid: u32) {
 fn kill_sidecar(guard: &mut Option<CommandChild>) {
     if let Some(child) = guard.take() {
         let pid = child.pid();
-        // First ask Tauri to kill its handle (best-effort — may fail on Windows)
         let _ = child.kill();
-        // Then nuke the whole tree by PID
         kill_process_tree(pid);
     }
 }
 
-// ── Tauri commands ───────────────────────────────────────────────────────────
+// ── Tauri commands ────────────────────────────────────────────────────────────
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -86,19 +94,66 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
     Ok("restarted".to_string())
 }
 
-// ── Sidecar startup ──────────────────────────────────────────────────────────
+// ── Sidecar startup ───────────────────────────────────────────────────────────
 
-/// Spawn the Python sidecar, store handle, poll /health until ready.
+/// Emit a sidecar:error event and show a native dialog.
+fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
+    eprintln!("[GAIA] Backend error: {reason}");
+
+    // Emit to frontend so the UI can show a banner/overlay
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.emit(
+            "sidecar:error",
+            SidecarErrorPayload {
+                reason: reason.to_string(),
+            },
+        );
+    }
+
+    // Native OS dialog as a hard fallback
+    let app_clone = app.clone();
+    let reason_owned = reason.to_string();
+    tauri::async_runtime::spawn(async move {
+        use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
+        let _ = app_clone
+            .dialog()
+            .message(format!(
+                "GAIA's Python backend failed to start.\n\n\
+                 Reason: {reason_owned}\n\n\
+                 Please restart the app. If the problem persists, \
+                 check that no other process is using port 8008."
+            ))
+            .kind(MessageDialogKind::Error)
+            .title("GAIA — Backend Error")
+            .blocking_show();
+    });
+}
+
+/// Spawn the Python sidecar, store the handle, poll /health until ready.
+/// Emits `sidecar:ready` on success or `sidecar:error` on failure.
 fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
     let shell = app.shell();
-    let sidecar_cmd = shell
-        .sidecar("gaia-backend")
-        .expect("gaia-backend sidecar not found — run PyInstaller first");
+    let app_handle = app.handle().clone();
+
+    let sidecar_result = shell.sidecar("gaia-backend");
+    let sidecar_cmd = match sidecar_result {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            emit_backend_error(
+                &app_handle,
+                &format!("sidecar binary not found — run PyInstaller first ({e})"),
+            );
+            return;
+        }
+    };
 
     tauri::async_runtime::spawn(async move {
         match sidecar_cmd.spawn() {
             Err(e) => {
-                eprintln!("[GAIA] Failed to spawn sidecar: {e}");
+                emit_backend_error(
+                    &app_handle,
+                    &format!("failed to launch gaia-backend.exe: {e}"),
+                );
             }
             Ok((_rx, child)) => {
                 {
@@ -109,6 +164,8 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
                 // Poll /health with exponential back-off — max 30 s
                 let client = reqwest::Client::new();
                 let mut delay_ms = 300u64;
+                let mut ready = false;
+
                 for attempt in 0..20 {
                     tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                     match client
@@ -119,19 +176,31 @@ fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
                     {
                         Ok(resp) if resp.status().is_success() => {
                             println!("[GAIA] Python backend ready after attempt {attempt} ✓");
-                            return;
+                            ready = true;
+                            break;
                         }
                         _ => {}
                     }
                     delay_ms = (delay_ms * 3 / 2).min(3000);
                 }
-                eprintln!("[GAIA] WARNING: backend did not become ready within 30 s");
+
+                if ready {
+                    // Notify the frontend the backend is up
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.emit("sidecar:ready", ());
+                    }
+                } else {
+                    emit_backend_error(
+                        &app_handle,
+                        "health check timed out after 30 s — port 8008 may be blocked",
+                    );
+                }
             }
         }
     });
 }
 
-// ── App entry point ──────────────────────────────────────────────────────────
+// ── App entry point ───────────────────────────────────────────────────────────
 
 pub fn run() {
     let sidecar_handle: SidecarHandle = Arc::new(Mutex::new(None));
@@ -143,6 +212,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
