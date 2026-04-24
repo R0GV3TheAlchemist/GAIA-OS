@@ -68,10 +68,13 @@
     "updater": {
       "active": true,
       "dialog": true,
-      "pubkey": "",
+      "pubkey": "YOUR_TAURI_SIGNING_PUBLIC_KEY_HERE",
       "endpoints": [
         "https://github.com/R0GV3TheAlchemist/GAIA-APP/releases/latest/download/latest.json"
-      ]
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
