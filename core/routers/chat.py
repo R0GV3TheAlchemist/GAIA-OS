@@ -26,6 +26,7 @@ from core.codex_stage_engine import NoosphericHealthSignals
 from core.gaian import GaianMemory, add_exchange, get_conversation_context, load_gaian
 from core.inference_router import InferenceRequest, InferenceResponse
 from core.logger import GAIAEvent, get_logger, log_event
+from core.memory_chroma import recall_for_prompt, store_turn
 from core.rate_limiter import rate_limit
 from core.server_models import ChatRequest, QueryRequest, SetGaianRequest
 from core.server_state import _get_runtime, _inference_router, canon
@@ -122,6 +123,13 @@ async def gaian_chat(
                 except Exception as e:
                     logger.warning(f"Web search error in chat: {e}")
 
+            # --- Semantic memory recall: inject top-5 relevant memories ---
+            recalled_memories = recall_for_prompt(
+                query=req.message,
+                gaian_slug=slug,
+                top_k=5,
+            )
+
             effective_prompt = result.system_prompt
             if result.soul_mirror.individuation_nudge:
                 effective_prompt += (
@@ -129,15 +137,19 @@ async def gaian_chat(
                     + result.soul_mirror.individuation_nudge
                 )
 
+            # Merge recalled memories with existing visible_memories
+            existing_visible = [
+                m["text"] for m in rt._memory.get("visible_memories", [])
+                if isinstance(m, dict)
+            ]
+            all_visible = recalled_memories + existing_visible
+
             inference_req = InferenceRequest(
                 query=req.message,
                 gaian_slug=slug,
                 gaian_system_prompt=effective_prompt,
                 long_term_memories=gaian.long_term_memories or [],
-                visible_memories=[
-                    m["text"] for m in rt._memory.get("visible_memories", [])
-                    if isinstance(m, dict)
-                ],
+                visible_memories=all_visible,
                 conversation_history=get_conversation_context(gaian),
                 conversation_context=session.get_context_summary() if session.turns else None,
                 sources=web_sources,
@@ -156,6 +168,13 @@ async def gaian_chat(
             session.add_turn(req.message, full_answer, len(web_sources))
             if full_answer:
                 add_exchange(gaian, req.message, full_answer)
+                # Auto-store this turn to ChromaDB for future recall
+                store_turn(
+                    user_message=req.message,
+                    gaian_response=full_answer,
+                    gaian_slug=slug,
+                    session_id=session_id,
+                )
 
             duration_ms = round((time.perf_counter() - t0) * 1000, 1)
             log_event(
@@ -186,6 +205,7 @@ async def gaian_chat(
                     'noosphere_resonance': inference_meta.noosphere_resonance,
                     'criticality_state': inference_meta.criticality_state,
                     'inference_ms': inference_meta.duration_ms,
+                    'recalled_memories': len(recalled_memories),
                     'timestamp': time.time(),
                 })}\n\n"
             )
@@ -274,7 +294,9 @@ async def query_stream(
                 await asyncio.sleep(0.01)
                 conversation_history = get_conversation_context(gaian)
                 long_term_memories = gaian.long_term_memories or []
-                visible_memories = [
+                # Merge recalled semantic memories with runtime visible memories
+                recalled = recall_for_prompt(req.query, gaian_slug=gaian_slug, top_k=5)
+                visible_memories = recalled + [
                     m["text"] for m in rt._memory.get("visible_memories", [])
                     if isinstance(m, dict)
                 ]
