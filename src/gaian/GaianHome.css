@@ -1,0 +1,241 @@
+/*
+ * GaianHome.css
+ * The Home screen — GAIA’s living room.
+ * Dark, warm, spatial. Not a dashboard — a room.
+ */
+
+/* ── Root container ───────────────────────────────────────────────── */
+
+.gaian-home {
+  position:        relative;
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: space-between;
+  width:           100%;
+  height:          100%;
+  overflow:        hidden;
+  background:      #0a0b10;
+  padding:         2rem 1.5rem 1.5rem;
+  box-sizing:      border-box;
+}
+
+/* ── Room background ─────────────────────────────────────────────── */
+
+.home-bg {
+  position:            absolute;
+  inset:               -6%;
+  background-image:    radial-gradient(
+    ellipse 80% 60% at 50% 40%,
+    #0d1a2e 0%,
+    #060c16 45%,
+    #020408 100%
+  ),
+  radial-gradient(
+    circle 400px at 20% 70%,
+    rgba(0, 80, 60, 0.12) 0%,
+    transparent 70%
+  ),
+  radial-gradient(
+    circle 300px at 80% 30%,
+    rgba(30, 10, 80, 0.12) 0%,
+    transparent 70%
+  );
+  background-size:     cover;
+  background-position: center;
+  will-change:         transform;
+  transition:          transform 0.12s ease-out;
+  z-index:             0;
+}
+
+.home-bg.has-room {
+  background-image: none; /* Let the room photo show */
+  background-size:  cover;
+}
+
+/* ── Vignette overlay ────────────────────────────────────────────── */
+
+.home-vignette {
+  position:   absolute;
+  inset:      0;
+  background: radial-gradient(
+    ellipse 90% 90% at 50% 50%,
+    transparent 30%,
+    rgba(5, 7, 12, 0.65) 80%,
+    rgba(3, 4, 8, 0.9)   100%
+  );
+  pointer-events: none;
+  z-index:        1;
+}
+
+/* ── Orb ──────────────────────────────────────────────────────────────── */
+
+.home-orb-wrap {
+  position:   relative;
+  z-index:    2;
+  flex:       1;
+  display:    flex;
+  align-items: center;
+  justify-content: center;
+  width:      100%;
+  max-width:  480px;
+  /* Soft ambient glow beneath the orb */
+  filter:     drop-shadow(0 0 40px rgba(0, 160, 120, 0.18))
+              drop-shadow(0 0 80px rgba(0, 100, 80, 0.08));
+}
+
+.home-orb-canvas {
+  width:  100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: block;
+}
+
+/* ── Greeting ──────────────────────────────────────────────────────────── */
+
+.home-greeting {
+  position:    relative;
+  z-index:     2;
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-size:   clamp(0.95rem, 1.2vw + 0.6rem, 1.2rem);
+  font-weight: 400;
+  color:       rgba(200, 215, 210, 0.82);
+  text-align:  center;
+  max-width:   42ch;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  padding:     0 1rem;
+  margin:      0.5rem 0 1rem;
+
+  /* Fade in on render */
+  animation: greeting-in 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes greeting-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Bottom dock ──────────────────────────────────────────────────────── */
+
+.home-dock {
+  position:        relative;
+  z-index:         2;
+  display:         flex;
+  gap:             0.75rem;
+  justify-content: center;
+  align-items:     center;
+  padding:         0.75rem 1.25rem;
+  border-radius:   999px;
+  background:      rgba(12, 18, 28, 0.72);
+  border:          1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow:      0 8px 32px rgba(0, 0, 0, 0.4),
+                   0 0 0 1px rgba(0, 180, 140, 0.04) inset;
+
+  /* Slide up on render */
+  animation: dock-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+}
+
+@keyframes dock-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.home-dock-btn {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.25rem;
+  padding:         0.6rem 1rem;
+  border-radius:   12px;
+  border:          none;
+  background:      transparent;
+  color:           rgba(160, 185, 180, 0.65);
+  cursor:          pointer;
+  transition:      color 180ms ease,
+                   background 180ms ease,
+                   transform 150ms ease;
+  min-width:       64px;
+  min-height:      56px;
+}
+
+.home-dock-btn:hover {
+  color:      rgba(200, 230, 220, 0.95);
+  background: rgba(255, 255, 255, 0.04);
+  transform:  translateY(-2px);
+}
+
+.home-dock-btn:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.home-dock-btn.active {
+  color:      rgba(80, 200, 160, 0.95);
+  background: rgba(0, 160, 120, 0.08);
+}
+
+/* Active indicator dot */
+.home-dock-btn.active::after {
+  content:       '';
+  display:       block;
+  width:         4px;
+  height:        4px;
+  border-radius: 50%;
+  background:    rgba(80, 200, 160, 0.9);
+  margin-top:    2px;
+}
+
+.dock-icon {
+  font-size:   1.25rem;
+  line-height: 1;
+  display:     block;
+}
+
+.dock-label {
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-size:   0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ── Loading badge ───────────────────────────────────────────────────── */
+
+.home-loading-badge {
+  position:    absolute;
+  bottom:      6rem;
+  left:        50%;
+  transform:   translateX(-50%);
+  z-index:     10;
+  font-family: 'Satoshi', 'Inter', sans-serif;
+  font-size:   0.75rem;
+  color:       rgba(120, 160, 150, 0.7);
+  letter-spacing: 0.04em;
+  text-align:  center;
+  pointer-events: none;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .gaian-home          { padding: 1rem 0.75rem 1rem; }
+  .home-orb-wrap       { max-width: 280px; }
+  .home-dock-btn       { padding: 0.5rem 0.65rem; min-width: 52px; }
+  .dock-label          { font-size: 0.65rem; }
+}
+
+@media (min-width: 1024px) {
+  .home-orb-wrap { max-width: 540px; }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .home-greeting,
+  .home-dock          { animation: none; }
+  .home-bg            { transition: none; }
+  .home-dock-btn:hover { transform: none; }
+}
