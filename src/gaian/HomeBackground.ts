@@ -8,14 +8,11 @@
  */
 
 export class HomeBackground {
-  private container: HTMLElement;
   private bg: HTMLDivElement;
   private vignette: HTMLDivElement;
   private _onMouseMove: (e: MouseEvent) => void;
 
   constructor(container: HTMLElement) {
-    this.container = container;
-
     // Background layer
     this.bg = document.createElement('div');
     this.bg.className = 'home-bg';
@@ -31,10 +28,10 @@ export class HomeBackground {
     window.addEventListener('mousemove', this._onMouseMove, { passive: true });
 
     // Try to load a saved room scan
-    this._tryLoadRoom();
+    this._tryLoadRoom(container);
   }
 
-  private async _tryLoadRoom(): Promise<void> {
+  private async _tryLoadRoom(container: HTMLElement): Promise<void> {
     // Dynamic import so it doesn’t crash in a non-Tauri web context
     try {
       const { appDataDir, join } = await import('@tauri-apps/api/path');
@@ -50,6 +47,7 @@ export class HomeBackground {
       }
     } catch {
       // Not running in Tauri, or no room scan — fallback gradient is already active
+      void container; // suppress unused-in-catch lint noise
     }
   }
 

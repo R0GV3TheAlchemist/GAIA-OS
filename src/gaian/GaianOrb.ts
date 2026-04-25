@@ -18,11 +18,15 @@
  *   orb.dispose(); // cleanup on unmount
  */
 
-import * as THREE from 'three';
-import { gsap } from 'gsap';
+// three and gsap are declared as external globals loaded via CDN at runtime.
+// The app bundles them via package.json devDependencies; these declarations
+// let TypeScript know the shapes without requiring @types packages.
+declare const THREE: typeof import('three');
+declare const gsap: typeof import('gsap').gsap;
+
 import { gaianMood, GaianMoodState, MoodProfile, MOOD_PROFILES } from './GaianMood';
 
-// ── GLSL Shaders ─────────────────────────────────────────────────────────────
+// ── GLSL Shaders ──────────────────────────────────────────────────────
 
 const ATMOSPHERE_VERT = /* glsl */`
   varying vec3 vNormal;
@@ -98,12 +102,12 @@ const AURORA_FRAG = /* glsl */`
 `;
 
 // ── Helper: hex string → THREE.Color ────────────────────────────────────────
-function hexToColor(hex: string): THREE.Color {
+function hexToColor(hex: string): import('three').Color {
   return new THREE.Color(hex);
 }
 
-// ── Sun direction from UTC time (approximate) ────────────────────────────────
-function sunDirection(): THREE.Vector3 {
+// ── Sun direction from UTC time (approximate) ─────────────────────────────
+function sunDirection(): import('three').Vector3 {
   const now    = new Date();
   const hours  = now.getUTCHours() + now.getUTCMinutes() / 60;
   // Sun longitude: noon UTC ≈ sun over prime meridian
@@ -120,38 +124,38 @@ function sunDirection(): THREE.Vector3 {
 
 export class GaianOrb {
   private canvas:     HTMLCanvasElement;
-  private renderer:   THREE.WebGLRenderer;
-  private scene:      THREE.Scene;
-  private camera:     THREE.PerspectiveCamera;
-  private clock:      THREE.Clock;
+  private renderer:   import('three').WebGLRenderer;
+  private scene:      import('three').Scene;
+  private camera:     import('three').PerspectiveCamera;
+  private clock:      import('three').Clock;
 
   // Meshes
-  private earthMesh:   THREE.Mesh;
-  private cloudMesh:   THREE.Mesh;
-  private atmMesh:     THREE.Mesh;
-  private auroraMesh:  THREE.Mesh;
+  private earthMesh:   import('three').Mesh;
+  private cloudMesh:   import('three').Mesh;
+  private atmMesh:     import('three').Mesh;
+  private auroraMesh:  import('three').Mesh;
 
   // Materials with uniforms we animate
-  private atmMat:    THREE.ShaderMaterial;
-  private auroraMat: THREE.ShaderMaterial;
-  private cloudMat:  THREE.MeshStandardMaterial;
+  private atmMat:    import('three').ShaderMaterial;
+  private auroraMat: import('three').ShaderMaterial;
+  private cloudMat:  import('three').MeshStandardMaterial;
 
   // Lighting
-  private sunLight: THREE.DirectionalLight;
+  private sunLight: import('three').DirectionalLight;
 
   // State
-  private _raf:      number | null = null;
-  private _ws:       WebSocket | null = null;
+  private _raf:       number | null = null;
+  private _ws:        WebSocket | null = null;
   private _moodUnsub: (() => void) | null = null;
 
   // Current animated values (GSAP tweens these)
   private _live = {
-    rotationSpeed:  MOOD_PROFILES.calm.rotationSpeed,
-    glowIntensity:  MOOD_PROFILES.calm.glowIntensity,
-    cloudOpacity:   MOOD_PROFILES.calm.cloudOpacity,
-    auroraIntensity:MOOD_PROFILES.calm.auroraIntensity,
-    pulsePhase:     0,
-    scale:          1,
+    rotationSpeed:   MOOD_PROFILES.calm.rotationSpeed,
+    glowIntensity:   MOOD_PROFILES.calm.glowIntensity,
+    cloudOpacity:    MOOD_PROFILES.calm.cloudOpacity,
+    auroraIntensity: MOOD_PROFILES.calm.auroraIntensity,
+    pulsePhase:      0,
+    scale:           1,
   };
 
   constructor(canvas: HTMLCanvasElement) {
@@ -191,8 +195,8 @@ export class GaianOrb {
     });
     // Texture loading — gracefully skipped if assets not present yet
     const loader = new THREE.TextureLoader();
-    loader.load('/assets/earth-day.jpg',   t => { earthMat.map = t; earthMat.needsUpdate = true; });
-    loader.load('/assets/earth-normal.jpg', t => { earthMat.normalMap = t; earthMat.needsUpdate = true; });
+    loader.load('/assets/earth-day.jpg',    (t: import('three').Texture) => { earthMat.map = t; earthMat.needsUpdate = true; });
+    loader.load('/assets/earth-normal.jpg', (t: import('three').Texture) => { earthMat.normalMap = t; earthMat.needsUpdate = true; });
 
     this.earthMesh = new THREE.Mesh(sphere, earthMat);
     this.scene.add(this.earthMesh);
@@ -204,7 +208,7 @@ export class GaianOrb {
       opacity:     this._live.cloudOpacity,
       depthWrite:  false,
     });
-    loader.load('/assets/earth-clouds.jpg', t => {
+    loader.load('/assets/earth-clouds.jpg', (t: import('three').Texture) => {
       this.cloudMat.alphaMap = t;
       this.cloudMat.needsUpdate = true;
     });
@@ -250,7 +254,7 @@ export class GaianOrb {
   // ── Public API ──────────────────────────────────────────────────────────────
 
   start(): void {
-    this._moodUnsub = gaianMood.onChange((_, profile) => this._transitionToProfile(profile));
+    this._moodUnsub = gaianMood.onChange((_state, profile) => this._transitionToProfile(profile));
     this._connectWebSocket();
     this._loop();
   }
@@ -260,8 +264,8 @@ export class GaianOrb {
   }
 
   dispose(): void {
-    if (this._raf)    cancelAnimationFrame(this._raf);
-    if (this._ws)     this._ws.close();
+    if (this._raf)      cancelAnimationFrame(this._raf);
+    if (this._ws)       this._ws.close();
     if (this._moodUnsub) this._moodUnsub();
     this.renderer.dispose();
   }
@@ -271,7 +275,8 @@ export class GaianOrb {
   private _loop(): void {
     this._raf = requestAnimationFrame(() => this._loop());
     const elapsed = this.clock.getElapsedTime();
-    const delta   = this.clock.getDelta();
+    // delta intentionally unused — rotation uses elapsed for frame-rate independence
+    void this.clock.getDelta();
 
     // Rotate Earth + clouds (clouds slightly faster for parallax feel)
     this.earthMesh.rotation.y  += this._live.rotationSpeed;
@@ -286,10 +291,10 @@ export class GaianOrb {
     this.atmMesh.scale.setScalar(breathe * 1.18);
 
     // Update uniforms
-    this.atmMat.uniforms.uGlowIntensity.value = this._live.glowIntensity;
-    this.auroraMat.uniforms.uTime.value       = elapsed;
-    this.auroraMat.uniforms.uIntensity.value  = this._live.auroraIntensity;
-    this.cloudMat.opacity                     = this._live.cloudOpacity;
+    this.atmMat.uniforms['uGlowIntensity'].value = this._live.glowIntensity;
+    this.auroraMat.uniforms['uTime'].value       = elapsed;
+    this.auroraMat.uniforms['uIntensity'].value  = this._live.auroraIntensity;
+    this.cloudMat.opacity                        = this._live.cloudOpacity;
 
     // Update sun direction every 60s
     if (Math.floor(elapsed) % 60 === 0) {
@@ -299,7 +304,7 @@ export class GaianOrb {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // ── Mood transition (GSAP) ──────────────────────────────────────────────────
+  // ── Mood transition (GSAP) ───────────────────────────────────────────────
 
   private _transitionToProfile(profile: MoodProfile): void {
     gsap.to(this._live, {
@@ -312,16 +317,17 @@ export class GaianOrb {
     });
 
     // Glow color requires direct THREE.Color lerp
-    gsap.to(this.atmMat.uniforms.uGlowColor.value, {
+    const target = hexToColor(profile.glowColor);
+    gsap.to(this.atmMat.uniforms['uGlowColor'].value, {
       duration: 1.4,
       ease:     'power2.inOut',
-      r: hexToColor(profile.glowColor).r,
-      g: hexToColor(profile.glowColor).g,
-      b: hexToColor(profile.glowColor).b,
+      r: target.r,
+      g: target.g,
+      b: target.b,
     });
   }
 
-  // ── WebSocket — backend /mood events ───────────────────────────────────────
+  // ── WebSocket — backend /mood events ─────────────────────────────────────────
 
   private _connectWebSocket(): void {
     const WS_URL = 'ws://localhost:8008/ws/mood';
@@ -330,7 +336,7 @@ export class GaianOrb {
 
       this._ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as { mood?: GaianMoodState; sentiment?: number };
+          const data = JSON.parse(event.data as string) as { mood?: GaianMoodState; sentiment?: number };
           if (data.mood) {
             gaianMood.set(data.mood);
           } else if (typeof data.sentiment === 'number') {
@@ -354,7 +360,7 @@ export class GaianOrb {
     }
   }
 
-  // ── Resize ──────────────────────────────────────────────────────────────────
+  // ── Resize ───────────────────────────────────────────────────────────────────
 
   private _onResize(): void {
     const w = this.canvas.clientWidth;
