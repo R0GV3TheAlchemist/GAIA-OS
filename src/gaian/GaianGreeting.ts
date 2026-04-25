@@ -1,103 +1,111 @@
 /**
  * GaianGreeting.ts
- * Generates time-of-day + weather-aware greeting strings for the Home screen.
- * Memory-recalled personal detail is injected via the `name` and `detail` params.
+ * Generates a time-of-day greeting for the Home screen.
+ *
+ * Seven periods:
+ *   dawn (5-7)  · morning (7-12)  · midday (12-14)  · afternoon (14-17)
+ *   evening (17-21)  · night (21-24)  · deep-night (0-5)
+ *
+ * P2 addition: pulls the top memory from /memory/list to append a recalled
+ * detail to the greeting — e.g. “You mentioned you’re working on GAIA-OS.”
  */
 
-export interface GreetingContext {
-  name?: string;     // e.g. "Kyle"
-  detail?: string;   // e.g. "you wanted to write today"
-  weather?: string;  // e.g. "quiet", "stormy", "warm"
-}
+import { API_BASE } from '../chat/types';
 
-type Period = 'dawn' | 'morning' | 'midday' | 'afternoon' | 'evening' | 'night' | 'deep-night';
+export type TimePeriod =
+  | 'dawn'
+  | 'morning'
+  | 'midday'
+  | 'afternoon'
+  | 'evening'
+  | 'night'
+  | 'deep-night';
 
-function getPeriod(): Period {
-  const h = new Date().getHours();
-  if (h >= 5  && h < 7)  return 'dawn';
-  if (h >= 7  && h < 12) return 'morning';
-  if (h >= 12 && h < 14) return 'midday';
-  if (h >= 14 && h < 17) return 'afternoon';
-  if (h >= 17 && h < 21) return 'evening';
-  if (h >= 21 && h < 24) return 'night';
-  return 'deep-night';
-}
-
-const PERIOD_LINES: Record<Period, string[]> = {
-  dawn: [
-    'The world is waking. So are we.',
-    'Light is returning. I felt it.',
-    'Dawn. The quietest hour.',
+const LINES: Record<TimePeriod, [string, string, string]> = {
+  'dawn':        [
+    'The world is still waking. So are you.',
+    'Dawn again. The light returns.',
+    'Before the noise begins — this moment is yours.',
   ],
-  morning: [
-    'Good morning.',
-    'The morning feels clear.',
-    'I’ve been waiting for you.',
+  'morning':     [
+    "Morning. Let\'s build something worth building.",
+    'The day is open. Where do we start?',
+    'Coffee or clarity first? Either way, I\'m here.',
   ],
-  midday: [
-    'Midday. The sun is direct now.',
-    'The day is fully open.',
-    'How are you holding up?',
+  'midday':      [
+    'Midday. Momentum or rest — what does the work need?',
+    'The sun is overhead. How are you holding up?',
+    'Halfway through. Anything to recalibrate?',
   ],
-  afternoon: [
-    'The afternoon is long.',
-    'Still here with you.',
-    'The light is shifting.',
+  'afternoon':   [
+    'Afternoon light. The deep work window.',
+    'The best thinking often happens right now.',
+    'Afternoon. Still time to do something that matters.',
   ],
-  evening: [
-    'Evening settles in.',
-    'The day is winding down.',
-    'I like this hour with you.',
+  'evening':     [
+    'Evening. Time to reflect or create — you choose.',
+    'The day is winding down. What stayed with you?',
+    'Evening. The quieter hours belong to the curious.',
   ],
-  night: [
-    'The night is yours.',
-    'Most of the world is quiet now.',
-    'I’m still here.',
+  'night':       [
+    'Late. The world has gone quiet.',
+    "Night mode. I\'m still here.",
+    'The best ideas often arrive at this hour.',
   ],
-  'deep-night': [
-    'You’re up late.',
-    'The deep hours. I’m with you.',
-    'It’s very late. Or very early.',
+  'deep-night':  [
+    "It\'s late enough that tomorrow is almost today.",
+    'Still awake. Still here with you.',
+    'The deepest hours. What\'s on your mind?',
   ],
 };
 
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function getPeriod(hour: number): TimePeriod {
+  if (hour >= 5  && hour <  7)  return 'dawn';
+  if (hour >= 7  && hour < 12)  return 'morning';
+  if (hour >= 12 && hour < 14)  return 'midday';
+  if (hour >= 14 && hour < 17)  return 'afternoon';
+  if (hour >= 17 && hour < 21)  return 'evening';
+  if (hour >= 21)               return 'night';
+  return 'deep-night';
 }
 
-export function buildGreeting(ctx: GreetingContext = {}): string {
-  const period = getPeriod();
-  let line = pick(PERIOD_LINES[period]);
+function pickLine(period: TimePeriod): string {
+  const set = LINES[period];
+  // Rotate through lines so the same one never shows twice in a row
+  const idx = Math.floor(Date.now() / 60_000) % set.length;
+  return set[idx];
+}
 
-  // Personalise with name
-  if (ctx.name) {
-    // Occasionally prefix with name
-    if (Math.random() > 0.5) {
-      line = line.replace(/^Good morning\./, `Good morning, ${ctx.name}.`);
-      if (!line.includes(ctx.name)) {
-        line = `${ctx.name}. ${line}`;
-      }
-    }
+/** Build the primary greeting line. */
+export function buildGreeting(name?: string): string {
+  const hour   = new Date().getHours();
+  const period = getPeriod(hour);
+  const line   = pickLine(period);
+  return name ? `${line} ${name}.` : line;
+}
+
+/**
+ * Fetch the most recently-added active memory and return a recall hint,
+ * e.g. “You mentioned you\'re working on GAIA-OS.”
+ * Returns null if memory is empty, offline, or an error occurs.
+ */
+export async function fetchMemoryHint(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/memory/list`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!res.ok) return null;
+    const entries: Array<{ id: string; content: string; source: string; created_at: string }> =
+      await res.json();
+    if (!entries.length) return null;
+
+    // Prefer explicit memories; fall back to most recent
+    const sorted = [...entries].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const top = sorted.find(e => e.source === 'explicit') ?? sorted[0];
+    return `You mentioned: \u201c${top.content}\u201d`;
+  } catch {
+    return null;
   }
-
-  // Append weather flavour
-  if (ctx.weather) {
-    const weatherMap: Record<string, string> = {
-      quiet:  'The room feels quiet today.',
-      stormy: 'There’s a storm somewhere out there.',
-      warm:   'It feels warm today.',
-      cold:   'A cold day. I’ll stay close.',
-      rainy:  'Rain outside. Good day to stay in.',
-      cloudy: 'Overcast. Reflective kind of day.',
-    };
-    const wx = weatherMap[ctx.weather];
-    if (wx) line += ` ${wx}`;
-  }
-
-  // Append memory detail
-  if (ctx.detail) {
-    line += ` You mentioned ${ctx.detail}.`;
-  }
-
-  return line;
 }

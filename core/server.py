@@ -1,5 +1,5 @@
 """
-GAIA API Server — FastAPI bootstrap v2.1.0
+GAIA API Server — FastAPI bootstrap v2.2.0
 
 Split from the monolith in Sprint C47+. All endpoints live in
 core/routers/. Shared process state lives in core/server_state.py.
@@ -29,6 +29,7 @@ from core.routers import (
     chat_router,
     gaians_router,
     health_router,
+    memory_router,
     query_router,
     system_router,
     zodiac_router,
@@ -69,6 +70,7 @@ app.include_router(health_router)   # /health, /health/ready — no auth, mounte
 app.include_router(system_router)
 app.include_router(gaians_router)
 app.include_router(chat_router)
+app.include_router(memory_router)   # /memory/* — C17 governed persistent memory
 app.include_router(zodiac_router)
 app.include_router(query_router)    # /query, /query/stream
 app.include_router(admin_router)    # /admin/*
