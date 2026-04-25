@@ -30,6 +30,7 @@ from core.routers import (
     gaians_router,
     health_router,
     memory_router,
+    mood_ws_router,
     query_router,
     system_router,
     zodiac_router,
@@ -66,14 +67,15 @@ app.add_middleware(
 
 # — Routers —
 app.include_router(auth_router)
-app.include_router(health_router)   # /health, /health/ready — no auth, mounted first
+app.include_router(health_router)    # /health, /health/ready — no auth, mounted first
 app.include_router(system_router)
 app.include_router(gaians_router)
 app.include_router(chat_router)
-app.include_router(memory_router)   # /memory/* — C17 governed persistent memory
+app.include_router(memory_router)    # /memory/* — C17 governed persistent memory
 app.include_router(zodiac_router)
-app.include_router(query_router)    # /query, /query/stream
-app.include_router(admin_router)    # /admin/*
+app.include_router(query_router)     # /query, /query/stream
+app.include_router(admin_router)     # /admin/*
+app.include_router(mood_ws_router)   # /ws/mood — orb mood broadcaster
 
 # — Startup / shutdown lifecycle —
 register_lifecycle(app)

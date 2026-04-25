@@ -6,9 +6,40 @@ import { mountGaianPicker } from './GaianPicker';
 import { EngineStatePanel, type EngineStateSnapshot } from '../chat/EngineStatePanel';
 import '../chat/engine-state.css';
 import { API_BASE } from '../app';
+import { gaianMood } from './GaianMood';
 
 const SLUG_KEY    = 'gaia_active_slug';
 const SESSION_KEY = 'gaia_session_id';
+
+// ── Mood derivation from SSE payloads ────────────────────────────────────────
+
+/**
+ * Map the `criticality_state` string emitted by engine_state events
+ * onto a GaianMood state. Only called when the criticality is notable;
+ * normal / nominal states leave mood unchanged so bond_depth (done event)
+ * stays the primary driver.
+ */
+function moodFromCriticality(criticality: string): void {
+  const c = criticality.toUpperCase();
+  if (c === 'CRITICAL' || c === 'EDGE')  { gaianMood.set('alert');      return; }
+  if (c === 'HYPER')                     { gaianMood.set('joyful');     return; }
+  if (c === 'LOW' || c === 'DORMANT')    { gaianMood.set('reflective'); return; }
+  // NOMINAL / ELEVATED — don't override; let turn-end bond_depth decide
+}
+
+/**
+ * Map bond_depth (0–1) to a sentiment score (-1 – 1) and drive the orb.
+ * bond_depth is the richest per-turn signal; we normalise it to [-0.2, 0.8]
+ * so the orb spends most of its life in calm/curious rather than extremes.
+ */
+function moodFromBondDepth(bondDepth: number): void {
+  // Remap [0, 1] → [-0.2, 0.8]; shallow bond ≈ slightly reflective,
+  // deep bond ≈ curious / joyful
+  const sentiment = bondDepth * 1.0 - 0.2;
+  gaianMood.fromSentiment(sentiment);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export class GaianChatView {
   private root: HTMLElement;
@@ -84,6 +115,8 @@ export class GaianChatView {
         setTimeout(typeNext, CHAR_MS + (Math.random() * 14 - 7));
       } else {
         cursor.classList.add('gc-cursor--done');
+        // Birth moment — push orb toward curious
+        gaianMood.set('curious');
         setTimeout(() => {
           cursor.remove();
           this._setInputReady(true);
@@ -105,6 +138,8 @@ export class GaianChatView {
     const msgEl = this._appendGaianBubble(true);
     this.isStreaming = true;
     this._setStreamingUI(true);
+    // Orb enters alert/thinking state while streaming
+    gaianMood.set('curious');
     this.abortCtrl = new AbortController();
 
     try {
@@ -138,6 +173,8 @@ export class GaianChatView {
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
+      // On error, push orb to alert
+      gaianMood.set('alert');
       this._showBubbleError(msgEl, err instanceof Error ? err.message : String(err));
     } finally {
       this.isStreaming = false;
@@ -153,17 +190,27 @@ export class GaianChatView {
         case 'token':
           this._appendToken(msgEl, payload.text ?? payload);
           break;
-        case 'engine_state':
+
+        case 'engine_state': {
           if (this.enginePanel) this.enginePanel.update(payload as EngineStateSnapshot);
           if (payload.gaian_name && payload.gaian_name !== this.gaianName) {
             this.gaianName = payload.gaian_name;
             this._updateHeader();
           }
           this._updateSettlingBadge(payload as EngineStateSnapshot);
+          // Drive orb mood from criticality when it's outside the normal range
+          const crit: string | undefined = payload.criticality_state;
+          if (crit) moodFromCriticality(crit);
           break;
-        case 'done':
+        }
+
+        case 'done': {
           this._removeCursor(msgEl);
+          // Primary mood driver: bond_depth from the completed turn
+          const bondDepth = typeof payload.bond_depth === 'number' ? payload.bond_depth : 0;
+          moodFromBondDepth(bondDepth);
           break;
+        }
       }
     } catch {}
   }
