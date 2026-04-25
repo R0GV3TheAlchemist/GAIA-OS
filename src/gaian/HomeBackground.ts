@@ -1,11 +1,18 @@
 /**
  * HomeBackground.ts
  * Manages the parallax room-photo backdrop behind the GaianOrb.
- * - Loads a room scan image from the GAIA data dir (if available)
- * - Falls back to a deep-space CSS gradient
+ *
+ * Fallback chain (first success wins):
+ *   1. Saved room scan via Tauri asset protocol (~/.local/share/GAIA/room.jpg)
+ *   2. Bundled dev reference image (src/assets/room-reference.png)
+ *   3. Deep-space CSS gradient
+ *
  * - Applies subtle mouse-parallax for depth illusion
  * - Adds a soft vignette overlay so the orb reads against any background
  */
+
+// Vite static import — bundled at build time so it works in both dev and prod
+import roomReferenceUrl from '../assets/room-reference.png';
 
 export class HomeBackground {
   private bg: HTMLDivElement;
@@ -27,28 +34,39 @@ export class HomeBackground {
     this._onMouseMove = this._handleMouseMove.bind(this);
     window.addEventListener('mousemove', this._onMouseMove, { passive: true });
 
-    // Try to load a saved room scan
+    // Try to load a saved room scan; fall back to bundled reference
     this._tryLoadRoom(container);
   }
 
   private async _tryLoadRoom(container: HTMLElement): Promise<void> {
-    // Dynamic import so it doesn’t crash in a non-Tauri web context
+    // 1 — Try Tauri saved room scan
     try {
       const { appDataDir, join } = await import('@tauri-apps/api/path');
       const { exists }           = await import('@tauri-apps/plugin-fs');
       const dataDir   = await appDataDir();
       const roomPath  = await join(dataDir, 'room.jpg');
       if (await exists(roomPath)) {
-        // Use Tauri’s asset protocol to serve the file
         const { convertFileSrc } = await import('@tauri-apps/api/core');
         const assetUrl = convertFileSrc(roomPath);
-        this.bg.style.backgroundImage = `url('${assetUrl}')`;
-        this.bg.classList.add('has-room');
+        this._applyImage(assetUrl);
+        return;
       }
     } catch {
-      // Not running in Tauri, or no room scan — fallback gradient is already active
-      void container; // suppress unused-in-catch lint noise
+      void container;
     }
+
+    // 2 — Fall back to bundled reference image
+    if (roomReferenceUrl) {
+      this._applyImage(roomReferenceUrl);
+      return;
+    }
+
+    // 3 — Pure CSS gradient (already active via .home-bg default styles)
+  }
+
+  private _applyImage(url: string): void {
+    this.bg.style.backgroundImage = `url('${url}')`;
+    this.bg.classList.add('has-room');
   }
 
   private _handleMouseMove(e: MouseEvent): void {
