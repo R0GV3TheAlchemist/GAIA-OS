@@ -4,7 +4,9 @@
  * Transparent 120x120 orb, draggable, click to expand, right-click context menu.
  */
 
-import { getCurrentWindow, WebviewWindow } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { PhysicalPosition } from '@tauri-apps/api/dpi';
 import { invoke } from '@tauri-apps/api/core';
 import { Menu, MenuItem } from '@tauri-apps/api/menu';
 import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
@@ -14,8 +16,6 @@ const POSITION_FILE = 'GAIA/ambient-position.json';
 export class AmbientOrb {
   private window: ReturnType<typeof getCurrentWindow>;
   private isDragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
   private orbEl: HTMLElement | null = null;
 
   constructor() {
@@ -41,8 +41,6 @@ export class AmbientOrb {
     this.orbEl.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button !== 0) return;
       this.isDragging = true;
-      this.dragStartX = e.screenX;
-      this.dragStartY = e.screenY;
       this.window.startDragging();
     });
 
@@ -68,14 +66,14 @@ export class AmbientOrb {
       const saved = await invoke<string>('load_ambient_position');
       if (saved) {
         const { x, y } = JSON.parse(saved);
-        await this.window.setPosition({ type: 'Physical', x, y });
+        await this.window.setPosition(new PhysicalPosition(x, y));
       }
     } catch {
       // No saved position — default placement is fine
     }
   }
 
-  // ── Click — expand to main window ─────────────────────────────────────────
+  // ── Click — expand to main window ───────────────────────────────────────
 
   private bindClick(): void {
     if (!this.orbEl) return;
@@ -92,7 +90,7 @@ export class AmbientOrb {
     });
   }
 
-  // ── Right-click context menu ───────────────────────────────────────────────
+  // ── Right-click context menu ─────────────────────────────────────────────
 
   private async bindContextMenu(): Promise<void> {
     if (!this.orbEl) return;
@@ -117,7 +115,6 @@ export class AmbientOrb {
       const mainWindow = new WebviewWindow('main');
       await mainWindow.show();
       await mainWindow.setFocus();
-      // Signal the main window to navigate to the correct section
       await invoke('navigate_main', { section });
     } catch (err) {
       console.error('[AmbientOrb] openMain failed:', err);
