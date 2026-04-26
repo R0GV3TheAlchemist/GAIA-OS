@@ -1,11 +1,11 @@
 """
-GAIA API Server — FastAPI bootstrap v2.2.0
+GAIA API Server — FastAPI bootstrap v2.3.0
 
 Split from the monolith in Sprint C47+. All endpoints live in
 core/routers/. Shared process state lives in core/server_state.py.
 Lifecycle hooks (MotherThread + Viriditas boot) live in core/server_lifecycle.py.
 
-Canon Refs: C01, C04, C12, C15, C17, C21, C27, C30, C42, C43, C44, C47, C48
+Canon Refs: C01, C04, C12, C15, C17, C20, C21, C27, C30, C42, C43, C44, C47, C48
 """
 
 import os
@@ -32,6 +32,7 @@ from core.routers import (
     memory_router,
     mood_ws_router,
     query_router,
+    room_router,
     system_router,
     zodiac_router,
 )
@@ -76,6 +77,7 @@ app.include_router(zodiac_router)
 app.include_router(query_router)     # /query, /query/stream
 app.include_router(admin_router)     # /admin/*
 app.include_router(mood_ws_router)   # /ws/mood — orb mood broadcaster
+app.include_router(room_router)      # /room/* — C20 Home Twin room persistence
 
 # — Startup / shutdown lifecycle —
 register_lifecycle(app)
