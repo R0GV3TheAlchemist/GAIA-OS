@@ -15,13 +15,11 @@
 
 import { RoomStore, type RoomConfig } from './RoomStore';
 
-const PARALLAX_STRENGTH = 12; // px of parallax travel
+const PARALLAX_STRENGTH = 12;
 const SHADOW_OPACITY    = 0.22;
 
 export class RoomRenderer {
   private container: HTMLElement;
-  private canvas: HTMLCanvasElement | null = null;
-  private shadowEl: HTMLElement | null = null;
   private animFrame: number | null = null;
   private mouseX = 0;
   private mouseY = 0;
@@ -61,33 +59,27 @@ export class RoomRenderer {
   // ------------------------------------------------------------------ //
 
   private _buildDOM(): void {
-    // Background layer — sits behind orb canvas
     const bg = document.createElement('div');
     bg.className = 'ht-bg-layer';
     this.container.prepend(bg);
-    this.canvas = bg as unknown as HTMLCanvasElement; // replaced by three.js canvas
 
-    // Ground shadow beneath orb
     const shadow = document.createElement('div');
     shadow.className = 'ht-shadow';
-    shadow.style.cssText = `
-      position:absolute; bottom:18%; left:50%; transform:translateX(-50%);
-      width:160px; height:32px;
-      background: radial-gradient(ellipse, rgba(0,0,0,${SHADOW_OPACITY}) 0%, transparent 70%);
-      pointer-events:none; z-index:2;
-    `;
+    shadow.style.cssText = [
+      'position:absolute; bottom:18%; left:50%; transform:translateX(-50%);',
+      'width:160px; height:32px;',
+      `background: radial-gradient(ellipse, rgba(0,0,0,${SHADOW_OPACITY}) 0%, transparent 70%);`,
+      'pointer-events:none; z-index:2;',
+    ].join(' ');
     this.container.appendChild(shadow);
-    this.shadowEl = shadow;
   }
 
   private async _mountThree(panoramaDataUrl: string): Promise<void> {
     try {
-      // Dynamic import — won't crash if three.js not installed
       const THREE = await import('three');
       this.threeScene = new ThreeScene(this.container, THREE, panoramaDataUrl);
       await this.threeScene.init();
     } catch {
-      // three.js not installed — fall back
       this._mountFallbackGradient();
     }
   }
@@ -95,10 +87,10 @@ export class RoomRenderer {
   private _mountFallbackGradient(): void {
     const bg = this.container.querySelector<HTMLElement>('.ht-bg-layer');
     if (bg) {
-      bg.style.cssText = `
-        position:absolute; inset:0; z-index:0;
-        background: radial-gradient(ellipse at 40% 60%, #0d2b1a 0%, #0a0a1a 55%, #1a0a2e 100%);
-      `;
+      bg.style.cssText = [
+        'position:absolute; inset:0; z-index:0;',
+        'background: radial-gradient(ellipse at 40% 60%, #0d2b1a 0%, #0a0a1a 55%, #1a0a2e 100%);',
+      ].join(' ');
     }
   }
 
@@ -140,10 +132,9 @@ class ThreeScene {
   private animFrame: number | null = null;
 
   constructor(container: HTMLElement, THREE: typeof import('three'), panoramaDataUrl: string) {
-    this.container      = container;
-    this.THREE          = panoramaDataUrl ? THREE : THREE;
+    this.container       = container;
+    this.THREE           = THREE;
     this.panoramaDataUrl = panoramaDataUrl;
-    void THREE; // suppress unused
   }
 
   async init(): Promise<void> {
@@ -162,29 +153,24 @@ class ThreeScene {
     this.camera = new THREE.PerspectiveCamera(75, w / h, 0.1, 1000);
     this.camera.position.set(0, 0, 0.01);
 
-    // Load panorama as texture
     const texture = await new Promise<import('three').Texture>((resolve, reject) => {
       const loader = new THREE.TextureLoader();
       loader.load(this.panoramaDataUrl, resolve, undefined, reject);
     });
     texture.mapping = THREE.EquirectangularReflectionMapping;
 
-    // Sphere geometry — flip normals inward for skybox
     const geo = new THREE.SphereGeometry(500, 60, 40);
     geo.scale(-1, 1, 1);
     const mat = new THREE.MeshBasicMaterial({ map: texture });
     this.sphere = new THREE.Mesh(geo, mat);
     this.scene.add(this.sphere);
 
-    // Handle resize
     window.addEventListener('resize', this._onResize);
-
     this._animate();
   }
 
   applyParallax(dx: number, dy: number): void {
     if (!this.camera) return;
-    // Gentle yaw/pitch: dx→ horizontal rotation, dy → vertical tilt
     const targetYaw   = (dx / window.innerWidth)  * 0.08;
     const targetPitch = (dy / window.innerHeight) * 0.04;
     this.camera.rotation.y += (targetYaw   - this.camera.rotation.y) * 0.05;
@@ -196,6 +182,8 @@ class ThreeScene {
     window.removeEventListener('resize', this._onResize);
     this.renderer?.dispose();
     this.renderer?.domElement.remove();
+    // suppress unused field warning
+    void this.sphere;
   }
 
   private _onResize = (): void => {

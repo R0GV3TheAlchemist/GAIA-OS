@@ -10,10 +10,10 @@
  */
 
 import './home-twin.css';
-import { RoomScanner } from './RoomScanner';
-import { RoomRenderer } from './RoomRenderer';
+import { RoomScanner }     from './RoomScanner';
+import { RoomRenderer }    from './RoomRenderer';
 import { SurfaceDetector } from './SurfaceDetector';
-import { RoomStore }      from './RoomStore';
+import { RoomStore }       from './RoomStore';
 
 export class HomeTwin {
   private root: HTMLElement;
@@ -29,7 +29,7 @@ export class HomeTwin {
     const room  = await store.loadRoom();
 
     if (room?.panoramaDataUrl) {
-      await this._mountRenderer(room.panoramaDataUrl);
+      await this._mountRenderer();
     } else {
       this._mountScanPrompt();
     }
@@ -56,7 +56,7 @@ export class HomeTwin {
 </div>`;
 
     this.root.querySelector('#ht-btn-scan')?.addEventListener('click', () => this._mountScanner());
-    this.root.querySelector('#ht-btn-skip')?.addEventListener('click', () => this._mountRenderer(null));
+    this.root.querySelector('#ht-btn-skip')?.addEventListener('click', () => this._mountRenderer());
   }
 
   // ------------------------------------------------------------------ //
@@ -69,8 +69,7 @@ export class HomeTwin {
 
     this.scanner = new RoomScanner(host, async (panoramaDataUrl) => {
       this.scanner?.dispose();
-      await this._mountRenderer(panoramaDataUrl);
-      // Run surface detection after render is up
+      await this._mountRenderer();
       this._runSurfaceDetection(panoramaDataUrl);
     });
 
@@ -82,11 +81,10 @@ export class HomeTwin {
   //  Renderer                                                            //
   // ------------------------------------------------------------------ //
 
-  private async _mountRenderer(panoramaDataUrl: string | null): Promise<void> {
+  private async _mountRenderer(): Promise<void> {
     this.root.innerHTML = '<div class="ht-room-container" id="ht-room-container"></div>';
     const container = this.root.querySelector<HTMLElement>('#ht-room-container')!;
 
-    // Rescan button
     const rescanBtn = document.createElement('button');
     rescanBtn.className = 'ht-btn-rescan';
     rescanBtn.textContent = '↺ Rescan Room';
@@ -110,11 +108,10 @@ export class HomeTwin {
 
     const detector = new SurfaceDetector(container, async (placement) => {
       console.log('[HomeTwin] GAIA placed:', placement);
-      // Position orb canvas at the surface yPercent
       const orbCanvas = container.querySelector<HTMLElement>('.gaian-orb-canvas');
       if (orbCanvas) {
-        orbCanvas.style.top  = `${placement.yPercent * 100 - 15}%`;
-        orbCanvas.style.left = '50%';
+        orbCanvas.style.top       = `${placement.yPercent * 100 - 15}%`;
+        orbCanvas.style.left      = '50%';
         orbCanvas.style.transform = 'translate(-50%, -50%)';
       }
     });
