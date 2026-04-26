@@ -17,7 +17,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-# ── Path setup ──────────────────────────────────────────────────
+# ── Path setup ───────────────────────────────────────────────────────────────
 if getattr(sys, 'frozen', False):
     ROOT = sys._MEIPASS
 else:
@@ -26,12 +26,13 @@ else:
 sys.path.insert(0, ROOT)
 
 from api.routers import zodiac
+from api.notifications import router as notifications_router
 
 log = logging.getLogger("gaia")
 
 _START_TIME = time.time()
 
-# ── Graceful shutdown ───────────────────────────────────────────────
+# ── Graceful shutdown ────────────────────────────────────────────────────────────
 
 _shutdown_event = asyncio.Event()
 
@@ -68,7 +69,7 @@ async def _flush_state() -> None:
     log.info("[GAIA] Shutdown complete.")
 
 
-# ── Ollama health probe ─────────────────────────────────────────────
+# ── Ollama health probe ──────────────────────────────────────────────────────────
 
 OLLAMA_BASE = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.environ.get("GAIA_MODEL", "llama3")
@@ -76,18 +77,12 @@ OLLAMA_TIMEOUT_SECS = 10
 
 
 async def _check_ollama() -> dict:
-    """
-    Probe Ollama for readiness and confirm the expected model is loaded.
-    Returns a dict with keys: ready (bool), model (str|None), error (str|None).
-    """
     try:
         async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT_SECS) as client:
-            # 1. Check Ollama is reachable
             r = await client.get(f"{OLLAMA_BASE}/api/tags")
             r.raise_for_status()
             tags = r.json()
 
-            # 2. Find the configured model in the list
             models = [m["name"] for m in tags.get("models", [])]
             model_ready = any(m.startswith(OLLAMA_MODEL) for m in models)
 
@@ -98,7 +93,6 @@ async def _check_ollama() -> dict:
                     "error": f"Model '{OLLAMA_MODEL}' not found in Ollama. Available: {models}",
                 }
 
-            # 3. Confirm the model responds (lightweight ping)
             probe = await client.post(
                 f"{OLLAMA_BASE}/api/generate",
                 json={"model": OLLAMA_MODEL, "prompt": "ping", "stream": False},
@@ -115,7 +109,7 @@ async def _check_ollama() -> dict:
         return {"ready": False, "model": None, "error": str(e)}
 
 
-# ── FastAPI lifespan ───────────────────────────────────────────────
+# ── FastAPI lifespan ───────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
@@ -124,7 +118,7 @@ async def lifespan(application: FastAPI):
     await _flush_state()
 
 
-# ── App ──────────────────────────────────────────────────────────
+# ── App ────────────────────────────────────────────────────────────────────
 
 app = FastAPI(
     title="GAIA Backend",
@@ -145,21 +139,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Routers ─────────────────────────────────────────────────────
+# ── Routers ──────────────────────────────────────────────────────────────────
 
 app.include_router(zodiac.router, prefix="/api/zodiac", tags=["zodiac"])
+app.include_router(notifications_router)  # prefix defined in router: /notifications
 
 
-# ── Core endpoints ───────────────────────────────────────────────
+# ── Core endpoints ────────────────────────────────────────────────────────────
 
 @app.get("/health")
 async def health():
-    """
-    Sidecar health check — Tauri frontend polls this until ready.
-    Returns 200 only when the LLM model is loaded and responding.
-    Returns 503 if the model is not yet ready, so the frontend
-    can show a loading state rather than an unusable UI.
-    """
     uptime = round(time.time() - _START_TIME, 1)
     ollama = await _check_ollama()
 
@@ -191,7 +180,7 @@ async def get_state():
     }
 
 
-# ── Launch ─────────────────────────────────────────────────────────
+# ── Launch ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     port = int(os.environ.get("GAIA_PORT", 8008))
