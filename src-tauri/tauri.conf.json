@@ -20,6 +20,22 @@
         "theme": "Dark",
         "shadow": true,
         "visible": false
+      },
+      {
+        "label": "ambient",
+        "title": "GAIA Ambient",
+        "url": "/ambient.html",
+        "width": 120,
+        "height": 120,
+        "resizable": false,
+        "fullscreen": false,
+        "transparent": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "shadow": false,
+        "visible": true,
+        "theme": "Dark"
       }
     ],
     "trayIcon": {

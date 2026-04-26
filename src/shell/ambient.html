@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GAIA Ambient</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 120px;
+      height: 120px;
+      background: transparent;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #ambient-orb {
+      width: 100px;
+      height: 100px;
+      margin: 10px;
+      border-radius: 50%;
+      cursor: pointer;
+      background: radial-gradient(
+        circle at 35% 35%,
+        rgba(100, 220, 180, 0.95),
+        rgba(30, 80, 140, 0.85) 60%,
+        rgba(10, 20, 60, 0.75) 100%
+      );
+      box-shadow:
+        0 0 20px rgba(80, 200, 160, 0.6),
+        0 0 40px rgba(40, 100, 200, 0.3),
+        inset 0 0 15px rgba(255, 255, 255, 0.15);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #ambient-orb:hover {
+      transform: scale(1.08);
+      box-shadow:
+        0 0 30px rgba(80, 200, 160, 0.8),
+        0 0 60px rgba(40, 100, 200, 0.5),
+        inset 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+
+    #ambient-orb:active {
+      transform: scale(0.95);
+    }
+
+    @keyframes ambientPulse {
+      0%, 100% {
+        box-shadow:
+          0 0 20px rgba(80, 200, 160, 0.6),
+          0 0 40px rgba(40, 100, 200, 0.3),
+          inset 0 0 15px rgba(255, 255, 255, 0.15);
+      }
+      50% {
+        box-shadow:
+          0 0 35px rgba(80, 200, 160, 0.9),
+          0 0 70px rgba(40, 100, 200, 0.5),
+          inset 0 0 25px rgba(255, 255, 255, 0.25);
+      }
+    }
+
+    .ambient-pulse {
+      animation: ambientPulse 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="ambient-orb" aria-label="GAIA Ambient Orb" role="button" tabindex="0"></div>
+  <script type="module" src="/src/shell/AmbientOrb.ts"></script>
+</body>
+</html>

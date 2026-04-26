@@ -1,0 +1,139 @@
+/**
+ * AmbientOrb.ts — P4 Shell Mode
+ * GAIA as an always-on floating desktop presence.
+ * Transparent 120x120 orb, draggable, click to expand, right-click context menu.
+ */
+
+import { getCurrentWindow, WebviewWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
+import { Menu, MenuItem } from '@tauri-apps/api/menu';
+import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
+
+const POSITION_FILE = 'GAIA/ambient-position.json';
+
+export class AmbientOrb {
+  private window: ReturnType<typeof getCurrentWindow>;
+  private isDragging = false;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private orbEl: HTMLElement | null = null;
+
+  constructor() {
+    this.window = getCurrentWindow();
+  }
+
+  async init(): Promise<void> {
+    await this.restorePosition();
+    this.orbEl = document.getElementById('ambient-orb');
+    if (!this.orbEl) return;
+
+    this.bindDrag();
+    this.bindClick();
+    await this.bindContextMenu();
+    this.startPulse();
+  }
+
+  // ── Drag ──────────────────────────────────────────────────────────────────
+
+  private bindDrag(): void {
+    if (!this.orbEl) return;
+
+    this.orbEl.addEventListener('mousedown', (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      this.isDragging = true;
+      this.dragStartX = e.screenX;
+      this.dragStartY = e.screenY;
+      this.window.startDragging();
+    });
+
+    window.addEventListener('mouseup', async () => {
+      if (!this.isDragging) return;
+      this.isDragging = false;
+      await this.savePosition();
+    });
+  }
+
+  private async savePosition(): Promise<void> {
+    try {
+      const pos = await this.window.outerPosition();
+      const data = JSON.stringify({ x: pos.x, y: pos.y });
+      await writeTextFile(POSITION_FILE, data, { baseDir: BaseDirectory.LocalData });
+    } catch (err) {
+      console.warn('[AmbientOrb] Failed to save position:', err);
+    }
+  }
+
+  private async restorePosition(): Promise<void> {
+    try {
+      const saved = await invoke<string>('load_ambient_position');
+      if (saved) {
+        const { x, y } = JSON.parse(saved);
+        await this.window.setPosition({ type: 'Physical', x, y });
+      }
+    } catch {
+      // No saved position — default placement is fine
+    }
+  }
+
+  // ── Click — expand to main window ─────────────────────────────────────────
+
+  private bindClick(): void {
+    if (!this.orbEl) return;
+
+    this.orbEl.addEventListener('click', async (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      try {
+        const mainWindow = new WebviewWindow('main');
+        await mainWindow.show();
+        await mainWindow.setFocus();
+      } catch (err) {
+        console.error('[AmbientOrb] Failed to open main window:', err);
+      }
+    });
+  }
+
+  // ── Right-click context menu ───────────────────────────────────────────────
+
+  private async bindContextMenu(): Promise<void> {
+    if (!this.orbEl) return;
+
+    const menu = await Menu.new({
+      items: [
+        await MenuItem.new({ text: '💬 Chat', action: () => this.openMain('chat') }),
+        await MenuItem.new({ text: '🧠 Memory', action: () => this.openMain('memory') }),
+        await MenuItem.new({ text: '⚙️ Settings', action: () => this.openMain('settings') }),
+        await MenuItem.new({ text: '✖ Quit GAIA', action: () => invoke('quit_app') }),
+      ],
+    });
+
+    this.orbEl.addEventListener('contextmenu', async (e: MouseEvent) => {
+      e.preventDefault();
+      await menu.popup();
+    });
+  }
+
+  private async openMain(section: string): Promise<void> {
+    try {
+      const mainWindow = new WebviewWindow('main');
+      await mainWindow.show();
+      await mainWindow.setFocus();
+      // Signal the main window to navigate to the correct section
+      await invoke('navigate_main', { section });
+    } catch (err) {
+      console.error('[AmbientOrb] openMain failed:', err);
+    }
+  }
+
+  // ── Ambient pulse animation ────────────────────────────────────────────────
+
+  private startPulse(): void {
+    if (!this.orbEl) return;
+    this.orbEl.classList.add('ambient-pulse');
+  }
+}
+
+// Auto-init when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const orb = new AmbientOrb();
+  orb.init().catch(console.error);
+});
