@@ -27,6 +27,7 @@ sys.path.insert(0, ROOT)
 
 from api.routers import zodiac
 from api.notifications import router as notifications_router
+from api.atlas import router as atlas_router
 
 log = logging.getLogger("gaia")
 
@@ -142,7 +143,8 @@ app.add_middleware(
 # ── Routers ──────────────────────────────────────────────────────────────────
 
 app.include_router(zodiac.router, prefix="/api/zodiac", tags=["zodiac"])
-app.include_router(notifications_router)  # prefix defined in router: /notifications
+app.include_router(notifications_router)   # /notifications
+app.include_router(atlas_router)            # /atlas
 
 
 # ── Core endpoints ────────────────────────────────────────────────────────────
