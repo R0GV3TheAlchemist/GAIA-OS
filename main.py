@@ -28,6 +28,7 @@ sys.path.insert(0, ROOT)
 from api.routers import zodiac
 from api.notifications import router as notifications_router
 from api.atlas import router as atlas_router
+from api.crypto import router as crypto_router
 
 log = logging.getLogger("gaia")
 
@@ -115,6 +116,13 @@ async def _check_ollama() -> dict:
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     log.info("[GAIA] Backend starting up — port 8008")
+    # Initialise encryption keys on startup if not already present
+    from api.crypto import get_symmetric_key
+    try:
+        get_symmetric_key()
+        log.info("[GAIA] Encryption layer ready")
+    except Exception as e:
+        log.warning(f"[GAIA] Encryption init warning: {e}")
     yield
     await _flush_state()
 
@@ -145,6 +153,7 @@ app.add_middleware(
 app.include_router(zodiac.router, prefix="/api/zodiac", tags=["zodiac"])
 app.include_router(notifications_router)   # /notifications
 app.include_router(atlas_router)            # /atlas
+app.include_router(crypto_router)           # /crypto
 
 
 # ── Core endpoints ────────────────────────────────────────────────────────────
