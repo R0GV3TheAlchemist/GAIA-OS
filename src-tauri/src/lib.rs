@@ -22,6 +22,11 @@ struct SidecarErrorPayload {
     reason: String,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct NavigatePayload {
+    section: String,
+}
+
 // ── Process-tree kill ─────────────────────────────────────────────────────────
 //
 // PyInstaller on Windows spawns a parent + child pair.  `CommandChild::kill()`
@@ -94,7 +99,6 @@ async fn restart_backend(app: tauri::AppHandle) -> Result<String, String> {
 }
 
 /// Open the GAIA log directory in the OS file explorer.
-/// Path: %APPDATA%\GAIA\logs  (Windows) or ~/.local/share/GAIA/logs (Linux/macOS)
 #[tauri::command]
 async fn open_log_dir(app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
@@ -114,6 +118,51 @@ async fn open_log_dir(app: tauri::AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+// ── Ambient Shell commands ────────────────────────────────────────────────────
+
+/// Read the saved ambient orb position from LocalData dir.
+/// Returns the raw JSON string so the frontend can parse { x, y }.
+/// Returns an empty string if no position has been saved yet.
+#[tauri::command]
+async fn load_ambient_position(app: tauri::AppHandle) -> Result<String, String> {
+    let local_data = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| e.to_string())?;
+    let position_file = local_data.join("ambient-position.json");
+
+    if !position_file.exists() {
+        return Ok(String::new());
+    }
+
+    std::fs::read_to_string(&position_file).map_err(|e| e.to_string())
+}
+
+/// Emit a "navigate" event on the main window so the frontend router
+/// can switch to the requested section ("chat" | "memory" | "settings").
+#[tauri::command]
+async fn navigate_main(app: tauri::AppHandle, section: String) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window
+            .emit("navigate", NavigatePayload { section })
+            .map_err(|e| e.to_string())?;
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    Ok(())
+}
+
+/// Clean application shutdown — kills the Python sidecar then exits.
+#[tauri::command]
+async fn quit_app(app: tauri::AppHandle) {
+    if let Some(state) = app.try_state::<SidecarHandle>() {
+        if let Ok(mut guard) = state.lock() {
+            kill_sidecar(&mut guard);
+        }
+    }
+    app.exit(0);
 }
 
 // ── Sidecar startup ───────────────────────────────────────────────────────────
@@ -152,13 +201,6 @@ fn emit_backend_error(app: &tauri::AppHandle, reason: &str) {
 }
 
 /// Spawn the Python sidecar, store the handle, poll /health until ready.
-///
-/// Startup sequence:
-///   1. Window is hidden (visible: false in tauri.conf.json)
-///   2. Sidecar spawns in the background
-///   3. /health is polled with exponential back-off (max 30 s)
-///   4a. On success  → emit sidecar:ready → show + focus window
-///   4b. On failure  → emit sidecar:error → show window with error state
 fn start_python_sidecar(app: &tauri::App, handle: SidecarHandle) {
     let shell = app.shell();
     let app_handle = app.handle().clone();
@@ -310,7 +352,10 @@ pub fn run() {
             greet,
             get_backend_status,
             restart_backend,
-            open_log_dir
+            open_log_dir,
+            load_ambient_position,
+            navigate_main,
+            quit_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running GAIA");
