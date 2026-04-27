@@ -1,0 +1,425 @@
+/**
+ * src/field/crystal-tokens.css
+ * GAIA Crystal Design Token System
+ * Canon: C51 (Crystal Themes), C54 (Motion), C90 (UI Spec)
+ *
+ * 5 crystals — 5 identities — one coherent living system.
+ * Every crystal has: primary, secondary, accent, bg, surface, text, glow, border
+ * Every crystal has: motion profile (duration, easing, pulse speed)
+ */
+
+/* ──────────────────────────────────────────────────────────────────
+   BASE / RESET
+────────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #gaia-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CRYSTAL 1 — SOVEREIGN CORE
+   Identity: Control, Authority, Oversight
+   Palette: Pure white, silver, clear crystal, commanded light
+   Motion: Slow stable rotation — commanding, centered, unhurried
+────────────────────────────────────────────────────────────────── */
+
+body.crystal--sovereign {
+  --crystal-primary:         #e8e8ff;
+  --crystal-secondary:       #a8b4ff;
+  --crystal-accent:          #ffffff;
+  --crystal-bg:              #06061a;
+  --crystal-surface:         #0d0d2b;
+  --crystal-surface-2:       #13133a;
+  --crystal-text:            #e8e8ff;
+  --crystal-text-muted:      #7878aa;
+  --crystal-glow:            rgba(168, 180, 255, 0.35);
+  --crystal-glow-strong:     rgba(232, 232, 255, 0.6);
+  --crystal-border:          rgba(168, 180, 255, 0.2);
+  --crystal-border-active:   rgba(232, 232, 255, 0.5);
+  --crystal-motion-duration: 8000ms;
+  --crystal-motion-easing:   cubic-bezier(0.37, 0, 0.63, 1);
+  --crystal-pulse-speed:     3000ms;
+  --crystal-transition:      300ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--crystal-bg);
+  color: var(--crystal-text);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CRYSTAL 2 — ANCHOR PRISM
+   Identity: Grounding, Stability, Presence
+   Palette: Warm white, stone grey, earth brown, golden morning light
+   Motion: Perfectly still — it does not move. It holds.
+────────────────────────────────────────────────────────────────── */
+
+body.crystal--anchor {
+  --crystal-primary:         #f5e6c8;
+  --crystal-secondary:       #c4a882;
+  --crystal-accent:          #e8d5a3;
+  --crystal-bg:              #0f0c08;
+  --crystal-surface:         #1a1510;
+  --crystal-surface-2:       #231e17;
+  --crystal-text:            #f5e6c8;
+  --crystal-text-muted:      #8a7a60;
+  --crystal-glow:            rgba(196, 168, 130, 0.3);
+  --crystal-glow-strong:     rgba(245, 230, 200, 0.55);
+  --crystal-border:          rgba(196, 168, 130, 0.18);
+  --crystal-border-active:   rgba(245, 230, 200, 0.4);
+  --crystal-motion-duration: 0ms;
+  --crystal-motion-easing:   linear;
+  --crystal-pulse-speed:     6000ms;
+  --crystal-transition:      500ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--crystal-bg);
+  color: var(--crystal-text);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CRYSTAL 3 — VIRIDITAS HEART
+   Identity: Healing, Growth, Emotion-first, Living things
+   Palette: Rose pink, forest green, living gold, warm breath of life
+   Motion: Slow organic pulse — heartbeat, leaf unfurling, breath
+────────────────────────────────────────────────────────────────── */
+
+body.crystal--viriditas {
+  --crystal-primary:         #f0a8b8;
+  --crystal-secondary:       #6db88a;
+  --crystal-accent:          #e8c56a;
+  --crystal-bg:              #080f0a;
+  --crystal-surface:         #0f1a12;
+  --crystal-surface-2:       #162118;
+  --crystal-text:            #f0e8e0;
+  --crystal-text-muted:      #7a9080;
+  --crystal-glow:            rgba(240, 168, 184, 0.3);
+  --crystal-glow-strong:     rgba(109, 184, 138, 0.5);
+  --crystal-border:          rgba(240, 168, 184, 0.18);
+  --crystal-border-active:   rgba(109, 184, 138, 0.4);
+  --crystal-motion-duration: 4000ms;
+  --crystal-motion-easing:   cubic-bezier(0.45, 0.05, 0.55, 0.95);
+  --crystal-pulse-speed:     2200ms;
+  --crystal-transition:      400ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--crystal-bg);
+  color: var(--crystal-text);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CRYSTAL 4 — SOMNUS VEIL
+   Identity: Rest, Release, Sleep, Memory consolidation
+   Palette: Deep midnight blue, spectral violet flash, near-black
+   Motion: Drifting, slow, dissolving at edges — like falling asleep
+────────────────────────────────────────────────────────────────── */
+
+body.crystal--somnus {
+  --crystal-primary:         #6060c0;
+  --crystal-secondary:       #9060d0;
+  --crystal-accent:          #c8a8ff;
+  --crystal-bg:              #03030f;
+  --crystal-surface:         #08081c;
+  --crystal-surface-2:       #0d0d26;
+  --crystal-text:            #c8c8e8;
+  --crystal-text-muted:      #505070;
+  --crystal-glow:            rgba(96, 96, 192, 0.25);
+  --crystal-glow-strong:     rgba(144, 96, 208, 0.4);
+  --crystal-border:          rgba(96, 96, 192, 0.15);
+  --crystal-border-active:   rgba(200, 168, 255, 0.3);
+  --crystal-motion-duration: 12000ms;
+  --crystal-motion-easing:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --crystal-pulse-speed:     5000ms;
+  --crystal-transition:      600ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--crystal-bg);
+  color: var(--crystal-text);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CRYSTAL 5 — CLARUS LENS
+   Identity: Clarity, Analysis, Deep cognition, Pattern recognition
+   Palette: Clear prismatic, electric blue-purple, sharp crystalline light
+   Motion: Crisp precise rotation — mathematical, exacting, clear
+────────────────────────────────────────────────────────────────── */
+
+body.crystal--clarus {
+  --crystal-primary:         #60d0ff;
+  --crystal-secondary:       #a060ff;
+  --crystal-accent:          #ffffff;
+  --crystal-bg:              #020810;
+  --crystal-surface:         #060f1a;
+  --crystal-surface-2:       #0a1625;
+  --crystal-text:            #d0eeff;
+  --crystal-text-muted:      #507090;
+  --crystal-glow:            rgba(96, 208, 255, 0.3);
+  --crystal-glow-strong:     rgba(160, 96, 255, 0.5);
+  --crystal-border:          rgba(96, 208, 255, 0.2);
+  --crystal-border-active:   rgba(255, 255, 255, 0.4);
+  --crystal-motion-duration: 2000ms;
+  --crystal-motion-easing:   cubic-bezier(0.65, 0, 0.35, 1);
+  --crystal-pulse-speed:     1200ms;
+  --crystal-transition:      200ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--crystal-bg);
+  color: var(--crystal-text);
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   TRANSITION OVERLAY
+────────────────────────────────────────────────────────────────── */
+
+body.crystal--transitioning * {
+  transition: background-color var(--crystal-transition),
+              color var(--crystal-transition),
+              border-color var(--crystal-transition),
+              box-shadow var(--crystal-transition) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   CRYSTAL FIELD LAYOUT
+────────────────────────────────────────────────────────────────── */
+
+.crystal-field {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  grid-template-columns: 1fr;
+  background: var(--crystal-bg, #06061a);
+  color: var(--crystal-text, #e8e8ff);
+}
+
+.crystal-field__declaration {
+  padding: 8px 20px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted, #7878aa);
+  border-bottom: 1px solid var(--crystal-border, rgba(168, 180, 255, 0.15));
+  text-align: center;
+  opacity: 0.7;
+}
+
+.crystal-field__active {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+}
+
+.crystal-field__orbit {
+  display: none; /* Crystal nav is handled inside each crystal component */
+}
+
+.crystal-field__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 32px;
+  opacity: 0.4;
+  animation: crystal-pulse var(--crystal-pulse-speed, 2s) ease-in-out infinite;
+}
+
+.crystal-field__entanglement {
+  position: fixed;
+  bottom: 60px;
+  right: 16px;
+  z-index: 90;
+}
+
+.crystal-field__love-filter {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   SOVEREIGN GUARD (Axiom I — always visible)
+────────────────────────────────────────────────────────────────── */
+
+.sovereign-guard {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--crystal-border, rgba(168, 180, 255, 0.15));
+}
+
+.sovereign-guard--stopped {
+  border-top-color: rgba(255, 80, 80, 0.5);
+  background: rgba(20, 0, 0, 0.85);
+}
+
+.sovereign-guard__axiom {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted, #7878aa);
+  opacity: 0.6;
+  flex: 1;
+}
+
+.sovereign-guard__controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sovereign-guard__btn {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--crystal-border, rgba(168, 180, 255, 0.2));
+  background: transparent;
+  color: var(--crystal-text-muted, #7878aa);
+  cursor: pointer;
+  transition: all 150ms ease;
+  letter-spacing: 0.05em;
+}
+
+.sovereign-guard__btn:hover:not(:disabled) {
+  color: var(--crystal-text, #e8e8ff);
+  border-color: var(--crystal-border-active, rgba(232, 232, 255, 0.5));
+  background: var(--crystal-surface, #0d0d2b);
+}
+
+.sovereign-guard__btn--stop {
+  border-color: rgba(255, 80, 80, 0.3);
+  color: rgba(255, 120, 120, 0.7);
+}
+
+.sovereign-guard__btn--stop:hover:not(:disabled) {
+  border-color: rgba(255, 80, 80, 0.7);
+  color: rgb(255, 120, 120);
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.sovereign-guard__btn--return {
+  color: var(--crystal-primary, #e8e8ff);
+  border-color: var(--crystal-border-active, rgba(232, 232, 255, 0.4));
+}
+
+.sovereign-guard__stopped-notice {
+  position: fixed;
+  inset: 0;
+  bottom: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(10, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 99;
+}
+
+.sovereign-guard__stopped-notice p {
+  color: rgba(255, 200, 200, 0.9);
+  font-size: 16px;
+  letter-spacing: 0.05em;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   LOVE FILTER
+────────────────────────────────────────────────────────────────── */
+
+.love-filter {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.love-filter__glow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crystal-primary, #e8e8ff), transparent 70%);
+  transition: opacity 400ms ease, transform 400ms ease, filter 400ms ease;
+}
+
+.love-filter--small .love-filter__glow  { width: 20px; height: 20px; }
+.love-filter--large .love-filter__glow  { width: 48px; height: 48px; }
+
+.love-filter__label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted, #7878aa);
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   ENTANGLEMENT STATE
+────────────────────────────────────────────────────────────────── */
+
+.entanglement-state {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.entanglement-state__core {
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crystal-primary, #e8e8ff) 0%, transparent 70%);
+  animation: crystal-pulse var(--crystal-pulse-speed, 3s) ease-in-out infinite;
+  transition: width 600ms ease, height 600ms ease, box-shadow 600ms ease;
+}
+
+.entanglement-state__node {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--crystal-secondary, #a8b4ff);
+  animation: crystal-orbit var(--crystal-pulse-speed, 3s) linear infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   KEYFRAME ANIMATIONS
+────────────────────────────────────────────────────────────────── */
+
+@keyframes crystal-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.08); }
+}
+
+@keyframes crystal-orbit {
+  from { transform: rotate(var(--start-angle, 0deg)) translateY(-20px) rotate(calc(-1 * var(--start-angle, 0deg))); }
+  to   { transform: rotate(calc(var(--start-angle, 0deg) + 360deg)) translateY(-20px) rotate(calc(-1 * (var(--start-angle, 0deg) + 360deg))); }
+}
+
+@keyframes sovereign-gem-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes status-appear {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}

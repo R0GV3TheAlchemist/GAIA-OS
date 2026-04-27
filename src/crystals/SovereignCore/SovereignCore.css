@@ -1,0 +1,474 @@
+/**
+ * src/crystals/SovereignCore/SovereignCore.css
+ * Sovereign Core Visual Identity
+ * Canon: C51, C54, C90
+ * Palette: Pure white, silver, clear crystal — commanding, centered, unhurried
+ */
+
+/* ── Root Layout ────────────────────────────────────────────────── */
+
+.sovereign-core {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 28px 80px;
+  overflow-y: auto;
+  animation: fade-in 400ms ease forwards;
+  gap: 24px;
+}
+
+/* ── Header ────────────────────────────────────────────────── */
+
+.sovereign-core__header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--crystal-border);
+}
+
+.sovereign-core__identity {
+  flex: 1;
+}
+
+.sovereign-core__declaration {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--crystal-primary);
+  line-height: 1.3;
+  margin: 0;
+}
+
+.sovereign-core__sub {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.06em;
+}
+
+/* ── Crystal Gem ─────────────────────────────────────────────── */
+
+.sovereign-gem {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sovereign-gem__outer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--crystal-border);
+  animation: sovereign-gem-rotate var(--crystal-motion-duration) linear infinite;
+}
+
+.sovereign-gem__middle {
+  position: absolute;
+  inset: 8px;
+  border-radius: 4px;
+  border: 1px solid var(--crystal-border-active);
+  animation: sovereign-gem-rotate calc(var(--crystal-motion-duration) * 0.7) linear infinite reverse;
+}
+
+.sovereign-gem__inner {
+  font-size: 24px;
+  color: var(--crystal-primary);
+  text-shadow: 0 0 12px var(--crystal-glow-strong);
+  z-index: 1;
+  position: relative;
+}
+
+.sovereign-gem__glow {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crystal-glow) 0%, transparent 70%);
+  animation: crystal-pulse var(--crystal-pulse-speed) ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ── Dashboard Grid ────────────────────────────────────────────── */
+
+.sovereign-core__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 16px;
+  grid-template-areas:
+    "clock   status"
+    "axioms  axioms"
+    "declare declare"
+    "nav     nav";
+}
+
+.sovereign-core__section {
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 8px;
+  padding: 16px;
+  animation: status-appear 400ms ease forwards;
+}
+
+.sovereign-core__section-label {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.sovereign-core__section--clock   { grid-area: clock;   }
+.sovereign-core__section--status  { grid-area: status;  }
+.sovereign-core__section--axioms  { grid-area: axioms;  }
+.sovereign-core__section--intentions { grid-area: declare; }
+.sovereign-core__section--nav     { grid-area: nav;     }
+
+/* ── Live Clock ───────────────────────────────────────────────── */
+
+.sovereign-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sovereign-clock__time {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-primary);
+  line-height: 1;
+}
+
+.sovereign-clock__h,
+.sovereign-clock__m {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sovereign-clock__sep {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--crystal-secondary);
+  animation: crystal-pulse 1000ms ease-in-out infinite;
+}
+
+.sovereign-clock__sep--dim {
+  font-size: 16px;
+  opacity: 0.5;
+}
+
+.sovereign-clock__s {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--crystal-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.sovereign-clock__date {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+
+/* ── Status Panel ─────────────────────────────────────────────── */
+
+.sovereign-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sovereign-status--loading {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.5;
+}
+
+.sovereign-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--crystal-primary);
+  animation: crystal-pulse 1500ms ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.sovereign-status__text {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.sovereign-status__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  border-bottom: 1px solid var(--crystal-border);
+  padding-bottom: 6px;
+}
+
+.sovereign-status__row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sovereign-status__label {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+}
+
+.sovereign-status__value {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text);
+  text-align: right;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sovereign-status__value--love {
+  color: var(--crystal-primary);
+  text-shadow: 0 0 8px var(--crystal-glow);
+}
+
+/* ── Axioms ──────────────────────────────────────────────────── */
+
+.sovereign-axioms {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sovereign-axioms__item {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--crystal-surface-2);
+  border-radius: 6px;
+  border-left: 2px solid var(--crystal-border-active);
+}
+
+.sovereign-axioms__num {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--crystal-secondary);
+}
+
+.sovereign-axioms__text {
+  font-size: 12px;
+  color: var(--crystal-text);
+  line-height: 1.4;
+}
+
+/* ── Intention Logger ──────────────────────────────────────────── */
+
+.sovereign-intentions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sovereign-intentions__form {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.sovereign-intentions__input {
+  flex: 1;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.sovereign-intentions__input::placeholder {
+  color: var(--crystal-text-muted);
+  opacity: 0.5;
+}
+
+.sovereign-intentions__input:focus {
+  border-color: var(--crystal-border-active);
+  box-shadow: 0 0 0 2px var(--crystal-glow);
+}
+
+.sovereign-intentions__submit {
+  width: 40px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  color: var(--crystal-primary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sovereign-intentions__submit:hover:not(:disabled) {
+  border-color: var(--crystal-border-active);
+  background: var(--crystal-surface);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
+
+.sovereign-intentions__submit:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sovereign-intentions__log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.sovereign-intentions__entry {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 10px;
+  background: var(--crystal-surface-2);
+  border-radius: 4px;
+  border-left: 2px solid var(--crystal-border);
+}
+
+.sovereign-intentions__entry-time {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted);
+  flex-shrink: 0;
+}
+
+.sovereign-intentions__entry-text {
+  flex: 1;
+  font-size: 12px;
+  color: var(--crystal-text);
+  line-height: 1.4;
+}
+
+.sovereign-intentions__entry-stamp {
+  font-size: 10px;
+  color: var(--crystal-secondary);
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+}
+
+/* ── Crystal Navigation ──────────────────────────────────────────── */
+
+.sovereign-nav__label {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.sovereign-nav__crystals {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 500px) {
+  .sovereign-nav__crystals {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.sovereign-nav__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 200ms ease;
+  color: var(--crystal-text-muted);
+  text-align: center;
+}
+
+.sovereign-nav__btn:hover,
+.sovereign-nav__btn--active {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-text);
+  background: var(--crystal-surface);
+  box-shadow: 0 0 12px var(--crystal-glow);
+}
+
+.sovereign-nav__btn-gem {
+  font-size: 20px;
+  transition: text-shadow 200ms ease;
+}
+
+.sovereign-nav__btn:hover .sovereign-nav__btn-gem,
+.sovereign-nav__btn--active .sovereign-nav__btn-gem {
+  text-shadow: 0 0 10px var(--crystal-glow-strong);
+}
+
+.sovereign-nav__btn-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.sovereign-nav__btn-declaration {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  opacity: 0.6;
+  max-width: 100%;
+}
+
+/* Crystal-specific nav button accents */
+.sovereign-nav__btn--anchor-prism:hover    { border-color: rgba(196, 168, 130, 0.4); }
+.sovereign-nav__btn--viriditas-heart:hover  { border-color: rgba(109, 184, 138, 0.4); }
+.sovereign-nav__btn--somnus-veil:hover      { border-color: rgba(96, 96, 192, 0.4);  }
+.sovereign-nav__btn--clarus-lens:hover      { border-color: rgba(96, 208, 255, 0.4); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+
+.sovereign-core::-webkit-scrollbar {
+  width: 4px;
+}
+.sovereign-core::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sovereign-core::-webkit-scrollbar-thumb {
+  background: var(--crystal-border);
+  border-radius: 2px;
+}
+.sovereign-core::-webkit-scrollbar-thumb:hover {
+  background: var(--crystal-border-active);
+}
