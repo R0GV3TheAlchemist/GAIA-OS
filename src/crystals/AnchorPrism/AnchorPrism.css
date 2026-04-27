@@ -1,0 +1,607 @@
+/**
+ * src/crystals/AnchorPrism/AnchorPrism.css
+ * Anchor Prism Visual Identity
+ * Canon: C51, C54, C90
+ * Palette: Warm white, stone grey, earth brown, golden morning light
+ * Motion philosophy: IT DOES NOT MOVE. IT HOLDS.
+ * The only motion is the breath ring — and only when the user starts it.
+ */
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.anchor-prism {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 28px 80px;
+  overflow-y: auto;
+  gap: 20px;
+  /* No entry animation — it just IS here. That is the point. */
+}
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.anchor-prism__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--crystal-border);
+  flex-wrap: wrap;
+}
+
+.anchor-prism__identity {
+  flex: 1;
+  min-width: 180px;
+}
+
+.anchor-prism__declaration {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--crystal-primary);
+  letter-spacing: 0.03em;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.anchor-prism__sub {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.anchor-prism__clock {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.anchor-prism__time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--crystal-accent);
+  letter-spacing: 0.04em;
+}
+
+.anchor-prism__date {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+/* ── Anchor Gem — the stone ─────────────────────────────────────── */
+/* It does not spin. It does not glow. It just sits there, completely still. */
+
+.anchor-gem {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.anchor-gem__stone {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--crystal-primary) 0%, var(--crystal-secondary) 100%);
+  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+  /* NO animation. It is still. */
+}
+
+.anchor-gem__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crystal-glow) 0%, transparent 70%);
+  /* No pulse. Steady warmth. */
+  opacity: 0.6;
+}
+
+/* ── Panel Navigation ────────────────────────────────────────────── */
+
+.anchor-prism__nav {
+  display: flex;
+  gap: 8px;
+}
+
+.anchor-prism__nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 200ms ease, background 200ms ease;
+  color: var(--crystal-text-muted);
+}
+
+.anchor-prism__nav-btn:hover,
+.anchor-prism__nav-btn--active {
+  border-color: var(--crystal-border-active);
+  background: var(--crystal-surface-2);
+  color: var(--crystal-text);
+}
+
+.anchor-prism__nav-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.anchor-prism__nav-sub {
+  font-size: 10px;
+  opacity: 0.6;
+  letter-spacing: 0.06em;
+}
+
+/* ── Active Panel ───────────────────────────────────────────────── */
+
+.anchor-prism__panel {
+  flex: 1;
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 10px;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* ── Breathwork Timer ───────────────────────────────────────────── */
+
+.anchor-breath {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.anchor-breath__modes {
+  display: flex;
+  gap: 8px;
+}
+
+.anchor-breath__mode-btn {
+  padding: 6px 16px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 20px;
+  color: var(--crystal-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.anchor-breath__mode-btn--active,
+.anchor-breath__mode-btn:hover {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-accent);
+  background: rgba(232, 213, 163, 0.08);
+}
+
+.anchor-breath__desc {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  text-align: center;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  max-width: 280px;
+}
+
+.anchor-breath__ring-wrap {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.anchor-breath__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--crystal-border-active);
+  background: radial-gradient(circle, var(--crystal-glow) 0%, transparent 70%);
+  /* Transition drives the breathing animation — real JS state changes scale */
+  transition: transform 1000ms var(--crystal-motion-easing, ease-in-out),
+              box-shadow 1000ms ease;
+  transform-origin: center;
+}
+
+.anchor-breath__ring--inhale {
+  box-shadow: 0 0 24px var(--crystal-glow-strong);
+}
+
+.anchor-breath__ring--hold {
+  box-shadow: 0 0 32px var(--crystal-glow-strong);
+}
+
+.anchor-breath__ring--exhale {
+  box-shadow: 0 0 12px var(--crystal-glow);
+}
+
+.anchor-breath__ring--rest,
+.anchor-breath__ring--idle {
+  box-shadow: none;
+}
+
+.anchor-breath__ring-inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.anchor-breath__phase-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--crystal-text);
+  letter-spacing: 0.06em;
+}
+
+.anchor-breath__countdown {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--crystal-accent);
+  line-height: 1;
+}
+
+.anchor-breath__controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.anchor-breath__btn {
+  padding: 10px 28px;
+  border-radius: 6px;
+  border: 1px solid var(--crystal-border-active);
+  background: transparent;
+  color: var(--crystal-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.anchor-breath__btn--start:hover {
+  background: rgba(245, 230, 200, 0.08);
+  box-shadow: 0 0 12px var(--crystal-glow);
+}
+
+.anchor-breath__btn--stop {
+  border-color: rgba(196, 168, 130, 0.4);
+  color: var(--crystal-text-muted);
+}
+
+.anchor-breath__cycles {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.08em;
+}
+
+/* ── 5-4-3-2-1 Grounding ─────────────────────────────────────────── */
+
+.anchor-grounding {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.anchor-grounding__step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.anchor-grounding__sense {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--crystal-primary);
+  letter-spacing: 0.04em;
+}
+
+.anchor-grounding__remaining {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.anchor-grounding__prompt {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.anchor-grounding__entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.anchor-grounding__entry {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 10px;
+  background: var(--crystal-surface-2);
+  border-radius: 4px;
+}
+
+.anchor-grounding__entry-num {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-secondary);
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.anchor-grounding__entry-text {
+  font-size: 13px;
+  color: var(--crystal-text);
+}
+
+.anchor-grounding__input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.anchor-grounding__input {
+  flex: 1;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 9px 13px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.anchor-grounding__input:focus {
+  border-color: var(--crystal-border-active);
+}
+
+.anchor-grounding__input::placeholder {
+  color: var(--crystal-text-muted);
+  opacity: 0.45;
+  font-style: italic;
+}
+
+.anchor-grounding__add {
+  width: 38px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  color: var(--crystal-primary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.anchor-grounding__add:hover:not(:disabled) {
+  border-color: var(--crystal-border-active);
+  background: var(--crystal-surface);
+}
+
+.anchor-grounding__add:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.anchor-grounding__progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.anchor-grounding__pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--crystal-border);
+  transition: background 300ms ease, transform 300ms ease;
+}
+
+.anchor-grounding__pip--active {
+  background: var(--crystal-primary);
+  transform: scale(1.3);
+}
+
+.anchor-grounding__pip--done {
+  background: var(--crystal-secondary);
+}
+
+.anchor-grounding--done {
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 160px;
+}
+
+.anchor-grounding__complete {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--crystal-accent);
+  letter-spacing: 0.06em;
+}
+
+.anchor-grounding__done-text {
+  font-size: 13px;
+  color: var(--crystal-text-muted);
+  text-align: center;
+  max-width: 260px;
+  line-height: 1.6;
+}
+
+.anchor-grounding__reset {
+  padding: 8px 20px;
+  background: transparent;
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  color: var(--crystal-text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 150ms ease;
+}
+
+.anchor-grounding__reset:hover {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-text);
+}
+
+/* ── Presence Log ────────────────────────────────────────────────── */
+
+.anchor-presence {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.anchor-presence__input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.anchor-presence__prefix {
+  font-size: 13px;
+  color: var(--crystal-text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  font-style: italic;
+}
+
+.anchor-presence__input {
+  flex: 1;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 9px 13px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.anchor-presence__input:focus {
+  border-color: var(--crystal-border-active);
+}
+
+.anchor-presence__input::placeholder {
+  color: var(--crystal-text-muted);
+  opacity: 0.4;
+  font-style: italic;
+}
+
+.anchor-presence__submit {
+  width: 38px;
+  height: 38px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  color: var(--crystal-primary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.anchor-presence__submit:hover:not(:disabled) {
+  border-color: var(--crystal-border-active);
+  box-shadow: 0 0 8px var(--crystal-glow);
+}
+
+.anchor-presence__submit:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.anchor-presence__log {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.anchor-presence__entry {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 11px;
+  background: var(--crystal-surface-2);
+  border-radius: 4px;
+  border-left: 2px solid var(--crystal-border);
+}
+
+.anchor-presence__entry-time {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted);
+  flex-shrink: 0;
+}
+
+.anchor-presence__entry-text {
+  font-size: 12px;
+  color: var(--crystal-text);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* ── Layer tags ─────────────────────────────────────────────────── */
+
+.anchor-prism__layers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.anchor-prism__layer-tag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--crystal-border);
+  border-radius: 3px;
+  opacity: 0.5;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+
+.anchor-prism::-webkit-scrollbar,
+.anchor-prism__panel::-webkit-scrollbar,
+.anchor-presence__log::-webkit-scrollbar,
+.anchor-grounding__entries::-webkit-scrollbar { width: 3px; }
+
+.anchor-prism::-webkit-scrollbar-track,
+.anchor-prism__panel::-webkit-scrollbar-track,
+.anchor-presence__log::-webkit-scrollbar-track,
+.anchor-grounding__entries::-webkit-scrollbar-track { background: transparent; }
+
+.anchor-prism::-webkit-scrollbar-thumb,
+.anchor-prism__panel::-webkit-scrollbar-thumb,
+.anchor-presence__log::-webkit-scrollbar-thumb,
+.anchor-grounding__entries::-webkit-scrollbar-thumb {
+  background: var(--crystal-border);
+  border-radius: 2px;
+}
