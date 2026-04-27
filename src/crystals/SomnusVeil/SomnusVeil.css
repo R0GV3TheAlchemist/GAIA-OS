@@ -1,0 +1,761 @@
+/**
+ * src/crystals/SomnusVeil/SomnusVeil.css
+ * Somnus Veil Visual Identity
+ * Canon: C90, C51, C54
+ * Palette: Deep indigo, midnight blue, soft silver, near-black
+ * Motion: The slowest crystal. Everything takes longer. Fades, not snaps.
+ * The gem drifts. Stars just exist. Nothing here rushes.
+ */
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.somnus {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 28px 80px;
+  overflow-y: auto;
+  gap: 18px;
+  position: relative;
+  animation: somnus-enter 800ms ease-out both;
+}
+
+@keyframes somnus-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+  /* Just a fade. No movement. You arrived quietly. */
+}
+
+/* ── Star field ────────────────────────────────────────────────── */
+/* Static. They don’t twinkle. They’re just there. */
+
+.somnus__stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.somnus__star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--crystal-primary);
+  opacity: 0.18;
+}
+
+/* Scatter them manually — no JS randomness, deterministic positions */
+.somnus__star--0  { top:  8%; left: 12%; }
+.somnus__star--1  { top: 15%; left: 78%; }
+.somnus__star--2  { top: 23%; left: 45%; width: 3px; height: 3px; opacity: 0.12; }
+.somnus__star--3  { top: 31%; left: 91%; }
+.somnus__star--4  { top: 42%; left:  6%; }
+.somnus__star--5  { top: 48%; left: 63%; width: 1px; height: 1px; opacity: 0.25; }
+.somnus__star--6  { top: 57%; left: 33%; }
+.somnus__star--7  { top: 64%; left: 87%; width: 3px; height: 3px; opacity: 0.10; }
+.somnus__star--8  { top: 71%; left: 19%; }
+.somnus__star--9  { top: 79%; left: 54%; }
+.somnus__star--10 { top: 86%; left: 72%; width: 1px; height: 1px; opacity: 0.22; }
+.somnus__star--11 { top: 93%; left: 38%; }
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.somnus__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--crystal-border);
+  position: relative;
+  z-index: 1;
+}
+
+.somnus__identity { flex: 1; }
+
+.somnus__declaration {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--crystal-primary);
+  letter-spacing: 0.04em;
+  margin: 0;
+  line-height: 1.4;
+  /* Slightly lighter weight than other crystals — it’s tired, gently */
+}
+
+.somnus__sub {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* ── Somnus Gem ────────────────────────────────────────────────── */
+/* Ultra-slow drift rotation — like something sinking in deep water. */
+
+.somnus-gem {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.somnus-gem__inner {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(160deg, var(--crystal-primary) 0%, var(--crystal-secondary) 50%, var(--crystal-bg) 100%);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  animation: somnus-gem-drift 12s ease-in-out infinite;
+  /* 12 second cycle — the slowest gem in GAIA */
+}
+
+@keyframes somnus-gem-drift {
+  0%,100% { transform: rotate(0deg)   scale(1);    opacity: 0.9; }
+  25%     { transform: rotate(6deg)   scale(0.97); opacity: 0.75; }
+  50%     { transform: rotate(0deg)   scale(1.03); opacity: 0.85; }
+  75%     { transform: rotate(-5deg)  scale(0.98); opacity: 0.80; }
+}
+
+.somnus-gem__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crystal-glow) 0%, transparent 65%);
+  animation: somnus-glow 12s ease-in-out infinite;
+  opacity: 0.3;
+}
+
+@keyframes somnus-glow {
+  0%,100% { opacity: 0.3; transform: scale(1);    }
+  50%     { opacity: 0.5; transform: scale(1.08); }
+}
+
+/* ── Panel Navigation ────────────────────────────────────────────── */
+
+.somnus__nav {
+  display: flex;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.somnus__nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 8px;
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 400ms ease, background 400ms ease;
+  /* Slower transition — everything here is slower */
+  color: var(--crystal-text-muted);
+}
+
+.somnus__nav-btn:hover,
+.somnus__nav-btn--active {
+  border-color: var(--crystal-border-active);
+  background: var(--crystal-surface-2);
+  color: var(--crystal-text);
+}
+
+.somnus__nav-label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.somnus__nav-sub {
+  font-size: 10px;
+  opacity: 0.55;
+  letter-spacing: 0.06em;
+}
+
+/* ── Active Panel ───────────────────────────────────────────────── */
+
+.somnus__panel {
+  flex: 1;
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 10px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Wind Down Panel ───────────────────────────────────────────── */
+
+.somnus-winddown {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.somnus-winddown__steps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.somnus-winddown__step-btn {
+  padding: 6px 14px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 20px;
+  color: var(--crystal-text-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 300ms ease;
+}
+
+.somnus-winddown__step-btn--active,
+.somnus-winddown__step-btn:hover {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-text);
+}
+
+.somnus-winddown__step-sep {
+  color: var(--crystal-text-muted);
+  opacity: 0.4;
+  font-size: 12px;
+}
+
+/* ── Slow Breath ─────────────────────────────────────────────────── */
+
+.somnus-breath {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.somnus-breath__desc {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  text-align: center;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  max-width: 280px;
+}
+
+.somnus-breath__orb-wrap {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0;
+}
+
+.somnus-breath__orb {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid var(--crystal-border-active);
+  background: radial-gradient(circle, var(--crystal-glow) 0%, transparent 65%);
+  transition: transform 1000ms ease-in-out, box-shadow 1000ms ease;
+  transform-origin: center;
+}
+
+.somnus-breath__orb--inhale,
+.somnus-breath__orb--hold_in  { box-shadow: 0 0 20px var(--crystal-glow); }
+.somnus-breath__orb--exhale,
+.somnus-breath__orb--hold_out { box-shadow: none; }
+
+.somnus-breath__center {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.somnus-breath__label {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--crystal-text);
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.somnus-breath__count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--crystal-accent);
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.somnus-breath__controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.somnus-breath__btn {
+  padding: 10px 24px;
+  border-radius: 6px;
+  border: 1px solid var(--crystal-border);
+  background: transparent;
+  color: var(--crystal-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 300ms ease;
+}
+
+.somnus-breath__btn--start:hover {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-primary);
+}
+
+.somnus-breath__cycles {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  opacity: 0.5;
+  letter-spacing: 0.08em;
+}
+
+/* ── Body Scan ──────────────────────────────────────────────────── */
+
+.somnus-scan { display: flex; flex-direction: column; gap: 12px; }
+
+.somnus-scan__intro {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.somnus-scan__zones { display: flex; flex-direction: column; gap: 6px; }
+
+.somnus-scan__zone {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 400ms ease;
+  color: var(--crystal-text);
+}
+
+.somnus-scan__zone--released {
+  border-color: var(--crystal-border-active);
+  background: rgba(100, 116, 170, 0.08);
+  opacity: 0.6;
+}
+
+.somnus-scan__zone-label {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.somnus-scan__zone-prompt {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.03em;
+  font-style: italic;
+  line-height: 1.4;
+  grid-column: 1 / 2;
+  grid-row: 2;
+  opacity: 0.7;
+}
+
+.somnus-scan__zone-check {
+  font-size: 14px;
+  color: var(--crystal-primary);
+  grid-row: 1 / 3;
+  align-self: center;
+}
+
+.somnus-scan__complete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(100, 116, 170, 0.06);
+  border-radius: 6px;
+  border: 1px solid var(--crystal-border-active);
+}
+
+.somnus-scan__complete span {
+  font-size: 12px;
+  color: var(--crystal-text);
+  letter-spacing: 0.04em;
+  font-style: italic;
+}
+
+.somnus-scan__reset {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+.somnus-scan__reset:hover { opacity: 1; }
+
+/* ── Dream Log ───────────────────────────────────────────────────── */
+
+.somnus-dream {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.somnus-dream__intro {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  font-style: italic;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.somnus-dream__text {
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 10px 13px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  resize: none;
+  line-height: 1.55;
+  transition: border-color 300ms ease;
+}
+
+.somnus-dream__text:focus { border-color: var(--crystal-border-active); }
+.somnus-dream__text::placeholder { color: var(--crystal-text-muted); opacity: 0.35; font-style: italic; }
+
+.somnus-dream__tags-area { display: flex; flex-direction: column; gap: 8px; }
+
+.somnus-dream__active-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+
+.somnus-dream__tag {
+  padding: 3px 8px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+}
+
+.somnus-dream__tag--active {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-text);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.somnus-dream__tag--active button {
+  background: none;
+  border: none;
+  color: var(--crystal-text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+
+.somnus-dream__tag-input-row { display: flex; }
+
+.somnus-dream__tag-input {
+  width: 140px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 300ms ease;
+}
+
+.somnus-dream__tag-input:focus { border-color: var(--crystal-border-active); }
+.somnus-dream__tag-input::placeholder { color: var(--crystal-text-muted); opacity: 0.35; font-style: italic; }
+
+.somnus-dream__suggested-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.somnus-dream__suggested-tag {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--crystal-border);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  opacity: 0.55;
+  transition: all 200ms ease;
+}
+
+.somnus-dream__suggested-tag:hover {
+  opacity: 1;
+  border-color: var(--crystal-border-active);
+}
+
+.somnus-dream__save {
+  padding: 9px 20px;
+  background: transparent;
+  border: 1px solid var(--crystal-border-active);
+  border-radius: 6px;
+  color: var(--crystal-primary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 300ms ease;
+  align-self: flex-start;
+}
+
+.somnus-dream__save:hover:not(:disabled) {
+  background: rgba(100, 116, 170, 0.1);
+}
+
+.somnus-dream__save:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.somnus-dream__log { display: flex; flex-direction: column; gap: 6px; }
+
+.somnus-dream__log-header {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  padding-top: 8px;
+  border-top: 1px solid var(--crystal-border);
+}
+
+.somnus-dream__log-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 300ms ease;
+}
+
+.somnus-dream__log-entry:hover { border-color: var(--crystal-border-active); }
+
+.somnus-dream__log-date {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted);
+  opacity: 0.55;
+}
+
+.somnus-dream__log-preview {
+  font-size: 12px;
+  color: var(--crystal-text);
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.somnus-dream__log-tags {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+
+/* view mode */
+.somnus-dream--view { justify-content: flex-start; }
+.somnus-dream__back {
+  background: none; border: none; color: var(--crystal-text-muted);
+  font-size: 12px; cursor: pointer; letter-spacing: 0.04em; opacity: 0.6;
+  align-self: flex-start;
+}
+.somnus-dream__back:hover { opacity: 1; }
+
+.somnus-dream__view-date {
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted); opacity: 0.55; letter-spacing: 0.04em;
+}
+
+.somnus-dream__view-text {
+  font-size: 14px; color: var(--crystal-text); line-height: 1.65;
+  font-style: italic; white-space: pre-wrap;
+}
+
+.somnus-dream__view-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── Session Close ──────────────────────────────────────────────── */
+
+.somnus-close {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  height: 100%;
+  justify-content: center;
+}
+
+.somnus-close__reflection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  background: rgba(100, 116, 170, 0.06);
+  border-radius: 8px;
+  border-left: 2px solid var(--crystal-border-active);
+}
+
+.somnus-close__gaia-word {
+  font-size: 15px;
+  color: var(--crystal-text);
+  line-height: 1.65;
+  font-style: italic;
+  font-weight: 300;
+}
+
+.somnus-close__attr {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+
+.somnus-close__ritual {
+  padding: 0 4px;
+}
+
+.somnus-close__ritual-text {
+  font-size: 13px;
+  color: var(--crystal-text-muted);
+  line-height: 1.7;
+  letter-spacing: 0.03em;
+  opacity: 0.7;
+}
+
+.somnus-close__btn {
+  padding: 12px 24px;
+  background: transparent;
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  color: var(--crystal-text-muted);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 400ms ease;
+  align-self: flex-start;
+}
+
+.somnus-close__btn:hover:not(:disabled) {
+  border-color: var(--crystal-border-active);
+  color: var(--crystal-primary);
+}
+
+.somnus-close__btn--closing {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.somnus-close--done {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 16px;
+}
+
+.somnus-close__goodnight {
+  font-size: 36px;
+  animation: somnus-moon-settle 2s ease-out both;
+}
+
+@keyframes somnus-moon-settle {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.somnus-close__final {
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--crystal-primary);
+  letter-spacing: 0.12em;
+}
+
+.somnus-close__final-sub {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ── Layer tags ─────────────────────────────────────────────────── */
+
+.somnus__layers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.somnus__layer-tag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--crystal-border);
+  border-radius: 3px;
+  opacity: 0.4;
+  /* Even more faded than other crystals. It’s quiet here. */
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────── */
+
+.somnus::-webkit-scrollbar,
+.somnus__panel::-webkit-scrollbar,
+.somnus-dream::-webkit-scrollbar { width: 2px; /* thinner — quieter */ }
+
+.somnus::-webkit-scrollbar-track,
+.somnus__panel::-webkit-scrollbar-track,
+.somnus-dream::-webkit-scrollbar-track { background: transparent; }
+
+.somnus::-webkit-scrollbar-thumb,
+.somnus__panel::-webkit-scrollbar-thumb,
+.somnus-dream::-webkit-scrollbar-thumb {
+  background: var(--crystal-border);
+  border-radius: 2px;
+  opacity: 0.5;
+}
