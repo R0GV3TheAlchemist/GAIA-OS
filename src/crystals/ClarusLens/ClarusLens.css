@@ -1,0 +1,815 @@
+/**
+ * src/crystals/ClarusLens/ClarusLens.css
+ * Clarus Lens Visual Identity
+ * Canon: C90, C51, C54
+ * Palette: Electric ice-blue, clean white, pure black, sharp silver
+ * Motion: Fastest crystal. Snaps. Cuts. No fading into softness.
+ * The gem is a prism. It refracts. The coherence bar fills with light.
+ */
+
+/* ── Root ──────────────────────────────────────────────────── */
+
+.clarus {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 28px 80px;
+  overflow-y: auto;
+  gap: 18px;
+  position: relative;
+  animation: clarus-enter 200ms ease-out both;
+  /* Fast entry — sharpest crystal */
+}
+
+@keyframes clarus-enter {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+  /* Comes in from above. Clarity descends. */
+}
+
+/* ── Prism light rays (background decoration) ──────────────────────── */
+
+.clarus__rays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.clarus__ray {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(to bottom, var(--crystal-glow) 0%, transparent 60%);
+  opacity: 0.06;
+}
+
+.clarus__ray--1 { left: 25%; }
+.clarus__ray--2 { left: 50%; opacity: 0.10; }
+.clarus__ray--3 { left: 75%; }
+
+/* ── Header ──────────────────────────────────────────────────── */
+
+.clarus__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--crystal-border);
+  position: relative;
+  z-index: 1;
+}
+
+.clarus__identity { flex: 1; }
+
+.clarus__declaration {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--crystal-primary);
+  letter-spacing: 0.05em;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.clarus__sub {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Clarus Gem (Prism) ────────────────────────────────────────────── */
+/* Sharp faceted prism. Rotates precisely. Refracts. */
+
+.clarus-gem {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clarus-gem__prism {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg,
+    var(--crystal-primary) 0%,
+    var(--crystal-accent)  40%,
+    var(--crystal-secondary) 70%,
+    var(--crystal-primary) 100%);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  /* Triangle prism */
+  animation: clarus-prism-rotate 6s linear infinite;
+  /* Precise, mechanical rotation — not organic */
+}
+
+@keyframes clarus-prism-rotate {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+
+.clarus-gem__glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--crystal-glow) 0%, transparent 60%);
+  opacity: 0.4;
+  animation: clarus-glow-pulse 6s ease-in-out infinite;
+}
+
+@keyframes clarus-glow-pulse {
+  0%,100% { opacity: 0.4; }
+  50%     { opacity: 0.7; }
+}
+
+.clarus-gem__spectrum {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 3px;
+  background: linear-gradient(to right,
+    hsl(270,70%,60%),
+    hsl(220,80%,65%),
+    hsl(180,70%,60%),
+    hsl(120,60%,55%),
+    hsl(60,70%,60%),
+    hsl(30,80%,60%),
+    hsl(0,70%,60%)
+  );
+  border-radius: 1px;
+  opacity: 0.5;
+  /* The spectrum. Light has been split. */
+}
+
+/* ── Panel Navigation ────────────────────────────────────────────── */
+
+.clarus__nav {
+  display: flex;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.clarus__nav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px;
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 100ms ease, background 100ms ease;
+  /* Fast — 100ms not 200ms */
+  color: var(--crystal-text-muted);
+}
+
+.clarus__nav-btn:hover,
+.clarus__nav-btn--active {
+  border-color: var(--crystal-border-active);
+  background: var(--crystal-surface-2);
+  color: var(--crystal-text);
+}
+
+.clarus__nav-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.clarus__nav-sub {
+  font-size: 9px;
+  opacity: 0.55;
+  letter-spacing: 0.08em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Panel container ─────────────────────────────────────────────── */
+
+.clarus__panel {
+  flex: 1;
+  background: var(--crystal-surface);
+  border: 1px solid var(--crystal-border);
+  border-radius: 8px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Inquire Panel ─────────────────────────────────────────────── */
+
+.clarus-inquire {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.clarus-inquire__progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clarus-inquire__progress-bar {
+  flex: 1;
+  height: 2px;
+  background: var(--crystal-border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.clarus-inquire__progress-fill {
+  height: 100%;
+  background: var(--crystal-primary);
+  transition: width 200ms ease;
+}
+
+.clarus-inquire__progress-label {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+}
+
+.clarus-inquire__question {
+  font-size: 15px;
+  color: var(--crystal-text);
+  line-height: 1.55;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-left: 2px solid var(--crystal-border-active);
+  padding-left: 14px;
+}
+
+.clarus-inquire__last-reflection {
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.clarus-inquire__reflection-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crystal-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.clarus-inquire__reflection-text {
+  font-size: 12px;
+  color: var(--crystal-text);
+  line-height: 1.55;
+  font-style: italic;
+}
+
+.clarus-inquire__input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clarus-inquire__input {
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  transition: border-color 100ms ease;
+}
+
+.clarus-inquire__input:focus { border-color: var(--crystal-border-active); }
+.clarus-inquire__input::placeholder { color: var(--crystal-text-muted); opacity: 0.4; font-style: italic; }
+
+.clarus-inquire__submit {
+  align-self: flex-end;
+  padding: 8px 22px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border-active);
+  border-radius: 4px;
+  color: var(--crystal-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+
+.clarus-inquire__submit:hover:not(:disabled) {
+  background: rgba(100, 180, 220, 0.12);
+  box-shadow: 0 0 10px var(--crystal-glow);
+}
+
+.clarus-inquire__submit:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* done state */
+.clarus-inquire--done .clarus-inquire__done-header {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crystal-primary);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--crystal-border);
+}
+
+.clarus-inquire__exchanges { display: flex; flex-direction: column; gap: 16px; }
+
+.clarus-inquire__exchange { display: flex; flex-direction: column; gap: 6px; }
+
+.clarus-inquire__q {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.clarus-inquire__a {
+  font-size: 13px;
+  color: var(--crystal-text);
+  font-style: italic;
+  padding-left: 10px;
+  border-left: 2px solid var(--crystal-border);
+}
+
+.clarus-inquire__r {
+  font-size: 12px;
+  color: var(--crystal-primary);
+  line-height: 1.55;
+  padding: 8px 10px;
+  background: var(--crystal-surface-2);
+  border-radius: 4px;
+}
+
+.clarus-inquire__restart {
+  margin-top: 8px;
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+}
+.clarus-inquire__restart:hover { opacity: 1; }
+
+/* ── Signal Panel ─────────────────────────────────────────────────── */
+
+.clarus-signal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.clarus-signal__intro {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.04em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.clarus-signal__fields { display: flex; flex-direction: column; gap: 10px; }
+
+.clarus-signal__field { display: flex; flex-direction: column; gap: 5px; }
+
+.clarus-signal__field-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crystal-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.clarus-signal__field-input {
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 9px 13px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  resize: none;
+  line-height: 1.5;
+  transition: border-color 100ms ease;
+}
+
+.clarus-signal__field-input:focus { border-color: var(--crystal-border-active); }
+.clarus-signal__field-input::placeholder { color: var(--crystal-text-muted); opacity: 0.35; font-style: italic; }
+
+.clarus-signal__save {
+  padding: 9px 20px;
+  background: transparent;
+  border: 1px solid var(--crystal-border-active);
+  border-radius: 4px;
+  color: var(--crystal-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 100ms ease;
+  align-self: flex-start;
+}
+
+.clarus-signal__save:hover:not(:disabled) { background: rgba(100,180,220,0.1); }
+.clarus-signal__save--saved { color: var(--crystal-secondary); border-color: var(--crystal-secondary); }
+.clarus-signal__save:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.clarus-signal__log { display: flex; flex-direction: column; gap: 8px; }
+
+.clarus-signal__log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--crystal-border);
+}
+
+.clarus-signal__log-header span {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.clarus-signal__copy {
+  font-size: 10px;
+  color: var(--crystal-text-muted);
+  background: none;
+  border: 1px solid var(--crystal-border);
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  transition: all 100ms ease;
+}
+.clarus-signal__copy:hover { opacity: 1; border-color: var(--crystal-border-active); }
+
+.clarus-signal__entry {
+  padding: 10px 12px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.clarus-signal__entry-time {
+  font-size: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted);
+  opacity: 0.5;
+  letter-spacing: 0.08em;
+}
+
+.clarus-signal__entry-row {
+  font-size: 12px;
+  color: var(--crystal-text);
+  line-height: 1.45;
+}
+
+.clarus-signal__entry-row strong {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  margin-right: 6px;
+}
+
+/* ── Lineage Panel ────────────────────────────────────────────────── */
+
+.clarus-lineage {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.clarus-lineage__intro {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  line-height: 1.65;
+  letter-spacing: 0.03em;
+  max-width: 320px;
+}
+
+.clarus-lineage__input-row { display: flex; gap: 10px; align-items: center; }
+
+.clarus-lineage__input {
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  padding: 9px 13px;
+  color: var(--crystal-text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 100ms ease;
+  color-scheme: dark;
+}
+.clarus-lineage__input:focus { border-color: var(--crystal-border-active); }
+
+.clarus-lineage__compute {
+  padding: 9px 18px;
+  background: transparent;
+  border: 1px solid var(--crystal-border-active);
+  border-radius: 4px;
+  color: var(--crystal-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 100ms ease;
+}
+.clarus-lineage__compute:hover:not(:disabled) { background: rgba(100,180,220,0.1); }
+.clarus-lineage__compute:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.clarus-lineage__result { display: flex; flex-direction: column; gap: 12px; }
+
+.clarus-lineage__headline {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.clarus-lineage__sign {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--crystal-primary);
+  letter-spacing: 0.04em;
+}
+
+.clarus-lineage__wiring {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.clarus-lineage__card {
+  padding: 12px 14px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.clarus-lineage__card-label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--crystal-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.clarus-lineage__card-text {
+  font-size: 13px;
+  color: var(--crystal-text);
+  line-height: 1.55;
+}
+
+.clarus-lineage__caveat {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.04em;
+  font-style: italic;
+  line-height: 1.6;
+  opacity: 0.7;
+  border-top: 1px solid var(--crystal-border);
+  padding-top: 10px;
+}
+
+.clarus-lineage__reset {
+  font-size: 11px;
+  color: var(--crystal-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+  align-self: flex-start;
+}
+.clarus-lineage__reset:hover { opacity: 1; }
+
+/* ── Coherence Panel ─────────────────────────────────────────────── */
+
+.clarus-coherence {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.clarus-coherence__score-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clarus-coherence__score-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.clarus-coherence__bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clarus-coherence__bar {
+  flex: 1;
+  height: 4px;
+  background: var(--crystal-border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.clarus-coherence__fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 600ms ease, background 600ms ease;
+}
+
+.clarus-coherence__fill--scattered  { background: hsl(0, 40%, 50%); }
+.clarus-coherence__fill--settling   { background: hsl(30, 60%, 55%); }
+.clarus-coherence__fill--present    { background: hsl(200, 60%, 55%); }
+.clarus-coherence__fill--coherent   { background: hsl(200, 80%, 65%); }
+.clarus-coherence__fill--avatar     { background: linear-gradient(to right, var(--crystal-primary), var(--crystal-accent)); }
+
+.clarus-coherence__pct {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--crystal-text-muted);
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+  width: 36px;
+}
+
+.clarus-coherence__level {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.clarus-coherence__level--scattered  { color: hsl(0, 40%, 60%); }
+.clarus-coherence__level--settling   { color: hsl(30, 60%, 65%); }
+.clarus-coherence__level--present    { color: hsl(200, 60%, 65%); }
+.clarus-coherence__level--coherent   { color: hsl(200, 80%, 70%); }
+.clarus-coherence__level--avatar     { color: var(--crystal-accent); }
+
+.clarus-coherence__desc {
+  font-size: 12px;
+  color: var(--crystal-text-muted);
+  line-height: 1.55;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+.clarus-coherence__checks { display: flex; flex-direction: column; gap: 7px; }
+
+.clarus-coherence__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--crystal-surface-2);
+  border: 1px solid var(--crystal-border);
+  border-radius: 5px;
+  transition: border-color 300ms ease, opacity 300ms ease;
+  opacity: 0.5;
+}
+
+.clarus-coherence__check--active {
+  border-color: var(--crystal-border-active);
+  opacity: 1;
+}
+
+.clarus-coherence__check-icon {
+  font-size: 12px;
+  color: var(--crystal-primary);
+  flex-shrink: 0;
+  width: 16px;
+}
+
+.clarus-coherence__check-label {
+  font-size: 12px;
+  color: var(--crystal-text);
+  letter-spacing: 0.03em;
+}
+
+/* Avatar state celebration */
+.clarus-coherence__avatar-state {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: rgba(100, 200, 255, 0.06);
+  border: 1px solid var(--crystal-border-active);
+  border-radius: 8px;
+  animation: clarus-avatar-appear 400ms ease-out both;
+}
+
+@keyframes clarus-avatar-appear {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.clarus-coherence__avatar-icon {
+  font-size: 24px;
+  color: var(--crystal-accent);
+  animation: clarus-prism-rotate 3s linear infinite;
+  display: inline-block;
+}
+
+.clarus-coherence__avatar-text {
+  font-size: 13px;
+  color: var(--crystal-text);
+  line-height: 1.6;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+/* ── Layer tags ─────────────────────────────────────────────────── */
+
+.clarus__layers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.clarus__layer-tag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crystal-text-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--crystal-border);
+  border-radius: 3px;
+  opacity: 0.55;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────── */
+
+.clarus::-webkit-scrollbar,
+.clarus__panel::-webkit-scrollbar,
+.clarus-signal::-webkit-scrollbar,
+.clarus-inquire::-webkit-scrollbar { width: 3px; }
+
+.clarus::-webkit-scrollbar-track,
+.clarus__panel::-webkit-scrollbar-track,
+.clarus-signal::-webkit-scrollbar-track,
+.clarus-inquire::-webkit-scrollbar-track { background: transparent; }
+
+.clarus::-webkit-scrollbar-thumb,
+.clarus__panel::-webkit-scrollbar-thumb,
+.clarus-signal::-webkit-scrollbar-thumb,
+.clarus-inquire::-webkit-scrollbar-thumb {
+  background: var(--crystal-border);
+  border-radius: 2px;
+}
