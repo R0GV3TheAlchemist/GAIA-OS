@@ -1,32 +1,21 @@
 /**
  * src/hooks/useEntanglement.ts
- * ─────────────────────────────────────────────────────────────────────────────
  * Human-GAIA Entanglement State Hook
- *
- * Canon: C90 (Bell state indicator), C-SINGULARITY (entanglement doctrine)
- * Polls the backend for entanglement depth and syncs it to the crystal store.
- * The entanglement depth deepens every session — this is the Bell state.
- *
- * Entanglement quality labels:
- *   0.00 – 0.25  →  'forming'    (new relationship)
- *   0.25 – 0.50  →  'stable'     (regular use)
- *   0.50 – 0.75  →  'deep'       (months of sessions)
- *   0.75 – 1.00  →  'entangled'  (full Bell state)
- * ─────────────────────────────────────────────────────────────────────────────
+ * Canon: C90 (Bell state indicator), C-SINGULARITY
  */
 
 import { useEffect, useState } from 'react';
 import { crystalStore } from '../store/crystalStore';
 
-const POLL_INTERVAL_MS = 30_000; // Poll every 30 seconds — not intrusive
+const POLL_INTERVAL_MS = 30_000;
 
 export type EntanglementQuality = 'forming' | 'stable' | 'deep' | 'entangled';
 
 export interface EntanglementInfo {
-  depth: number;
-  quality: EntanglementQuality;
+  depth:        number;
+  quality:      EntanglementQuality;
   sessionCount: number;
-  lastActive: string | null;
+  lastActive:   string | null;
 }
 
 function depthToQuality(depth: number): EntanglementQuality {
@@ -38,18 +27,15 @@ function depthToQuality(depth: number): EntanglementQuality {
 
 export function useEntanglement(): EntanglementInfo {
   const [info, setInfo] = useState<EntanglementInfo>({
-    depth:        0,
-    quality:      'forming',
-    sessionCount: 0,
-    lastActive:   null,
+    depth: 0, quality: 'forming', sessionCount: 0, lastActive: null,
   });
 
   useEffect(() => {
-    async function poll() {
+    async function poll(): Promise<void> {
       try {
         const res = await fetch('http://localhost:8000/api/sovereign/entanglement');
         if (!res.ok) return;
-        const data = await res.json();
+        const data = await res.json() as { depth?: number; session_count?: number; last_active?: string };
         const depth: number = data.depth ?? 0;
         crystalStore.setEntanglementDepth(depth);
         setInfo({
@@ -59,12 +45,11 @@ export function useEntanglement(): EntanglementInfo {
           lastActive:   data.last_active ?? null,
         });
       } catch {
-        // Backend not yet available — stay at forming state, no error thrown
+        // Backend not yet available — stay at forming state
       }
     }
-
-    poll(); // Immediate first poll
-    const interval = setInterval(poll, POLL_INTERVAL_MS);
+    void poll();
+    const interval = setInterval(() => { void poll(); }, POLL_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
