@@ -92,7 +92,6 @@ const BreathworkTimer: React.FC = () => {
   const nextPhase = useCallback((currentPhase: BreathPhase, currentCycles: number): { phase: BreathPhase; cycles: number } => {
     const idx = PHASE_ORDER.indexOf(currentPhase);
     if (idx === PHASE_ORDER.length - 1) {
-      // completed one full cycle
       return { phase: PHASE_ORDER[0], cycles: currentCycles + 1 };
     }
     return { phase: PHASE_ORDER[idx + 1], cycles: currentCycles };
@@ -114,7 +113,6 @@ const BreathworkTimer: React.FC = () => {
       setCountdown(countRef.current);
 
       if (countRef.current <= 0) {
-        // advance phase — read cycles from state via functional updater
         setCycles(prev => {
           const { phase: np, cycles: nc } = nextPhase(phaseRef.current, prev);
           phaseRef.current = np;
@@ -128,10 +126,8 @@ const BreathworkTimer: React.FC = () => {
     }, 1000);
   }, [profile, nextPhase]);
 
-  // cleanup on unmount
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
-  // ring scale: inhale = grow, hold = big, exhale = shrink, rest = small
   const ringScale =
     phase === 'inhale' ? 0.5 + 0.5 * (1 - countdown / profile.inhale) :
     phase === 'hold'   ? 1.0 :
@@ -292,7 +288,7 @@ const GroundingExercise: React.FC = () => {
       </div>
 
       <div className="anchor-grounding__progress">
-        {GROUNDING_STEPS.map((s, i) => (
+        {GROUNDING_STEPS.map((_, i) => (
           <div
             key={i}
             className={`anchor-grounding__pip${
@@ -407,7 +403,7 @@ const AnchorPrism: React.FC = () => {
         </div>
         <div className="anchor-prism__identity">
           <h1 className="anchor-prism__declaration">I am here. I am stable.</h1>
-          <p className="anchor-prism__sub">You don’t have to go anywhere. You’re already where you need to be.</p>
+          <p className="anchor-prism__sub">You don't have to go anywhere. You're already where you need to be.</p>
         </div>
         <div className="anchor-prism__clock" aria-label={`Current time: ${timeStr}`}>
           <div className="anchor-prism__time">{timeStr}</div>
