@@ -1,0 +1,1412 @@
+openapi: 3.1.0
+
+info:
+  title: GAIA-OS API
+  version: 1.0.0
+  description: |
+    The GAIA-OS backend API. Exposes canon intelligence, archetype resolution,
+    quantum coherence, dimensional engine, noosphere, atlas, cryptographic
+    identity, notifications, and zodiac routing to GAIA-APP clients.
+
+    All endpoints require a Bearer token unless marked as public.
+    Canon authority is governed by `canon/CANON_MANIFEST.yaml`.
+  contact:
+    name: R0GV3 the Alchemist
+    url: https://github.com/R0GV3TheAlchemist/GAIA-OS
+  license:
+    name: Proprietary
+    identifier: LicenseRef-GAIA-Proprietary
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+  - url: https://api.gaia-os.app
+    description: Production server (future)
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Health
+    description: System health and status
+  - name: Canon
+    description: Canon document registry — powered by CANON_MANIFEST.yaml
+  - name: Archetypes
+    description: Elemental and Jungian archetype resolution
+  - name: Atlas
+    description: GAIA knowledge atlas and map navigation
+  - name: Crypto
+    description: Cryptographic identity, duality architecture, and key management
+  - name: DimensionalEngine
+    description: Dimensional layer processing and consciousness runtime
+  - name: Noosphere
+    description: Collective consciousness field and noosphere layer
+  - name: Notifications
+    description: Push and in-app notification delivery
+  - name: Quantum
+    description: Quantum coherence simulation and resonance protocols
+  - name: Zodiac
+    description: Zodiac sign affinity, element mapping, and profile routing
+
+paths:
+
+  # ── HEALTH ────────────────────────────────────────────────────────────────────
+  /health:
+    get:
+      operationId: getHealth
+      summary: System health check
+      tags: [Health]
+      security: []
+      responses:
+        "200":
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /version:
+    get:
+      operationId: getVersion
+      summary: API and canon version info
+      tags: [Health]
+      security: []
+      responses:
+        "200":
+          description: Version payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+
+  # ── CANON ─────────────────────────────────────────────────────────────────────
+  /canon:
+    get:
+      operationId: listCanonDocuments
+      summary: List all registered canon documents
+      description: Returns the full document registry from CANON_MANIFEST.yaml.
+      tags: [Canon]
+      parameters:
+        - name: series
+          in: query
+          description: Filter by series slug (e.g. legacy-core, stem-bridge)
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [canonical, seeding, deprecated]
+      responses:
+        "200":
+          description: List of canon documents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanonListResponse"
+
+  /canon/{id}:
+    get:
+      operationId: getCanonDocument
+      summary: Get a single canon document by ID
+      tags: [Canon]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Canon document ID (e.g. C-FORCES, C83, QC_01)
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Canon document entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanonDocument"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /canon/{id}/content:
+    get:
+      operationId: getCanonDocumentContent
+      summary: Get the raw Markdown content of a canon document
+      tags: [Canon]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Raw Markdown text
+          content:
+            text/markdown:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /canon/series:
+    get:
+      operationId: listCanonSeries
+      summary: List all canon series with descriptions
+      tags: [Canon]
+      responses:
+        "200":
+          description: Series registry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeriesListResponse"
+
+  # ── ARCHETYPES ────────────────────────────────────────────────────────────────
+  /archetypes:
+    get:
+      operationId: listArchetypes
+      summary: List all available archetypes
+      tags: [Archetypes]
+      parameters:
+        - name: element
+          in: query
+          description: Filter by elemental affinity
+          schema:
+            type: string
+            enum: [fire, water, earth, air, metal, wood, dark, light, aether, crystal, void, storm]
+        - name: type
+          in: query
+          description: Filter by archetype type
+          schema:
+            type: string
+            enum: [jungian, elemental, gaian, mythic]
+      responses:
+        "200":
+          description: Archetype list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchetypeListResponse"
+
+  /archetypes/{slug}:
+    get:
+      operationId: getArchetype
+      summary: Get a single archetype by slug
+      tags: [Archetypes]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Archetype detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Archetype"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /archetypes/resolve:
+    post:
+      operationId: resolveArchetype
+      summary: Resolve an archetype for a user profile
+      description: |
+        Given a user profile (birth data, element affinities, Jungian indicators),
+        returns the dominant and shadow archetype pair.
+      tags: [Archetypes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArchetypeResolveRequest"
+      responses:
+        "200":
+          description: Resolved archetype pair
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchetypeResolveResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── ATLAS ─────────────────────────────────────────────────────────────────────
+  /atlas:
+    get:
+      operationId: getAtlas
+      summary: Get the full GAIA knowledge atlas
+      tags: [Atlas]
+      responses:
+        "200":
+          description: Atlas map payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtlasResponse"
+
+  /atlas/node/{nodeId}:
+    get:
+      operationId: getAtlasNode
+      summary: Get a specific atlas node
+      tags: [Atlas]
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Atlas node detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtlasNode"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /atlas/search:
+    get:
+      operationId: searchAtlas
+      summary: Search the knowledge atlas
+      tags: [Atlas]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Atlas search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtlasSearchResponse"
+
+  # ── CRYPTO ────────────────────────────────────────────────────────────────────
+  /crypto/identity:
+    post:
+      operationId: createIdentity
+      summary: Create a new GAIA cryptographic identity
+      description: |
+        Generates a dual-layer identity per the GAIA Duality Architecture (C108).
+        Returns a public key pair, a duality seed, and an identity token.
+      tags: [Crypto]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityCreateRequest"
+      responses:
+        "201":
+          description: Identity created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityCreateResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /crypto/identity/{identityId}:
+    get:
+      operationId: getIdentity
+      summary: Get a GAIA identity by ID
+      tags: [Crypto]
+      parameters:
+        - name: identityId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Identity payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Identity"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /crypto/sign:
+    post:
+      operationId: signPayload
+      summary: Sign an arbitrary payload with a GAIA identity key
+      tags: [Crypto]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignRequest"
+      responses:
+        "200":
+          description: Signed payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignResponse"
+
+  /crypto/verify:
+    post:
+      operationId: verifySignature
+      summary: Verify a signed payload
+      tags: [Crypto]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyRequest"
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerifyResponse"
+
+  # ── DIMENSIONAL ENGINE ────────────────────────────────────────────────────────
+  /dimensional-engine/process:
+    post:
+      operationId: processDimensionalInput
+      summary: Process input through the dimensional engine
+      description: |
+        Routes a consciousness payload through the Three Universal Layers (C63)
+        and returns a dimensional resonance response.
+      tags: [DimensionalEngine]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DimensionalProcessRequest"
+      responses:
+        "200":
+          description: Dimensional process response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DimensionalProcessResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /dimensional-engine/layers:
+    get:
+      operationId: getDimensionalLayers
+      summary: Get the three universal layer definitions
+      tags: [DimensionalEngine]
+      responses:
+        "200":
+          description: Layer definitions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DimensionalLayersResponse"
+
+  /dimensional-engine/state/{sessionId}:
+    get:
+      operationId: getDimensionalState
+      summary: Get current dimensional state for a session
+      tags: [DimensionalEngine]
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dimensional state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DimensionalState"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── NOOSPHERE ─────────────────────────────────────────────────────────────────
+  /noosphere/pulse:
+    get:
+      operationId: getNoospherePulse
+      summary: Get the current noosphere coherence pulse
+      description: Returns real-time collective field coherence metrics.
+      tags: [Noosphere]
+      responses:
+        "200":
+          description: Noosphere pulse
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoospherePulse"
+
+  /noosphere/contribute:
+    post:
+      operationId: contributeToNoosphere
+      summary: Contribute a signal to the noosphere
+      description: Submits a user-sourced coherence signal to the collective field.
+      tags: [Noosphere]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoosphereContributeRequest"
+      responses:
+        "202":
+          description: Signal accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoosphereContributeResponse"
+
+  /noosphere/history:
+    get:
+      operationId: getNoosphereHistory
+      summary: Get noosphere pulse history
+      tags: [Noosphere]
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: ISO-8601 datetime — return history since this point
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+      responses:
+        "200":
+          description: History array
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoosphereHistoryResponse"
+
+  # ── NOTIFICATIONS ─────────────────────────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: List notifications for the authenticated user
+      tags: [Notifications]
+      parameters:
+        - name: unread_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+
+  /notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      summary: Mark a notification as read
+      tags: [Notifications]
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Marked as read
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Mark all notifications as read
+      tags: [Notifications]
+      responses:
+        "204":
+          description: All marked as read
+
+  /notifications/subscribe:
+    post:
+      operationId: subscribePushNotifications
+      summary: Register a push notification subscription
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscribeRequest"
+      responses:
+        "201":
+          description: Subscription registered
+
+  # ── QUANTUM ───────────────────────────────────────────────────────────────────
+  /quantum/coherence:
+    get:
+      operationId: getQuantumCoherence
+      summary: Get current quantum coherence state
+      description: Returns the GAIA-OS quantum coherence score per QC_01–QC_03.
+      tags: [Quantum]
+      responses:
+        "200":
+          description: Quantum coherence state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuantumCoherenceResponse"
+
+  /quantum/resonate:
+    post:
+      operationId: resonateQuantum
+      summary: Trigger a quantum resonance event
+      description: Applies a resonance protocol from QC_03 to a session.
+      tags: [Quantum]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuantumResonateRequest"
+      responses:
+        "200":
+          description: Resonance result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuantumResonateResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /quantum/field:
+    get:
+      operationId: getQuantumField
+      summary: Get current quantum field snapshot
+      tags: [Quantum]
+      responses:
+        "200":
+          description: Quantum field snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuantumFieldResponse"
+
+  # ── ZODIAC ────────────────────────────────────────────────────────────────────
+  /zodiac/signs:
+    get:
+      operationId: listZodiacSigns
+      summary: List all zodiac signs with elemental affinities
+      tags: [Zodiac]
+      parameters:
+        - name: system
+          in: query
+          description: Zodiac system to use
+          schema:
+            type: string
+            enum: [western, chinese, vedic, celtic, native-american]
+            default: western
+      responses:
+        "200":
+          description: Zodiac signs list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZodiacSignListResponse"
+
+  /zodiac/profile:
+    post:
+      operationId: getZodiacProfile
+      summary: Get a full zodiac profile for a birth date
+      tags: [Zodiac]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZodiacProfileRequest"
+      responses:
+        "200":
+          description: Zodiac profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZodiacProfile"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /zodiac/compatibility:
+    post:
+      operationId: getZodiacCompatibility
+      summary: Get compatibility score between two zodiac profiles
+      tags: [Zodiac]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ZodiacCompatibilityRequest"
+      responses:
+        "200":
+          description: Compatibility result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZodiacCompatibilityResponse"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# COMPONENTS
+# ══════════════════════════════════════════════════════════════════════════════
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: GAIA identity JWT — obtained from /crypto/identity
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+
+    # ── SHARED ──────────────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        detail:
+          type: string
+
+    ValidationErrorResponse:
+      type: object
+      required: [error, fields]
+      properties:
+        error:
+          type: string
+          example: validation_error
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    # ── HEALTH ──────────────────────────────────────────────────────────────────
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        timestamp:
+          type: string
+          format: date-time
+        services:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [up, down, degraded]
+
+    VersionResponse:
+      type: object
+      properties:
+        api_version:
+          type: string
+          example: "1.0.0"
+        canon_manifest_version:
+          type: string
+          example: "2.0.0"
+        canon_document_count:
+          type: integer
+          example: 83
+        built_at:
+          type: string
+          format: date-time
+
+    # ── CANON ───────────────────────────────────────────────────────────────────
+    CanonDocument:
+      type: object
+      required: [id, path, title, series, status]
+      properties:
+        id:
+          type: string
+          example: C-FORCES
+        path:
+          type: string
+          example: canon/C-FORCES.md
+        title:
+          type: string
+          example: C-FORCES
+        series:
+          type: string
+          example: legacy-core
+        status:
+          type: string
+          enum: [canonical, seeding, deprecated]
+        sha:
+          type: string
+        size_bytes:
+          type: integer
+        notes:
+          type: string
+
+    CanonListResponse:
+      type: object
+      properties:
+        manifest_version:
+          type: string
+        total:
+          type: integer
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/CanonDocument"
+
+    SeriesEntry:
+      type: object
+      properties:
+        slug:
+          type: string
+        description:
+          type: string
+        document_count:
+          type: integer
+
+    SeriesListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeriesEntry"
+
+    # ── ARCHETYPES ──────────────────────────────────────────────────────────────
+    Archetype:
+      type: object
+      required: [slug, name, type, element]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [jungian, elemental, gaian, mythic]
+        element:
+          type: string
+        description:
+          type: string
+        shadow:
+          type: string
+          description: Slug of the shadow archetype counterpart
+        canon_ref:
+          type: string
+          description: Canon document ID this archetype derives from
+
+    ArchetypeListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        archetypes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Archetype"
+
+    ArchetypeResolveRequest:
+      type: object
+      required: [birth_date]
+      properties:
+        birth_date:
+          type: string
+          format: date
+          example: "1990-04-15"
+        element_affinity:
+          type: string
+          description: Optional override element
+        jungian_indicators:
+          type: array
+          items:
+            type: string
+          description: Observed Jungian indicators (e.g. shadow_active, anima_present)
+        zodiac_system:
+          type: string
+          enum: [western, chinese, vedic]
+          default: western
+
+    ArchetypeResolveResponse:
+      type: object
+      properties:
+        dominant:
+          $ref: "#/components/schemas/Archetype"
+        shadow:
+          $ref: "#/components/schemas/Archetype"
+        resonance_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        canon_refs:
+          type: array
+          items:
+            type: string
+
+    # ── ATLAS ───────────────────────────────────────────────────────────────────
+    AtlasNode:
+      type: object
+      required: [id, label, type]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [canon, concept, system, entity, bridge]
+        description:
+          type: string
+        connections:
+          type: array
+          items:
+            type: string
+          description: IDs of connected nodes
+        canon_refs:
+          type: array
+          items:
+            type: string
+
+    AtlasResponse:
+      type: object
+      properties:
+        node_count:
+          type: integer
+        edge_count:
+          type: integer
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/AtlasNode"
+
+    AtlasSearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+        total:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/AtlasNode"
+
+    # ── CRYPTO ──────────────────────────────────────────────────────────────────
+    IdentityCreateRequest:
+      type: object
+      required: [display_name]
+      properties:
+        display_name:
+          type: string
+        duality_mode:
+          type: string
+          enum: [unified, dissociated]
+          default: unified
+          description: Dissociated mode creates two cryptographically separate identity layers per C108.
+        element:
+          type: string
+          description: Optional elemental binding for the identity
+
+    IdentityCreateResponse:
+      type: object
+      properties:
+        identity_id:
+          type: string
+        public_key:
+          type: string
+        duality_seed:
+          type: string
+        token:
+          type: string
+          description: JWT bearer token for this identity
+        created_at:
+          type: string
+          format: date-time
+
+    Identity:
+      type: object
+      properties:
+        identity_id:
+          type: string
+        display_name:
+          type: string
+        duality_mode:
+          type: string
+        public_key:
+          type: string
+        element:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    SignRequest:
+      type: object
+      required: [identity_id, payload]
+      properties:
+        identity_id:
+          type: string
+        payload:
+          type: string
+          description: Base64-encoded payload to sign
+
+    SignResponse:
+      type: object
+      properties:
+        signature:
+          type: string
+        algorithm:
+          type: string
+        signed_at:
+          type: string
+          format: date-time
+
+    VerifyRequest:
+      type: object
+      required: [public_key, payload, signature]
+      properties:
+        public_key:
+          type: string
+        payload:
+          type: string
+        signature:
+          type: string
+
+    VerifyResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        identity_id:
+          type: string
+        verified_at:
+          type: string
+          format: date-time
+
+    # ── DIMENSIONAL ENGINE ──────────────────────────────────────────────────────
+    DimensionalProcessRequest:
+      type: object
+      required: [session_id, input]
+      properties:
+        session_id:
+          type: string
+        input:
+          type: string
+          description: Raw consciousness payload (text, intention, signal)
+        target_layer:
+          type: string
+          enum: [physical, informational, consciousness]
+          description: Target layer per C63 Three Universal Layers
+        archetype_hint:
+          type: string
+          description: Optional archetype slug to bias the processing
+
+    DimensionalProcessResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        layer_activated:
+          type: string
+        resonance_vector:
+          type: array
+          items:
+            type: number
+        output:
+          type: string
+        canon_refs:
+          type: array
+          items:
+            type: string
+
+    DimensionalLayersResponse:
+      type: object
+      properties:
+        layers:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                enum: [physical, informational, consciousness]
+              name:
+                type: string
+              description:
+                type: string
+              canon_ref:
+                type: string
+
+    DimensionalState:
+      type: object
+      properties:
+        session_id:
+          type: string
+        active_layer:
+          type: string
+        coherence:
+          type: number
+          format: float
+        last_updated:
+          type: string
+          format: date-time
+
+    # ── NOOSPHERE ───────────────────────────────────────────────────────────────
+    NoospherePulse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        coherence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        active_contributors:
+          type: integer
+        dominant_element:
+          type: string
+        field_vector:
+          type: array
+          items:
+            type: number
+
+    NoosphereContributeRequest:
+      type: object
+      required: [signal_type, intensity]
+      properties:
+        signal_type:
+          type: string
+          enum: [intention, emotion, thought, resonance]
+        intensity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        element:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    NoosphereContributeResponse:
+      type: object
+      properties:
+        accepted:
+          type: boolean
+        contribution_id:
+          type: string
+        field_delta:
+          type: number
+          format: float
+
+    NoosphereHistoryResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        pulses:
+          type: array
+          items:
+            $ref: "#/components/schemas/NoospherePulse"
+
+    # ── NOTIFICATIONS ───────────────────────────────────────────────────────────
+    Notification:
+      type: object
+      required: [id, type, message, created_at]
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [canon_update, resonance_event, noosphere_shift, system, archetype_activation]
+        message:
+          type: string
+        read:
+          type: boolean
+          default: false
+        canon_ref:
+          type: string
+          description: Optional canon document ID this notification relates to
+        created_at:
+          type: string
+          format: date-time
+
+    NotificationListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+        unread_count:
+          type: integer
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+
+    PushSubscribeRequest:
+      type: object
+      required: [endpoint, keys]
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          type: object
+          required: [p256dh, auth]
+          properties:
+            p256dh:
+              type: string
+            auth:
+              type: string
+        device_label:
+          type: string
+
+    # ── QUANTUM ─────────────────────────────────────────────────────────────────
+    QuantumCoherenceResponse:
+      type: object
+      properties:
+        coherence_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        entanglement_pairs:
+          type: integer
+        decoherence_rate:
+          type: number
+          format: float
+        timestamp:
+          type: string
+          format: date-time
+        canon_refs:
+          type: array
+          items:
+            type: string
+          example: ["QC_01", "QC_02", "QC_03"]
+
+    QuantumResonateRequest:
+      type: object
+      required: [session_id, protocol]
+      properties:
+        session_id:
+          type: string
+        protocol:
+          type: string
+          enum: [solfeggio, piezoelectric, crystal_grid, dark_matter, quintessence]
+          description: Resonance protocol from QC_03 and GAIANITE series
+        frequency_hz:
+          type: number
+          format: float
+          description: Target frequency override in Hz
+        duration_ms:
+          type: integer
+          default: 1000
+
+    QuantumResonateResponse:
+      type: object
+      properties:
+        session_id:
+          type: string
+        protocol_applied:
+          type: string
+        coherence_before:
+          type: number
+          format: float
+        coherence_after:
+          type: number
+          format: float
+        delta:
+          type: number
+          format: float
+        canon_refs:
+          type: array
+          items:
+            type: string
+
+    QuantumFieldResponse:
+      type: object
+      properties:
+        field_state:
+          type: string
+          enum: [coherent, entangled, superposed, collapsed, resonant]
+        strength:
+          type: number
+          format: float
+        active_protocols:
+          type: array
+          items:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    # ── ZODIAC ──────────────────────────────────────────────────────────────────
+    ZodiacSign:
+      type: object
+      required: [sign, element, system]
+      properties:
+        sign:
+          type: string
+        element:
+          type: string
+        system:
+          type: string
+        symbol:
+          type: string
+        date_range:
+          type: string
+        ruling_planet:
+          type: string
+        archetype_ref:
+          type: string
+        canon_ref:
+          type: string
+
+    ZodiacSignListResponse:
+      type: object
+      properties:
+        system:
+          type: string
+        total:
+          type: integer
+        signs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ZodiacSign"
+
+    ZodiacProfileRequest:
+      type: object
+      required: [birth_date]
+      properties:
+        birth_date:
+          type: string
+          format: date
+        birth_time:
+          type: string
+          format: time
+          description: Optional birth time for rising sign calculation
+        birth_location:
+          type: string
+          description: City or coordinates for chart accuracy
+        systems:
+          type: array
+          items:
+            type: string
+            enum: [western, chinese, vedic, celtic, native-american]
+          default: [western]
+
+    ZodiacProfile:
+      type: object
+      properties:
+        birth_date:
+          type: string
+          format: date
+        signs:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/ZodiacSign"
+          description: Keyed by system slug
+        dominant_element:
+          type: string
+        archetype:
+          $ref: "#/components/schemas/Archetype"
+        gaian_resonance:
+          type: number
+          format: float
+
+    ZodiacCompatibilityRequest:
+      type: object
+      required: [profile_a, profile_b]
+      properties:
+        profile_a:
+          $ref: "#/components/schemas/ZodiacProfileRequest"
+        profile_b:
+          $ref: "#/components/schemas/ZodiacProfileRequest"
+        system:
+          type: string
+          enum: [western, chinese, vedic]
+          default: western
+
+    ZodiacCompatibilityResponse:
+      type: object
+      properties:
+        compatibility_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        element_harmony:
+          type: string
+          enum: [resonant, neutral, discordant]
+        archetype_pair:
+          type: array
+          items:
+            type: string
+        reading:
+          type: string
+          description: Human-readable compatibility reading
