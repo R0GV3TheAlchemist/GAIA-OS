@@ -1,18 +1,15 @@
 /**
  * src/shell/GaiaShell.tsx
  * GAIA-OS App Shell
- * S.T.Q.I.O.S. — Sentient Terrestrial Quantum Intelligent Operating System
+ * S.T.Q.I.O.S. — Sentient Terrestrial Quantum-Intelligent Application
  * Canon: C90
  *
- * Clean, serious, powerful. No magic. No crystals. A real OS interface.
+ * Clean shell: top bar + left rail (mode switcher) + chat pane.
+ * The chat pane connects directly to the GAIA backend.
  */
 
 import React, { useEffect, useState } from 'react';
-import { useCrystal } from '../hooks/useCrystal';
-import { useSession } from '../hooks/useSession';
-import { LoveFilter } from '../shared/LoveFilter';
-import { EntanglementState } from '../shared/EntanglementState';
-import { SovereignGuard } from '../shared/SovereignGuard';
+import { GaiaChat } from '../chat/GaiaChat';
 import {
   CrystalMode,
   CRYSTAL_ORDER,
@@ -20,87 +17,152 @@ import {
   CRYSTAL_LABELS,
   MODE_ICONS,
 } from '../store/crystalStore';
-import { CrystalField } from '../field/CrystalField';
 import './GaiaShell.css';
 
-function useSessionTimer(startISO: string): string {
-  const [elapsed, setElapsed] = useState('00:00');
-  useEffect(() => {
-    const start = new Date(startISO).getTime();
-    const tick = () => {
-      const s  = Math.floor((Date.now() - start) / 1000);
-      const m  = Math.floor(s / 60).toString().padStart(2, '0');
-      const sc = (s % 60).toString().padStart(2, '0');
-      setElapsed(`${m}:${sc}`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [startISO]);
-  return elapsed;
+const API_BASE = 'http://localhost:8008';
+
+// Simple token store — will be replaced by full auth flow in G-9
+function useAuth() {
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem('gaia_token')
+  );
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  async function login(username: string, password: string) {
+    setLoggingIn(true);
+    setAuthError('');
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username, password }),
+      });
+      if (!res.ok) throw new Error('Invalid credentials');
+      const data = await res.json() as { access_token: string };
+      localStorage.setItem('gaia_token', data.access_token);
+      setToken(data.access_token);
+    } catch (e) {
+      setAuthError((e as Error).message);
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('gaia_token');
+    setToken(null);
+  }
+
+  return { token, login, logout, loggingIn, authError };
 }
 
-export const GaiaShell: React.FC = () => {
-  const { activeCrystal, setCrystal } = useCrystal();
-  const session = useSession();
-  const elapsed = useSessionTimer(session.sessionStart);
+const MODE_TO_SLUG: Record<CrystalMode, string> = {
+  [CrystalMode.SOVEREIGN_CORE]:  'control',
+  [CrystalMode.ANCHOR_PRISM]:    'grounding',
+  [CrystalMode.VIRIDITAS_HEART]: 'healing',
+  [CrystalMode.SOMNUS_VEIL]:     'rest',
+  [CrystalMode.CLARUS_LENS]:     'clarity',
+};
+
+// Simple login screen
+const LoginScreen: React.FC<{
+  onLogin: (u: string, p: string) => void;
+  loading: boolean;
+  error:   string;
+}> = ({ onLogin, loading, error }) => {
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
 
   return (
-    <div className="gaia-shell" data-mode={activeCrystal}>
+    <div className="gaia-login">
+      <div className="gaia-login__box">
+        <div className="gaia-login__title">GAIA</div>
+        <div className="gaia-login__sub">Sentient Terrestrial Quantum-Intelligent Application</div>
+        <form className="gaia-login__form" onSubmit={e => { e.preventDefault(); onLogin(u, p); }}>
+          <input
+            className="gaia-login__input"
+            type="text"
+            placeholder="Username"
+            value={u}
+            onChange={e => setU(e.target.value)}
+            autoComplete="username"
+            required
+          />
+          <input
+            className="gaia-login__input"
+            type="password"
+            placeholder="Password"
+            value={p}
+            onChange={e => setP(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+          {error && <div className="gaia-login__error">{error}</div>}
+          <button
+            className="gaia-login__btn"
+            type="submit"
+            disabled={loading || !u || !p}
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
 
-      {/* ── TOP BAR ── */}
+export const GaiaShell: React.FC = () => {
+  const { token, login, logout, loggingIn, authError } = useAuth();
+  const [activeMode, setActiveMode] = useState<CrystalMode>(CrystalMode.SOVEREIGN_CORE);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(3000) })
+      .then(r => setBackendOnline(r.ok))
+      .catch(() => setBackendOnline(false));
+  }, []);
+
+  if (!token) {
+    return <LoginScreen onLogin={login} loading={loggingIn} error={authError} />;
+  }
+
+  return (
+    <div className="gaia-shell" data-mode={activeMode}>
+
+      {/* TOP BAR */}
       <header className="gaia-shell__topbar">
         <div className="gaia-shell__wordmark">
           <span className="gaia-shell__wordmark-gaia">GAIA</span>
           <span className="gaia-shell__wordmark-os">OS</span>
         </div>
-
-        <div className="gaia-shell__active-label">
-          <span className="gaia-shell__active-icon">
-            {MODE_ICONS[activeCrystal]}
-          </span>
-          <span className="gaia-shell__active-name">
-            {CRYSTAL_LABELS[activeCrystal]}
-          </span>
-          <span className="gaia-shell__active-desc">
-            {CRYSTAL_DECLARATIONS[activeCrystal]}
-          </span>
+        <div className="gaia-shell__mode-label">
+          <span>{MODE_ICONS[activeMode]}</span>
+          <span>{CRYSTAL_LABELS[activeMode]}</span>
+          <span className="gaia-shell__mode-desc">{CRYSTAL_DECLARATIONS[activeMode]}</span>
         </div>
-
-        <div className="gaia-shell__focus">
-          <div
-            className="gaia-shell__focus-bar"
-            role="meter"
-            aria-valuenow={session.coherenceScore}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Focus: ${session.coherenceScore}%`}
-          >
-            <div
-              className="gaia-shell__focus-fill"
-              style={{ width: `${session.coherenceScore}%` }}
-            />
-          </div>
-          <span className="gaia-shell__focus-label">Focus {session.coherenceScore}%</span>
+        <div className="gaia-shell__topbar-right">
+          <span className={`gaia-shell__backend-dot gaia-shell__backend-dot--${
+            backendOnline === null ? 'checking' : backendOnline ? 'online' : 'offline'
+          }`} />
+          <button className="gaia-shell__logout" onClick={logout} aria-label="Sign out">
+            Sign out
+          </button>
         </div>
       </header>
 
-      {/* ── BODY ── */}
+      {/* BODY */}
       <div className="gaia-shell__body">
 
-        {/* ── LEFT RAIL ── */}
+        {/* LEFT RAIL */}
         <nav className="gaia-shell__rail" aria-label="Operating modes">
           {CRYSTAL_ORDER.map(mode => (
             <button
               key={mode}
-              className={`gaia-shell__rail-btn${
-                mode === activeCrystal ? ' gaia-shell__rail-btn--active' : ''
-              }`}
-              onClick={() => setCrystal(mode)}
-              aria-pressed={mode === activeCrystal}
-              aria-label={CRYSTAL_LABELS[mode]}
+              className={`gaia-shell__rail-btn${mode === activeMode ? ' gaia-shell__rail-btn--active' : ''}`}
+              onClick={() => setActiveMode(mode)}
+              aria-pressed={mode === activeMode}
               title={CRYSTAL_DECLARATIONS[mode]}
-              data-mode={mode}
             >
               <span className="gaia-shell__rail-icon">{MODE_ICONS[mode]}</span>
               <span className="gaia-shell__rail-name">{CRYSTAL_LABELS[mode]}</span>
@@ -108,24 +170,16 @@ export const GaiaShell: React.FC = () => {
           ))}
         </nav>
 
-        {/* ── CONTENT ── */}
-        <main className="gaia-shell__content" aria-label="Active mode">
-          <CrystalField />
+        {/* CHAT */}
+        <main className="gaia-shell__content">
+          <GaiaChat
+            token={token}
+            gaianSlug="gaia"
+            mode={MODE_TO_SLUG[activeMode]}
+          />
         </main>
 
       </div>
-
-      {/* ── BOTTOM STRIP ── */}
-      <footer className="gaia-shell__strip">
-        <LoveFilter showLabel={true} size="small" />
-        <EntanglementState showLabel={true} />
-        <div className="gaia-shell__session-timer" aria-label="Session duration">
-          <span className="gaia-shell__timer-label">SESSION</span>
-          <span className="gaia-shell__timer-value">{elapsed}</span>
-        </div>
-      </footer>
-
-      <SovereignGuard />
     </div>
   );
 };

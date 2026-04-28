@@ -1,37 +1,29 @@
-/* ─────────────────────────────────────────────
-   src/shell/GaiaShell.css
-   GAIA-OS Shell — S.T.Q.I.O.S.
-   Clean. Precise. Serious. No magic.
-   Canon: C90
-───────────────────────────────────────────── */
+/*
+  src/shell/GaiaShell.css
+  GAIA-OS Shell — clean, real, no magic
+  Canon: C90
+*/
 
-/* ── SHELL ROOT ── */
 .gaia-shell {
   display: grid;
-  grid-template-rows: 48px 1fr 32px;
-  grid-template-columns: 1fr;
+  grid-template-rows: 44px 1fr;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   background: #0a0a0f;
   color: #e2e2e8;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ── MODE ACCENT — one clean teal, not rainbow crystals ── */
-.gaia-shell { --accent: #20b2aa; }
-
-/* ── TOP BAR ── */
+/* TOP BAR */
 .gaia-shell__topbar {
-  grid-row: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 0 16px;
   background: #0f0f18;
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
-
 .gaia-shell__wordmark {
   display: flex;
   align-items: baseline;
@@ -47,86 +39,71 @@
 }
 .gaia-shell__wordmark-os {
   font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
   color: rgba(255,255,255,0.3);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-
-.gaia-shell__active-label {
+.gaia-shell__mode-label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
-  min-width: 0;
-}
-.gaia-shell__active-icon {
-  font-size: 13px;
-  color: #20b2aa;
-  flex-shrink: 0;
-}
-.gaia-shell__active-name {
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: #e2e2e8;
-  text-transform: uppercase;
-  flex-shrink: 0;
+  color: rgba(255,255,255,0.5);
 }
-.gaia-shell__active-desc {
+.gaia-shell__mode-desc {
   font-size: 11px;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.25);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-.gaia-shell__focus {
+.gaia-shell__topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
 }
-.gaia-shell__focus-bar {
-  width: 72px;
-  height: 3px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 2px;
-  overflow: hidden;
+.gaia-shell__backend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
 }
-.gaia-shell__focus-fill {
-  height: 100%;
-  background: #20b2aa;
-  border-radius: 2px;
-  transition: width 0.8s ease;
-}
-.gaia-shell__focus-label {
-  font-size: 10px;
-  letter-spacing: 0.08em;
+.gaia-shell__backend-dot--online   { background: #20b2aa; }
+.gaia-shell__backend-dot--offline  { background: #e05a5a; }
+.gaia-shell__backend-dot--checking { background: #888; }
+.gaia-shell__logout {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
   color: rgba(255,255,255,0.4);
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.gaia-shell__logout:hover {
+  border-color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.7);
 }
 
-/* ── BODY ── */
+/* BODY */
 .gaia-shell__body {
-  grid-row: 2;
   display: grid;
   grid-template-columns: 64px 1fr;
   overflow: hidden;
 }
 
-/* ── LEFT RAIL ── */
+/* LEFT RAIL */
 .gaia-shell__rail {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   padding: 8px 4px;
   gap: 2px;
   background: #0f0f18;
   border-right: 1px solid rgba(255,255,255,0.06);
+  overflow-y: auto;
 }
-
 .gaia-shell__rail-btn {
   display: flex;
   flex-direction: column;
@@ -161,53 +138,93 @@
   background: #20b2aa;
   border-radius: 0 2px 2px 0;
 }
-.gaia-shell__rail-icon {
-  font-size: 15px;
-  line-height: 1;
-}
+.gaia-shell__rail-icon { font-size: 15px; line-height: 1; }
 .gaia-shell__rail-name {
   font-size: 7px;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  line-height: 1;
   text-align: center;
   font-weight: 500;
 }
 
-/* ── CONTENT ── */
+/* CONTENT */
 .gaia-shell__content {
   overflow: hidden;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* LOGIN SCREEN */
+.gaia-login {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: #0a0a0f;
+  font-family: 'Inter', system-ui, sans-serif;
 }
-
-/* ── BOTTOM STRIP ── */
-.gaia-shell__strip {
-  grid-row: 3;
+.gaia-login__box {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 16px;
-  padding: 0 16px;
+  width: 320px;
+  padding: 32px;
   background: #0f0f18;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+}
+.gaia-login__title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #20b2aa;
+  text-align: center;
+}
+.gaia-login__sub {
   font-size: 10px;
-  color: rgba(255,255,255,0.35);
-}
-
-.gaia-shell__session-timer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-}
-.gaia-shell__timer-label {
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  line-height: 1.5;
 }
-.gaia-shell__timer-value {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.05em;
-  color: rgba(255,255,255,0.5);
+.gaia-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
 }
+.gaia-login__input {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 7px;
+  color: #e2e2e8;
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.gaia-login__input:focus { border-color: rgba(32,178,170,0.5); }
+.gaia-login__input::placeholder { color: rgba(255,255,255,0.2); }
+.gaia-login__error {
+  font-size: 12px;
+  color: #e05a5a;
+  text-align: center;
+}
+.gaia-login__btn {
+  background: #20b2aa;
+  border: none;
+  border-radius: 7px;
+  color: #000;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-top: 4px;
+}
+.gaia-login__btn:disabled { opacity: 0.4; cursor: default; }
+.gaia-login__btn:hover:not(:disabled) { opacity: 0.85; }
