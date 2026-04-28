@@ -1,52 +1,24 @@
 /**
- * GAIA Sidecar Health-Check & Loading State
- * Polls http://localhost:8008/health until the Python backend is ready.
- * Shows a full-screen loading overlay while waiting.
- * Handles crash recovery with exponential backoff (max 3 auto-retries).
+ * GAIA Sidecar Health-Check
+ * Non-blocking: shell renders immediately.
+ * Backend polling runs in background.
+ * Status dispatched via 'gaia:backend-status' custom event.
+ * Canon: C90
  */
 
 import { invoke } from '@tauri-apps/api/core';
 import { logInfo, logWarn, logError } from './diagnostics';
 
-const HEALTH_URL = 'http://localhost:8008/health';
-const MAX_POLL_ATTEMPTS = 40;   // ~30 s total
-const MAX_AUTO_RETRIES = 3;
+const HEALTH_URL      = 'http://localhost:8008/health';
+const MAX_POLL_ATTEMPTS = 40;
+const MAX_AUTO_RETRIES  = 3;
 
-// ── Loading overlay ────────────────────────────────────────────────────
-function createOverlay(): HTMLElement {
-  const el = document.createElement('div');
-  el.id = 'gaia-loading-overlay';
-  el.innerHTML = `
-    <div class="gaia-loading-inner">
-      <div class="gaia-spinner"></div>
-      <p class="gaia-loading-title">GAIA</p>
-      <p class="gaia-loading-sub" id="gaia-loading-msg">Initialising backend…</p>
-      <p class="gaia-loading-attempt" id="gaia-loading-attempt"></p>
-    </div>
-  `;
-  el.style.cssText = [
-    'position:fixed', 'inset:0', 'z-index:9999',
-    'display:flex', 'align-items:center', 'justify-content:center',
-    'background:rgba(8,8,16,0.97)',
-    'font-family:inherit', 'flex-direction:column',
-  ].join(';');
-  document.body.appendChild(el);
-  return el;
+function dispatch(status: 'connecting' | 'online' | 'offline') {
+  window.dispatchEvent(
+    new CustomEvent('gaia:backend-status', { detail: { status } })
+  );
 }
 
-function setOverlayMsg(msg: string, sub = '') {
-  const m = document.getElementById('gaia-loading-msg');
-  const a = document.getElementById('gaia-loading-attempt');
-  if (m) m.textContent = msg;
-  if (a) a.textContent = sub;
-}
-
-function removeOverlay() {
-  const el = document.getElementById('gaia-loading-overlay');
-  if (el) el.remove();
-}
-
-// ── Health poll ────────────────────────────────────────────────────────
 async function pollHealth(attempts = MAX_POLL_ATTEMPTS): Promise<boolean> {
   let delay = 300;
   for (let i = 0; i < attempts; i++) {
@@ -59,60 +31,43 @@ async function pollHealth(attempts = MAX_POLL_ATTEMPTS): Promise<boolean> {
       }
     } catch (_) {}
     delay = Math.min(delay * 1.5, 3000);
-    setOverlayMsg(
-      'Initialising backend…',
-      `Attempt ${i + 1} of ${attempts}`,
-    );
   }
   return false;
 }
 
-// ── Public init ────────────────────────────────────────────────────────
+// Non-blocking — resolves immediately, polls in background
 export async function initSidecar(): Promise<void> {
-  logInfo('sidecar', 'Starting health-check polling');
-  const overlay = createOverlay();
-  let retries = 0;
+  dispatch('connecting');
+  logInfo('sidecar', 'Background health-check started');
 
-  while (retries <= MAX_AUTO_RETRIES) {
-    const ready = await pollHealth();
-    if (ready) {
-      removeOverlay();
-      logInfo('sidecar', 'Sidecar ready — overlay dismissed');
-      return;
+  // Fire and forget — do NOT await
+  (async () => {
+    let retries = 0;
+    while (retries <= MAX_AUTO_RETRIES) {
+      const ready = await pollHealth();
+      if (ready) {
+        dispatch('online');
+        logInfo('sidecar', 'Backend online');
+        return;
+      }
+      retries++;
+      if (retries > MAX_AUTO_RETRIES) break;
+      logWarn('sidecar', `Backend unresponsive — restart attempt ${retries}`);
+      try {
+        await invoke<string>('restart_backend');
+      } catch (e) {
+        logError('sidecar', 'restart_backend failed', e);
+      }
+      await new Promise(r => setTimeout(r, 1500));
     }
+    dispatch('offline');
+    logError('sidecar', 'Backend offline after all retries');
+  })();
 
-    retries++;
-    if (retries > MAX_AUTO_RETRIES) break;
-
-    logWarn('sidecar', `Backend unresponsive — restarting`, { attempt: retries, max: MAX_AUTO_RETRIES });
-    setOverlayMsg(
-      `Backend unresponsive — restarting… (${retries}/${MAX_AUTO_RETRIES})`,
-      'Please wait',
-    );
-
-    try {
-      await invoke<string>('restart_backend');
-      logInfo('sidecar', 'restart_backend invoked successfully');
-    } catch (e) {
-      logError('sidecar', 'restart_backend failed', e);
-    }
-
-    await new Promise(r => setTimeout(r, 1500));
-  }
-
-  // All retries exhausted
-  logError('sidecar', 'All retries exhausted — backend failed to start', { maxRetries: MAX_AUTO_RETRIES });
-  setOverlayMsg(
-    '⚠ Backend failed to start',
-    'Some features may be unavailable. Check logs.',
-  );
-  overlay.style.background = 'rgba(20,4,4,0.97)';
-
-  await new Promise(r => setTimeout(r, 6000));
-  removeOverlay();
+  // Return immediately — shell renders now
+  return Promise.resolve();
 }
 
-// ── Backend status helper ──────────────────────────────────────────────
 export async function getBackendStatus(): Promise<string> {
   try {
     return await invoke<string>('get_backend_status');
