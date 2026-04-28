@@ -4,14 +4,11 @@ core/identity/
 GAIA Identity & Consent Layer — authentication, consent ledger,
 and sovereign identity management.
 
-Submodules
-----------
-auth            — authentication and token management
-consent_ledger  — immutable consent record keeping
+All imports redirect to flat core/ files until Phase B physical migration.
 """
 
-from core.identity.auth import Auth
-from core.identity.consent_ledger import ConsentLedger
+from core.auth import Auth
+from core.consent_ledger import ConsentLedger
 
 __all__ = [
     "Auth",
