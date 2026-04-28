@@ -1,53 +1,18 @@
-from typing import Optional
+"""
+core/server_models.py — STUB (Phase C)
 
-from pydantic import BaseModel
-
-
-class QueryRequest(BaseModel):
-    query: str
-    session_id: Optional[str] = None
-    gaian_slug: Optional[str] = None
-    enable_web_search: bool = True
-    max_sources: int = 8
-
-
-class ChatRequest(BaseModel):
-    message: str
-    session_id: Optional[str] = None
-    enable_web_search: bool = False
-    schumann_hz: float = 7.83
-
-
-class CreateGaianRequest(BaseModel):
-    name: str
-    base_form: Optional[str] = "gaia"
-    personality: Optional[str] = None
-    avatar_color: Optional[str] = None
-    user_name: Optional[str] = None
-
-
-class BirthRequest(BaseModel):
-    name: str
-    user_name: Optional[str] = None
-    user_gender: str = "unknown"
-    birth_date: Optional[str] = None
-    base_form: str = "gaia"
-    personality: Optional[str] = None
-    avatar_color: Optional[str] = None
-    user_id: str = "anonymous"
-
-
-class RememberRequest(BaseModel):
-    memory: str
-
-
-class VisibleMemoryRequest(BaseModel):
-    memory: str
-
-
-class SetGaianRequest(BaseModel):
-    gaian_slug: str
-
-
-class ConsentRequest(BaseModel):
-    collective_consent: bool
+Physical implementation has moved to core/infra/server_models.py.
+This stub re-exports the full public surface so all existing callers
+continue to work without any changes.
+"""
+from core.infra.server_models import *           # noqa: F401, F403
+from core.infra.server_models import (           # noqa: F401
+    QueryRequest,
+    ChatRequest,
+    CreateGaianRequest,
+    BirthRequest,
+    RememberRequest,
+    VisibleMemoryRequest,
+    SetGaianRequest,
+    ConsentRequest,
+)
