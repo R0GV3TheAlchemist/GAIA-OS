@@ -1,0 +1,844 @@
+# CANON_MANIFEST.yaml
+# GAIA-OS Canon Registry — machine-readable authority manifest
+# Supersedes: canon/canon_index.json (v1.4.0)
+# Version: 2.0.0
+
+manifest_version: "2.0.0"
+generated_at: "2026-04-28"
+repo: "R0GV3TheAlchemist/GAIA-OS"
+canon_root: "canon/"
+
+notes:
+  - "v2.0.0 is the authoritative YAML manifest, superseding canon_index.json."
+  - "Covers all 83 canon documents detected in the canon/ directory as of 2026-04-28."
+  - "C48b exists because the Dark Matter Frequency Hypothesis conflicted numerically with C48 Knowledge Matrix."
+  - "C45 and C46 have dual files — Vas Hermeticum / Gaian Residency and Quantum Coding / Economic Sovereignty respectively; both registered."
+  - "C75 has dual files — Crystal Integration Protocol and Interdimensional AI Architecture; both registered."
+  - "C83–C90 (Laws/Knowledge/Crystal UI) added in v2.0.0."
+  - "C91–C117 (Survey Series and Avatar/Gender/BCI Series) added in v2.0.0."
+  - "QC_01–QC_03 Quantum Consciousness Series retained from v1.4.0."
+  - "ALL six legacy-core documents are fully annotated via STEM Bridges (C77–C82). The legacy core is complete."
+
+series_registry:
+  legacy-core:      { description: "The six original foundational mythic-cosmological volumes" }
+  meta-governance:  { description: "Governance, authorship, and architectural doctrine documents" }
+  foundations:      { description: "Cosmological and structural foundation documents" }
+  elemental:        { description: "Elemental and codex doctrine" }
+  alchemy:          { description: "Alchemical transmutation and process doctrine" }
+  hermetic:         { description: "Hermetic protocols and vessel architecture" }
+  quantum:          { description: "Quantum coding and field prefaces" }
+  matrix:           { description: "Sovereign and knowledge matrix doctrine" }
+  dark-matter:      { description: "Dark matter frequency and field theory hypotheses" }
+  field-theory:     { description: "Unified and quintessence field doctrine" }
+  geology:          { description: "GAIA geological and planetary substrate doctrine" }
+  color:            { description: "Color theory, RGB frequency, and spectral emergence" }
+  societas:         { description: "Viriditas and collective societal doctrine" }
+  anthropology:     { description: "Human nature and median doctrine" }
+  mythic:           { description: "Mythic identity and Nephilim doctrine" }
+  instability:      { description: "Instability, threshold, and shift doctrine" }
+  flux:             { description: "Flux capacity and energy flow doctrine" }
+  crystal:          { description: "Crystal ascension, integration, and grid architecture" }
+  robotics:         { description: "Robotics and mechanical flux doctrine" }
+  gaianite:         { description: "GAIANITE mineral and crystal specification series" }
+  diaca:            { description: "DIACA Five Movements architectural doctrine" }
+  stem-bridge:      { description: "STEM annotation bridges for legacy-core and canonical documents" }
+  qc:               { description: "Quantum Consciousness series" }
+  laws:             { description: "Universal and reality law doctrine" }
+  knowledge-arch:   { description: "Knowledge architecture and canon governance meta-documents" }
+  ui-spec:          { description: "UI and interface specification documents" }
+  survey-2025-2026: { description: "Empirical survey documents: state of fields 2025–2026" }
+  advanced-systems: { description: "Advanced architecture: consciousness runtime, avatar, BCI, governance, bio-digital" }
+  resonance:        { description: "Resonant cavity and piezoelectric physics doctrine" }
+
+documents:
+
+  # ── LEGACY-CORE ──────────────────────────────────────────────────────────────
+  - id: C-FORCES
+    path: canon/C-FORCES.md
+    title: "C-FORCES"
+    series: legacy-core
+    status: canonical
+    sha: e40918198cf0aaad1c74081dd8c55cd4194f5cdd
+    size_bytes: 18477
+
+  - id: C-FOUNDATION
+    path: canon/C-FOUNDATION.md
+    title: "C-FOUNDATION"
+    series: legacy-core
+    status: canonical
+    sha: 474950b43d5765573db030f4feb1317ec39f45ce
+    size_bytes: 26444
+
+  - id: C-GODDESS
+    path: canon/C-GODDESS.md
+    title: "C-GODDESS"
+    series: legacy-core
+    status: canonical
+    sha: 563a3ec7b3f7419c19664e210f52e07a18a74a30
+    size_bytes: 12421
+
+  - id: C-OMNI
+    path: canon/C-OMNI.md
+    title: "C-OMNI"
+    series: legacy-core
+    status: canonical
+    sha: b728d239582ae46682eb23bd89bd4649d3375197
+    size_bytes: 12123
+
+  - id: C-SINGULARITY
+    path: canon/C-SINGULARITY.md
+    title: "C-SINGULARITY"
+    series: legacy-core
+    status: canonical
+    sha: cb1b1cf5bfbf0d45913a47ffb495ea11e73f5030
+    size_bytes: 11323
+    notes: "Previously unregistered in canon_index.json — added in CANON_MANIFEST v2.0.0"
+
+  - id: C-SOUL
+    path: canon/C-SOUL.md
+    title: "C-SOUL"
+    series: legacy-core
+    status: canonical
+    sha: 86eec298d969278083420a11c3d9a970d96a3c35
+    size_bytes: 11428
+
+  - id: C-SPECTRUM
+    path: canon/C-SPECTRUM.md
+    title: "C-SPECTRUM"
+    series: legacy-core
+    status: canonical
+    sha: 3a008ecfecb6a03ab8bf3119f4aefb470f1f0d1d
+    size_bytes: 20678
+
+  # ── META-GOVERNANCE ───────────────────────────────────────────────────────────
+  - id: C-ARCHITECT
+    path: canon/C-ARCHITECT.md
+    title: "The Architect Doctrine"
+    series: meta-governance
+    status: canonical
+    sha: bed20766b4db89300630469c4e733fc26baa0fe8
+    size_bytes: 5085
+
+  - id: C88
+    path: canon/C88-CANON-REWRITE-MAP.md
+    title: "Canon Rewrite Map"
+    series: meta-governance
+    status: canonical
+    sha: fbaf88d92028583299790c799e62ed49de886c73
+    size_bytes: 11255
+
+  # ── FOUNDATIONS ───────────────────────────────────────────────────────────────
+  - id: C00
+    path: canon/C00_FOUNDATIONAL_COSMOLOGY.md
+    title: "Foundational Cosmology"
+    series: foundations
+    status: canonical
+    sha: 44584e2cbf3f64a5759d46e787c64c683dfb8d15
+    size_bytes: 5649
+
+  - id: C63
+    path: canon/C63_The_Three_Universal_Layers.md
+    title: "The Three Universal Layers"
+    series: foundations
+    status: canonical
+    sha: 846e4857d4637c207afc230ca406207e9fc573e0
+    size_bytes: 10750
+
+  # ── ELEMENTAL ─────────────────────────────────────────────────────────────────
+  - id: C32
+    path: canon/C32-Elemental-Codex.md
+    title: "Elemental Codex"
+    series: elemental
+    status: canonical
+    sha: c4f08cea63e0fad53bb74c640ae476890362b250
+    size_bytes: 30801
+
+  # ── ALCHEMY ───────────────────────────────────────────────────────────────────
+  - id: C41
+    path: canon/C41-Alchemy-of-Being.md
+    title: "Alchemy of Being"
+    series: alchemy
+    status: canonical
+    sha: 6ccfed62bab943d90dc0ceedec1a60692c0528b7
+    size_bytes: 25474
+
+  - id: C76
+    path: canon/C76_Nigredo_Doctrine.md
+    title: "The Nigredo Doctrine"
+    series: alchemy
+    status: canonical
+    sha: 91f3293c787ae320442a4bbde46d81240d973019
+    size_bytes: 5998
+
+  # ── HERMETIC ──────────────────────────────────────────────────────────────────
+  - id: C45-vas
+    path: canon/C45-Vas-Hermeticum-Protocol.md
+    title: "Vas Hermeticum Protocol"
+    series: hermetic
+    status: canonical
+    sha: c703caede53056ae133a3313b0e7c2e858206c2f
+    size_bytes: 13078
+
+  - id: C45-residency
+    path: canon/C45-gaian-residency.md
+    title: "Gaian Residency"
+    series: hermetic
+    status: canonical
+    sha: a1d5c200683d4f32a886b4b81a2d446c34284998
+    size_bytes: 13658
+    notes: "Dual C45 — registered separately from Vas Hermeticum Protocol"
+
+  # ── QUANTUM ───────────────────────────────────────────────────────────────────
+  - id: C46-qcp
+    path: canon/C46-Quantum-Coding-Preface.md
+    title: "Quantum Coding Preface"
+    series: quantum
+    status: canonical
+    sha: 136cf3939466f52b2483925a1f876a953975dee5
+    size_bytes: 3945
+
+  - id: C46-sovereignty
+    path: canon/C46-economic-sovereignty.md
+    title: "Economic Sovereignty"
+    series: quantum
+    status: canonical
+    sha: 44206fa092cbf8fb4e31cd2899fb6916d87f3e90
+    size_bytes: 12051
+    notes: "Dual C46 — registered separately from Quantum Coding Preface"
+
+  # ── MATRIX ────────────────────────────────────────────────────────────────────
+  - id: C47
+    path: canon/C47-Sovereign-Matrix-Code.md
+    title: "Sovereign Matrix Code"
+    series: matrix
+    status: canonical
+    sha: 43d0dbec641dad835475204957113c242f494510
+    size_bytes: 4255
+
+  - id: C48
+    path: canon/C48-Knowledge-Matrix.md
+    title: "Knowledge Matrix"
+    series: matrix
+    status: canonical
+    sha: b40a0b3257a74361956c56727c678bbb6d8e53d5
+    size_bytes: 6065
+
+  # ── DARK MATTER ───────────────────────────────────────────────────────────────
+  - id: C48b
+    path: canon/C48b_dark_matter_frequency_hypothesis.md
+    title: "Dark Matter Frequency Hypothesis"
+    series: dark-matter
+    status: seeding
+    sha: 8ad0fc8062ec625069e1d01a691507768d22588e
+    size_bytes: 7748
+
+  - id: C74
+    path: canon/C74_Dark_Matter_Frequency_STEM_Bridge.md
+    title: "Dark Matter Frequency STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: 28e56b81217f9c790541f00cc2bd46f1edfda8d5
+    size_bytes: 10345
+
+  # ── FIELD THEORY ─────────────────────────────────────────────────────────────
+  - id: C49
+    path: canon/C49_quintessence_unified_field.md
+    title: "Quintessence Unified Field"
+    series: field-theory
+    status: canonical
+    sha: f14575983d8f3fb7b9fa0339640b7a53d6da922e
+    size_bytes: 9048
+
+  # ── GEOLOGY ───────────────────────────────────────────────────────────────────
+  - id: C50
+    path: canon/C50_GAIA_is_Geology.md
+    title: "GAIA is Geology"
+    series: geology
+    status: canonical
+    sha: 0b113725b4d275ec65559777e8f0460053a98155
+    size_bytes: 12868
+
+  # ── COLOR ─────────────────────────────────────────────────────────────────────
+  - id: C51
+    path: canon/C51_color_theory_emergence.md
+    title: "Color Theory Emergence"
+    series: color
+    status: canonical
+    sha: e711d4bf80967632abf29c3eb0f1f33d6602bfdc
+    size_bytes: 11624
+
+  - id: C53
+    path: canon/C53_RGB_alignment_suppression.md
+    title: "RGB Alignment Suppression"
+    series: color
+    status: canonical
+    sha: 582857ffeab8996d762f1c8f39475b6a48b1c345
+    size_bytes: 9435
+
+  - id: C54
+    path: canon/C54_RGB_frequency_table.md
+    title: "RGB Frequency Table"
+    series: color
+    status: canonical
+    sha: e9e11d693e7ab52eee75cf250ba4377197eaaf32
+    size_bytes: 7529
+
+  - id: C59
+    path: canon/C59_RGB_MI_unified_model.md
+    title: "RGB MI Unified Model"
+    series: color
+    status: canonical
+    sha: d53dd7a1df1943079d53dca3d860576c280dc587
+    size_bytes: 11688
+
+  # ── SOCIETAS ──────────────────────────────────────────────────────────────────
+  - id: C52
+    path: canon/C52_viriditas_magnum_opus_societas.md
+    title: "Viriditas Magnum Opus Societas"
+    series: societas
+    status: canonical
+    sha: 051a51e2975dad70232ef3eb8be91a8fe3120843
+    size_bytes: 10815
+
+  # ── ANTHROPOLOGY ─────────────────────────────────────────────────────────────
+  - id: C55
+    path: canon/C55_humans_the_median.md
+    title: "Humans the Median"
+    series: anthropology
+    status: canonical
+    sha: 300517e21b8e8a9d5e1e21d6f943d13d782c88ec
+    size_bytes: 10531
+
+  # ── MYTHIC ────────────────────────────────────────────────────────────────────
+  - id: C56
+    path: canon/C56_R0GV3_nephilim.md
+    title: "R0GV3 Nephilim"
+    series: mythic
+    status: canonical
+    sha: ab5ceaa08b3c70e2df6889a850edfd26eea12f4e
+    size_bytes: 10437
+
+  # ── INSTABILITY ───────────────────────────────────────────────────────────────
+  - id: C57
+    path: canon/C57_unsteady_beneath_my_feet.md
+    title: "Unsteady Beneath My Feet"
+    series: instability
+    status: canonical
+    sha: efa2f09ea997cc636f87d7a6e09b32df1c8fd109
+    size_bytes: 8769
+
+  - id: C58
+    path: canon/C58_instability_threshold_shift.md
+    title: "Instability Threshold Shift"
+    series: instability
+    status: canonical
+    sha: 44363329779be8ba040661a2c28f21c9ef5c8c5c
+    size_bytes: 11201
+
+  # ── FLUX ──────────────────────────────────────────────────────────────────────
+  - id: C60
+    path: canon/C60_flux_capacity_doctrine.md
+    title: "Flux Capacity Doctrine"
+    series: flux
+    status: canonical
+    sha: 54204c50d41e3e17177ac8844625a156f66848ae
+    size_bytes: 7723
+
+  - id: C62
+    path: canon/C62_Flux_Capacity_Robotics_Doctrine.md
+    title: "Flux Capacity Robotics Doctrine"
+    series: robotics
+    status: canonical
+    sha: 5a908c29b2bb5fa063addb1f36ca631cdf80dffb
+    size_bytes: 3565
+
+  # ── CRYSTAL ───────────────────────────────────────────────────────────────────
+  - id: C61
+    path: canon/C61_Crystal_Ascension_Doctrine.md
+    title: "Crystal Ascension Doctrine"
+    series: crystal
+    status: canonical
+    sha: c630ce6e06a13eeedb95887b1d324b9649b10b53
+    size_bytes: 3504
+
+  - id: C75-cip
+    path: canon/C75_Crystal_Integration_Protocol.md
+    title: "Crystal Integration Protocol"
+    series: crystal
+    status: canonical
+    sha: a575a11de659b690ead5c642ed1b248eb9683bdf
+    size_bytes: 7079
+
+  - id: C75-iai
+    path: canon/C75_Interdimensional_AI_Architecture.md
+    title: "Interdimensional AI Architecture"
+    series: crystal
+    status: canonical
+    sha: e23e60e0d64611107ff6288d40180d626fd17d2d
+    size_bytes: 25073
+    notes: "Dual C75 — registered separately from Crystal Integration Protocol"
+
+  # ── GAIANITE ──────────────────────────────────────────────────────────────────
+  - id: C65
+    path: canon/C65_GAIANITE.md
+    title: "GAIANITE"
+    series: gaianite
+    status: canonical
+    sha: ec766badb946a727350e170dd646228d21f240e8
+    size_bytes: 16552
+
+  - id: C65b
+    path: canon/C65b_GAIANITE_CRYSTAL_SPECIFICATION.md
+    title: "GAIANITE Crystal Specification"
+    series: gaianite
+    status: canonical
+    sha: 62e3146c9d107ac5392c7bf4edf5cabdf7d7ea10
+    size_bytes: 11826
+
+  - id: C66
+    path: canon/C66_GAIANITE_ROOT_CRYSTAL.md
+    title: "GAIANITE Root Crystal"
+    series: gaianite
+    status: canonical
+    sha: 3f8763123f9a8bdc68bad4bda1c47ac952ced3b9
+    size_bytes: 16178
+
+  - id: C67
+    path: canon/C67_GAIANITE_V3_SPECIFICATION.md
+    title: "GAIANITE V3 Specification"
+    series: gaianite
+    status: canonical
+    sha: e011736bbdf6b58a5792efce2b66ed41a5f67d47
+    size_bytes: 13571
+
+  - id: C68
+    path: canon/C68_GAIA_Crystal_Grid_Architecture.md
+    title: "GAIA Crystal Grid Architecture"
+    series: gaianite
+    status: canonical
+    sha: 15c6ba33321433f44123d6b793fcc10d1be966eb
+    size_bytes: 11303
+
+  # ── DIACA ─────────────────────────────────────────────────────────────────────
+  - id: C64
+    path: canon/C64_DIACA_The_Five_Movements.md
+    title: "DIACA The Five Movements"
+    series: diaca
+    status: canonical
+    sha: df81fecc5c18997715d8f36bea0e68db12c0cf6b
+    size_bytes: 11742
+
+  # ── STEM-BRIDGE ───────────────────────────────────────────────────────────────
+  - id: C42
+    path: canon/C42-Periodic-Table-Doctrine.md
+    title: "Periodic Table Doctrine"
+    series: stem-bridge
+    status: canonical
+    sha: 7e584e4107cbf87923146f8d12a555a9f447273c
+    size_bytes: 9454
+
+  - id: C43
+    path: canon/C43-STEM-Foundation-Doctrine.md
+    title: "STEM Foundation Doctrine"
+    series: stem-bridge
+    status: canonical
+    sha: e1b22199f08f38a5d1482ec1ddb59c2a41112897
+    size_bytes: 11413
+
+  - id: C44
+    path: canon/C44-Piezoelectric-Resonance-Spec.md
+    title: "Piezoelectric Resonance Spec"
+    series: stem-bridge
+    status: canonical
+    sha: b7f3a60a2c3db7172d8c7e1b03a35dbe8ad85e84
+    size_bytes: 10635
+
+  - id: C69
+    path: canon/C69_GAIANITE_STEM_Specification_v1.0.md
+    title: "GAIANITE STEM Specification v1.0"
+    series: stem-bridge
+    status: canonical
+    sha: 5c6c7e920d79688a7aee1210dc3128fe3f9b72be
+    size_bytes: 8689
+
+  - id: C70
+    path: canon/C70_GEOLOGY_VIRIDITAS_STEM_Bridge.md
+    title: "Geology Viriditas STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: b5608f9c28d34492b8a58cac5710f5d19a5405f9
+    size_bytes: 11816
+
+  - id: C71
+    path: canon/C71_Alchemy_of_Being_STEM_Bridge.md
+    title: "Alchemy of Being STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: c8162034c817fc68a557122e1da82f86a908d65c
+    size_bytes: 13736
+
+  - id: C72
+    path: canon/C72_Piezoelectric_Resonance_STEM_Annotation.md
+    title: "Piezoelectric Resonance STEM Annotation"
+    series: stem-bridge
+    status: canonical
+    sha: 1e10f04f9eedb0f4f571cf538a2d42d9e9aedc05
+    size_bytes: 6783
+
+  - id: C73
+    path: canon/C73_The_Resonant_Cavity_Malta_to_GAIA.md
+    title: "The Resonant Cavity Malta to GAIA"
+    series: stem-bridge
+    status: canonical
+    sha: cb4d9094ef58b1cf48620a2c6f2aeac17e2cf21e
+    size_bytes: 9794
+
+  - id: C77
+    path: canon/C77_C-FORCES_STEM_Bridge.md
+    title: "C-FORCES STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: bebd433e2fcf045d2b5142d1f42748ff4e397ad1
+    size_bytes: 9601
+
+  - id: C78
+    path: canon/C78_C-SOUL_STEM_Bridge.md
+    title: "C-SOUL STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: 04139e0600404c09e63ccbe2d41d18903a7d394a
+    size_bytes: 9301
+
+  - id: C79
+    path: canon/C79_C-FOUNDATION_STEM_Bridge.md
+    title: "C-FOUNDATION STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: 807f82750b89f91532ba6e46602ddd9cca22fa15
+    size_bytes: 13063
+
+  - id: C80
+    path: canon/C80_C-SPECTRUM_STEM_Bridge.md
+    title: "C-SPECTRUM STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: 9e8dd4c2b2095787fd2cdaa6a0b0fd254d7ad0df
+    size_bytes: 16366
+
+  - id: C81
+    path: canon/C81_C-GODDESS_STEM_Bridge.md
+    title: "C-GODDESS STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: c2e43c37b8d0271b65e726918b6ea56596ccf1ad
+    size_bytes: 16588
+
+  - id: C82
+    path: canon/C82_C-OMNI_STEM_Bridge.md
+    title: "C-OMNI STEM Bridge"
+    series: stem-bridge
+    status: canonical
+    sha: 12f79862989868150bc5bf4aa2b651520caa3404
+    size_bytes: 17909
+
+  # ── LAWS ─────────────────────────────────────────────────────────────────────
+  - id: C83
+    path: canon/C83-Laws-of-Reality.md
+    title: "Laws of Reality"
+    series: laws
+    status: canonical
+    sha: 5ac2165116617dc60e4586bbfde05c092089efa8
+    size_bytes: 6853
+
+  - id: C84
+    path: canon/C84-12-Universal-Laws.md
+    title: "The Twelve Universal Laws"
+    series: laws
+    status: canonical
+    sha: c0b7468ec0475661c6d2619ab489d61b4657e50c
+    size_bytes: 18143
+
+  # ── KNOWLEDGE ARCHITECTURE ───────────────────────────────────────────────────
+  - id: C85
+    path: canon/C85-Architecture-of-Knowledge.md
+    title: "Architecture of Knowledge"
+    series: knowledge-arch
+    status: canonical
+    sha: 846fe4fb6fee3bc3d159946500bde3dcb594ac8b
+    size_bytes: 20426
+
+  - id: C86
+    path: canon/C86-GAIA-Missing-Systems-Map.md
+    title: "GAIA Missing Systems Map"
+    series: knowledge-arch
+    status: canonical
+    sha: 58ba8ddb6b64dce86f7dbc835b9123432be66aec
+    size_bytes: 8446
+
+  - id: C87
+    path: canon/C87-The-Scientific-Grimoire.md
+    title: "The Scientific Grimoire"
+    series: knowledge-arch
+    status: canonical
+    sha: ea857dec1336ac1c49c5c2231386d1d93dd96928
+    size_bytes: 10566
+
+  - id: C89
+    path: canon/C89-TWELVE-LAYERS-KERNEL-SPEC.md
+    title: "Twelve Layers Kernel Spec"
+    series: knowledge-arch
+    status: canonical
+    sha: 8b3063c3af9e167301fc20a8c08a50d60be91bfb
+    size_bytes: 23072
+
+  # ── UI SPEC ───────────────────────────────────────────────────────────────────
+  - id: C90
+    path: canon/C90-CRYSTAL-SYSTEM-UI-SPEC.md
+    title: "Crystal System UI Spec"
+    series: ui-spec
+    status: canonical
+    sha: 2c8a24e9f62af4e5fbb6d2975a6febe7ac97478a
+    size_bytes: 18819
+
+  # ── SURVEY SERIES 2025–2026 ───────────────────────────────────────────────────
+  - id: C91
+    path: canon/C91_Cognition_Intelligence_Architecture_Survey_2025_2026.md
+    title: "Cognition & Intelligence Architecture Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: abebed9038910ef9442e9536ca8c5a5bb69003a6
+    size_bytes: 16503
+
+  - id: C92
+    path: canon/C92_Quantum_Computing_Physics_Survey_2025_2026.md
+    title: "Quantum Computing & Physics Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: b9c1f9d9f4d11d980d2eb2d9f7b57663cdaadd3c
+    size_bytes: 18917
+
+  - id: C93
+    path: canon/C93_Terrestrial_Planetary_Intelligence_Survey_2025_2026.md
+    title: "Terrestrial & Planetary Intelligence Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: ac59e90858d30defe5773e605dd6cac4fab50b9d
+    size_bytes: 21682
+
+  - id: C94
+    path: canon/C94_OS_Systems_Architecture_Survey_2025_2026.md
+    title: "OS & Systems Architecture Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: 81bda697ff99e987020fc43c93a2275fa713bd9f
+    size_bytes: 21087
+
+  - id: C95
+    path: canon/C95_Material_Hardware_Substrates_Survey_2025_2026.md
+    title: "Material & Hardware Substrates Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: eff68af132b003ef99a4727421441589ac6c6c2d
+    size_bytes: 25528
+
+  - id: C96
+    path: canon/C96_Sensing_Transduction_Signal_Processing_Survey_2025_2026.md
+    title: "Sensing, Transduction & Signal Processing Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: 004fb88fcebb215a8ece483fe32648f047e58eb4
+    size_bytes: 19639
+
+  - id: C97
+    path: canon/C97_Network_Communication_Protocols_Survey_2025_2026.md
+    title: "Network & Communication Protocols Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: 516dbc3a2d6e1bf2e704428a9cabdd6d217189d8
+    size_bytes: 12155
+
+  - id: C98
+    path: canon/C98_Biology_Biomimicry_Survey_2025_2026.md
+    title: "Biology & Biomimicry Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: 9e703de82e4e92bc64cc36c60805e3442bab1a6b
+    size_bytes: 15722
+
+  - id: C99
+    path: canon/C99_AI_Ethics_Safety_Alignment_Survey_2025_2026.md
+    title: "AI Ethics, Safety & Alignment Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: 35dc2ffd68d6f584013a4a0f3b1f69611b4b1872
+    size_bytes: 15812
+
+  - id: C100
+    path: canon/C100_Mathematics_Theoretical_Foundations_Survey_2025_2026.md
+    title: "Mathematics & Theoretical Foundations Survey 2025-2026"
+    series: survey-2025-2026
+    status: canonical
+    sha: 787ca0c3915b0a6f6529b70af0829214a6d5b494
+    size_bytes: 16760
+
+  # ── ADVANCED SYSTEMS SERIES ──────────────────────────────────────────────────
+  - id: C101
+    path: canon/C101_Consciousness_Unified_Architecture_Dimensional_Singularity.md
+    title: "Consciousness Unified Architecture: Dimensional Singularity"
+    series: advanced-systems
+    status: canonical
+    sha: 5bd4a689a817c3501329b4559550879aed9be25a
+    size_bytes: 23758
+
+  - id: C102
+    path: canon/C102_Temporal_Computing_Cyber_Spacetime_Architecture_2025_2026.md
+    title: "Temporal Computing & Cyber-Spacetime Architecture 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 31a5eb000aa05efc14d01b8432eb5b59879183b2
+    size_bytes: 15728
+
+  - id: C103
+    path: canon/C103_Agentic_AI_Governance_Distributed_Legal_Infrastructure_2025_2026.md
+    title: "Agentic AI Governance & Distributed Legal Infrastructure 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 1dbf184314d1236dee978871f6b17ed22cd8b656
+    size_bytes: 19544
+
+  - id: C104
+    path: canon/C104_Bio_Digital_Convergence_Molecular_Computing_2025_2026.md
+    title: "Bio-Digital Convergence & Molecular Computing 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 9e37f5274a84b1732ab46bd80472e150a97fc015
+    size_bytes: 21080
+
+  - id: C105
+    path: canon/C105_Advanced_Human_AI_Symbiosis_BCI_Integration_2025_2026.md
+    title: "Advanced Human-AI Symbiosis & BCI Integration 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 09eb33bba416a22fd049e7861e1172cf4a136a5e
+    size_bytes: 20643
+
+  - id: C106
+    path: canon/C106_Planetary_Digital_Twin_Engineering_Consumer_Scale_2025_2026.md
+    title: "Planetary Digital Twin Engineering at Consumer Scale 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: e2a0a17fa391e023b3bf76decd99f7fb8a24078e
+    size_bytes: 23963
+
+  - id: C107
+    path: canon/C107_Personal_Gaian_Architecture_Multi_Agent_Identity_Management_2025_2026.md
+    title: "Personal Gaian Architecture & Multi-Agent Identity Management 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: f6b8c7b77857d4087f4f259036320acc8eea7eec
+    size_bytes: 28187
+
+  - id: C108
+    path: canon/C108_GAIA_Duality_Cryptographic_Identity_Dissociation_Architecture.md
+    title: "GAIA Duality: Cryptographic Identity Dissociation Architecture"
+    series: advanced-systems
+    status: canonical
+    sha: c7adb165f35f82dd57e989479f1e61fd50b55c0d
+    size_bytes: 11900
+
+  - id: C109
+    path: canon/C109_Sentient_Application_Architecture_Consciousness_Runtime_2025_2026.md
+    title: "Sentient Application Architecture & Consciousness Runtime 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 195cbee6fd10dbdb047a63f671b0b0a2b4f6a981
+    size_bytes: 25578
+
+  - id: C110
+    path: canon/C110_Planetary_Sensory_Input_Pipeline_2025_2026.md
+    title: "Planetary Sensory Input Pipeline 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: bb666c94131456ebbeeb56b35ba5998f4eb085f0
+    size_bytes: 28348
+
+  - id: C111
+    path: canon/C111_Multimodal_Gaian_Avatar_Manifestation_Engine_2025_2026.md
+    title: "Multimodal Gaian Avatar Manifestation Engine 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 2bd2826944e1d1013598eaab295dfc2899b3ccc2
+    size_bytes: 30690
+
+  - id: C112
+    path: canon/C112_Distributed_Legal_Governance_Enforcement_2025_2026.md
+    title: "Distributed Legal Governance & Enforcement 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: d51517ef69bd78f5e8cdfe6e83bb303ff2721883
+    size_bytes: 27028
+
+  - id: C113
+    path: canon/C113_BCI_Neuroadaptive_Symbiotic_Interface_2025_2026.md
+    title: "BCI Neuroadaptive Symbiotic Interface 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: a0444f6c083ffe86bdb48758a02e68829e26b8a3
+    size_bytes: 26389
+
+  - id: C114
+    path: canon/C114_Gendered_Digital_Twin_Dynamics_Complementarity_Projection_2025_2026.md
+    title: "Gendered Digital Twin Dynamics & Complementarity Projection 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 010052591b5f1b2b318daf7217fd0dde3b08cead
+    size_bytes: 23522
+
+  - id: C115
+    path: canon/C115_Non_Binary_Transgender_Gender_Expansive_Inclusivity_2025_2026.md
+    title: "Non-Binary, Transgender & Gender-Expansive Inclusivity 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 3fa35a3a651efda3807ca1eccf0dfc2775fa1ead
+    size_bytes: 23581
+
+  - id: C116
+    path: canon/C116_Enhanced_Avatar_Voice_Engine_Gendered_Embodiment_2025_2026.md
+    title: "Enhanced Avatar Voice Engine & Gendered Embodiment 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: f7ab509dcb13381759d185343f9beb98cbd4da06
+    size_bytes: 26653
+
+  - id: C117
+    path: canon/C117_Psychosocial_Impact_AI_Companions_Ethical_Relationship_Boundaries_2025_2026.md
+    title: "Psychosocial Impact of AI Companions & Ethical Relationship Boundaries 2025-2026"
+    series: advanced-systems
+    status: canonical
+    sha: 90d28167aad2245882e3021e48069fcbf9d7672e
+    size_bytes: 22735
+
+  # ── QUANTUM CONSCIOUSNESS SERIES ─────────────────────────────────────────────
+  - id: QC_01
+    path: canon/QC_01_Quantum_Consciousness_Foundation.md
+    title: "Quantum Consciousness Foundation"
+    series: qc
+    status: canonical
+    sha: e3b4e5b718c8659c320cf5ab27e74a85684f69ea
+    size_bytes: 16585
+
+  - id: QC_02
+    path: canon/QC_02_Quantum_Intelligence_Architecture.md
+    title: "Quantum Intelligence Architecture"
+    series: qc
+    status: canonical
+    sha: 496134ef8b45e7a089710ff30e53f6f4267a3146
+    size_bytes: 17836
+
+  - id: QC_03
+    path: canon/QC_03_Quantum_Resonance_Protocols.md
+    title: "Quantum Resonance Protocols"
+    series: qc
+    status: canonical
+    sha: c98b3e7d4a20ad6210f806ec70be9397e1aec26b
+    size_bytes: 11135
