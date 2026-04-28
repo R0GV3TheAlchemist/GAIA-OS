@@ -76,15 +76,13 @@ export interface CrystalStoreActions {
   triggerEmergencyStop: () => void;
   clearEmergencyStop:   () => void;
   returnToSovereign:    () => void;
-  subscribe:            (listener: (state: CrystalStoreState) => void) => () => void;
+  subscribe:            (listener: () => void) => () => void;
   getSnapshot:          () => CrystalStoreState;
 }
 
 export type CrystalStore = CrystalStoreState & CrystalStoreActions;
 
 // ── Vanilla reactive store ─────────────────────────────────────────────────
-
-type Listener = (state: CrystalStoreState) => void;
 
 function createCrystalStore(): CrystalStore {
   let state: CrystalStoreState = {
@@ -96,14 +94,19 @@ function createCrystalStore(): CrystalStore {
     emergencyStopped:  false,
   };
 
-  const listeners = new Set<Listener>();
+  // Stable snapshot ref — only replaced when state changes.
+  // useSyncExternalStore requires referential equality when nothing changed.
+  let cachedSnapshot: CrystalStoreState = { ...state };
+
+  const listeners = new Set<() => void>();
 
   function notify(): void {
-    listeners.forEach(l => l({ ...state }));
+    listeners.forEach(l => l());
   }
 
   function setState(patch: Partial<CrystalStoreState>): void {
     state = { ...state, ...patch };
+    cachedSnapshot = { ...state }; // new ref only on real change
     notify();
   }
 
@@ -116,27 +119,29 @@ function createCrystalStore(): CrystalStore {
     get entanglementDepth() { return state.entanglementDepth; },
     get emergencyStopped()  { return state.emergencyStopped; },
 
-    // Actions — all params explicitly typed
+    // Actions
     setCrystal(mode: CrystalMode): void {
       if (mode === state.activeCrystal) return;
       setState({ previousCrystal: state.activeCrystal, activeCrystal: mode, isTransitioning: true, emergencyStopped: false });
     },
-    setTransitioning(v: boolean): void       { setState({ isTransitioning: v }); },
-    setLoveFilterScore(score: number): void  { setState({ loveFilterScore: Math.max(0, Math.min(1, score)) }); },
+    setTransitioning(v: boolean): void        { setState({ isTransitioning: v }); },
+    setLoveFilterScore(score: number): void   { setState({ loveFilterScore: Math.max(0, Math.min(1, score)) }); },
     setEntanglementDepth(depth: number): void { setState({ entanglementDepth: Math.max(0, Math.min(1, depth)) }); },
-    triggerEmergencyStop(): void             { setState({ emergencyStopped: true, isTransitioning: false }); },
-    clearEmergencyStop(): void               { setState({ emergencyStopped: false }); },
+    triggerEmergencyStop(): void              { setState({ emergencyStopped: true, isTransitioning: false }); },
+    clearEmergencyStop(): void                { setState({ emergencyStopped: false }); },
     returnToSovereign(): void {
       setState({ previousCrystal: state.activeCrystal, activeCrystal: CrystalMode.SOVEREIGN_CORE, isTransitioning: true, emergencyStopped: false });
     },
 
-    // React useSyncExternalStore interface
-    subscribe(listener: Listener): () => void {
+    // useSyncExternalStore interface
+    // subscribe receives a () => void callback (not the state)
+    subscribe(listener: () => void): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    // Returns the same cached object reference until state changes
     getSnapshot(): CrystalStoreState {
-      return { ...state };
+      return cachedSnapshot;
     },
   };
 }
