@@ -1,6 +1,7 @@
 /* ─────────────────────────────────────────────
    src/shell/GaiaShell.css
-   GAIA-OS App Shell — Phase 4b
+   GAIA-OS Shell — S.T.Q.I.O.S.
+   Clean. Precise. Serious. No magic.
    Canon: C90
 ───────────────────────────────────────────── */
 
@@ -12,18 +13,13 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: var(--gaia-void, #080810);
-  color: var(--gaia-light, #e8e8f0);
-  font-family: var(--gaia-font, 'Inter', system-ui, sans-serif);
-  transition: background 0.6s ease;
+  background: #0a0a0f;
+  color: #e2e2e8;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* ── CRYSTAL-AWARE TINTING ── */
-.gaia-shell[data-crystal="sovereign_core"]  { --shell-accent: var(--sovereign-gold,   #c9a84c); }
-.gaia-shell[data-crystal="anchor_prism"]    { --shell-accent: var(--anchor-earth,     #a07850); }
-.gaia-shell[data-crystal="viriditas_heart"] { --shell-accent: var(--viriditas-green,  #4a9e6e); }
-.gaia-shell[data-crystal="somnus_veil"]     { --shell-accent: var(--somnus-indigo,    #6060b0); }
-.gaia-shell[data-crystal="clarus_lens"]     { --shell-accent: var(--clarus-blue,      #4090d0); }
+/* ── MODE ACCENT — one clean teal, not rainbow crystals ── */
+.gaia-shell { --accent: #20b2aa; }
 
 /* ── TOP BAR ── */
 .gaia-shell__topbar {
@@ -32,29 +28,28 @@
   align-items: center;
   gap: 16px;
   padding: 0 16px;
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  backdrop-filter: blur(8px);
+  background: #0f0f18;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
 .gaia-shell__wordmark {
   display: flex;
   align-items: baseline;
-  gap: 2px;
+  gap: 3px;
   flex-shrink: 0;
 }
 .gaia-shell__wordmark-gaia {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--shell-accent, #c9a84c);
+  letter-spacing: 0.15em;
+  color: #20b2aa;
   text-transform: uppercase;
 }
 .gaia-shell__wordmark-os {
   font-size: 10px;
   font-weight: 400;
-  letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.3);
   text-transform: uppercase;
 }
 
@@ -65,54 +60,59 @@
   flex: 1;
   min-width: 0;
 }
-.gaia-shell__active-glyph { font-size: 14px; }
-.gaia-shell__active-name  {
+.gaia-shell__active-icon {
+  font-size: 13px;
+  color: #20b2aa;
+  flex-shrink: 0;
+}
+.gaia-shell__active-name {
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--shell-accent, #e8e8f0);
+  letter-spacing: 0.08em;
+  color: #e2e2e8;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
-.gaia-shell__active-declaration {
+.gaia-shell__active-desc {
   font-size: 11px;
-  color: rgba(255,255,255,0.4);
-  font-style: italic;
+  color: rgba(255,255,255,0.35);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.gaia-shell__coherence {
+.gaia-shell__focus {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
-.gaia-shell__coherence-bar {
-  width: 80px;
-  height: 4px;
-  background: rgba(255,255,255,0.1);
+.gaia-shell__focus-bar {
+  width: 72px;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
   border-radius: 2px;
   overflow: hidden;
 }
-.gaia-shell__coherence-fill {
+.gaia-shell__focus-fill {
   height: 100%;
-  background: var(--shell-accent, #c9a84c);
+  background: #20b2aa;
   border-radius: 2px;
   transition: width 0.8s ease;
 }
-.gaia-shell__coherence-label {
+.gaia-shell__focus-label {
   font-size: 10px;
   letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4);
   text-transform: uppercase;
-  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
 }
 
 /* ── BODY ── */
 .gaia-shell__body {
   grid-row: 2;
   display: grid;
-  grid-template-columns: 56px 1fr;
+  grid-template-columns: 64px 1fr;
   overflow: hidden;
 }
 
@@ -120,11 +120,11 @@
 .gaia-shell__rail {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 8px 0;
-  gap: 4px;
-  background: rgba(255,255,255,0.02);
-  border-right: 1px solid rgba(255,255,255,0.05);
+  align-items: stretch;
+  padding: 8px 4px;
+  gap: 2px;
+  background: #0f0f18;
+  border-right: 1px solid rgba(255,255,255,0.06);
 }
 
 .gaia-shell__rail-btn {
@@ -132,39 +132,53 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  width: 48px;
+  gap: 4px;
   height: 52px;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  color: rgba(255,255,255,0.35);
-  transition: background 0.2s, color 0.2s;
-  padding: 4px;
+  color: rgba(255,255,255,0.3);
+  transition: background 0.15s, color 0.15s;
+  padding: 4px 2px;
+  position: relative;
 }
 .gaia-shell__rail-btn:hover {
-  background: rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.05);
   color: rgba(255,255,255,0.7);
 }
 .gaia-shell__rail-btn--active {
-  background: rgba(255,255,255,0.08);
-  color: var(--shell-accent, #c9a84c);
-  border-left: 2px solid var(--shell-accent, #c9a84c);
+  background: rgba(32,178,170,0.1);
+  color: #20b2aa;
 }
-.gaia-shell__rail-glyph { font-size: 16px; line-height: 1; }
-.gaia-shell__rail-name  {
+.gaia-shell__rail-btn--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 2px;
+  background: #20b2aa;
+  border-radius: 0 2px 2px 0;
+}
+.gaia-shell__rail-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+.gaia-shell__rail-name {
   font-size: 7px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   line-height: 1;
   text-align: center;
+  font-weight: 500;
 }
 
 /* ── CONTENT ── */
 .gaia-shell__content {
   overflow: hidden;
   position: relative;
+  background: #0a0a0f;
 }
 
 /* ── BOTTOM STRIP ── */
@@ -174,17 +188,26 @@
   align-items: center;
   gap: 16px;
   padding: 0 16px;
-  background: rgba(255,255,255,0.02);
-  border-top: 1px solid rgba(255,255,255,0.05);
+  background: #0f0f18;
+  border-top: 1px solid rgba(255,255,255,0.06);
   font-size: 10px;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.35);
 }
 
 .gaia-shell__session-timer {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   margin-left: auto;
 }
-.gaia-shell__timer-icon  { color: var(--shell-accent, #c9a84c); }
-.gaia-shell__timer-value { font-variant-numeric: tabular-nums; letter-spacing: 0.05em; }
+.gaia-shell__timer-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+}
+.gaia-shell__timer-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  color: rgba(255,255,255,0.5);
+}

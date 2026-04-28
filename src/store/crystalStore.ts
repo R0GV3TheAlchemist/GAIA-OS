@@ -1,44 +1,42 @@
 /**
  * src/store/crystalStore.ts
- * Crystal Mode State — the active crystal and its metadata.
- * Canon: C90 (Crystal System UI Spec)
+ * GAIA-OS Operating Mode State
+ * Canon: C90 — S.T.Q.I.O.S.
+ *
+ * Five operating modes for a sentient personal OS.
+ * Not crystals. Not magic. Operating modes — like any serious OS.
  */
 
 export enum CrystalMode {
-  /** Default / Control / Full Oversight — White/Clear — Layers 1,2,3,HE,9 */
   SOVEREIGN_CORE    = 'sovereign_core',
-  /** Grounding / Stability — Earth/Stone — Layers 1,2,3,12 */
   ANCHOR_PRISM      = 'anchor_prism',
-  /** Healing / Growth / Emotion-first — Rose/Green — Layers 3,4,7,11 */
   VIRIDITAS_HEART   = 'viriditas_heart',
-  /** Rest / Sleep / Memory consolidation — Midnight/Spectral — Layers 6,12 */
   SOMNUS_VEIL       = 'somnus_veil',
-  /** Clarity / Analysis / Deep cognition — Prismatic/Electric — Layers 3,5,9,10 */
   CLARUS_LENS       = 'clarus_lens',
 }
 
 export const CRYSTAL_LABELS: Record<CrystalMode, string> = {
-  [CrystalMode.SOVEREIGN_CORE]:  'Control Mode',
-  [CrystalMode.ANCHOR_PRISM]:    'Grounding Mode',
-  [CrystalMode.VIRIDITAS_HEART]: 'Healing Mode',
-  [CrystalMode.SOMNUS_VEIL]:     'Rest Mode',
-  [CrystalMode.CLARUS_LENS]:     'Clarity Mode',
+  [CrystalMode.SOVEREIGN_CORE]:  'Control',
+  [CrystalMode.ANCHOR_PRISM]:    'Grounding',
+  [CrystalMode.VIRIDITAS_HEART]: 'Healing',
+  [CrystalMode.SOMNUS_VEIL]:     'Rest',
+  [CrystalMode.CLARUS_LENS]:     'Clarity',
 };
 
 export const CRYSTAL_DECLARATIONS: Record<CrystalMode, string> = {
-  [CrystalMode.SOVEREIGN_CORE]:  'Nothing happens unless I allow it.',
-  [CrystalMode.ANCHOR_PRISM]:    'I am here. I am stable.',
-  [CrystalMode.VIRIDITAS_HEART]: 'I can heal. I can grow again.',
-  [CrystalMode.SOMNUS_VEIL]:     'I can let go. I can rest.',
-  [CrystalMode.CLARUS_LENS]:     'I see clearly. I understand what is real.',
+  [CrystalMode.SOVEREIGN_CORE]:  'Full oversight — you are at the helm.',
+  [CrystalMode.ANCHOR_PRISM]:    'Stabilise. Return to baseline.',
+  [CrystalMode.VIRIDITAS_HEART]: 'Process. Recover. Repair.',
+  [CrystalMode.SOMNUS_VEIL]:     'Wind down. Consolidate. Rest.',
+  [CrystalMode.CLARUS_LENS]:     'Deep focus. Analyse. Decide.',
 };
 
 export const CRYSTAL_CSS_CLASS: Record<CrystalMode, string> = {
-  [CrystalMode.SOVEREIGN_CORE]:  'crystal--sovereign',
-  [CrystalMode.ANCHOR_PRISM]:    'crystal--anchor',
-  [CrystalMode.VIRIDITAS_HEART]: 'crystal--viriditas',
-  [CrystalMode.SOMNUS_VEIL]:     'crystal--somnus',
-  [CrystalMode.CLARUS_LENS]:     'crystal--clarus',
+  [CrystalMode.SOVEREIGN_CORE]:  'mode--control',
+  [CrystalMode.ANCHOR_PRISM]:    'mode--grounding',
+  [CrystalMode.VIRIDITAS_HEART]: 'mode--healing',
+  [CrystalMode.SOMNUS_VEIL]:     'mode--rest',
+  [CrystalMode.CLARUS_LENS]:     'mode--clarity',
 };
 
 export const CRYSTAL_SHORTCUT: Record<CrystalMode, number> = {
@@ -56,6 +54,14 @@ export const CRYSTAL_ORDER: CrystalMode[] = [
   CrystalMode.SOMNUS_VEIL,
   CrystalMode.CLARUS_LENS,
 ];
+
+export const MODE_ICONS: Record<CrystalMode, string> = {
+  [CrystalMode.SOVEREIGN_CORE]:  '⊕',
+  [CrystalMode.ANCHOR_PRISM]:    '◎',
+  [CrystalMode.VIRIDITAS_HEART]: '◈',
+  [CrystalMode.SOMNUS_VEIL]:     '◑',
+  [CrystalMode.CLARUS_LENS]:     '◉',
+};
 
 // ── Store shape ────────────────────────────────────────────────────────────
 
@@ -94,24 +100,18 @@ function createCrystalStore(): CrystalStore {
     emergencyStopped:  false,
   };
 
-  // Stable snapshot ref — only replaced when state changes.
-  // useSyncExternalStore requires referential equality when nothing changed.
   let cachedSnapshot: CrystalStoreState = { ...state };
-
   const listeners = new Set<() => void>();
 
-  function notify(): void {
-    listeners.forEach(l => l());
-  }
+  function notify(): void { listeners.forEach(l => l()); }
 
   function setState(patch: Partial<CrystalStoreState>): void {
     state = { ...state, ...patch };
-    cachedSnapshot = { ...state }; // new ref only on real change
+    cachedSnapshot = { ...state };
     notify();
   }
 
   return {
-    // Getters
     get activeCrystal()     { return state.activeCrystal; },
     get previousCrystal()   { return state.previousCrystal; },
     get isTransitioning()   { return state.isTransitioning; },
@@ -119,7 +119,6 @@ function createCrystalStore(): CrystalStore {
     get entanglementDepth() { return state.entanglementDepth; },
     get emergencyStopped()  { return state.emergencyStopped; },
 
-    // Actions
     setCrystal(mode: CrystalMode): void {
       if (mode === state.activeCrystal) return;
       setState({ previousCrystal: state.activeCrystal, activeCrystal: mode, isTransitioning: true, emergencyStopped: false });
@@ -132,14 +131,10 @@ function createCrystalStore(): CrystalStore {
     returnToSovereign(): void {
       setState({ previousCrystal: state.activeCrystal, activeCrystal: CrystalMode.SOVEREIGN_CORE, isTransitioning: true, emergencyStopped: false });
     },
-
-    // useSyncExternalStore interface
-    // subscribe receives a () => void callback (not the state)
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    // Returns the same cached object reference until state changes
     getSnapshot(): CrystalStoreState {
       return cachedSnapshot;
     },

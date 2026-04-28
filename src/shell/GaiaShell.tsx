@@ -1,13 +1,10 @@
 /**
  * src/shell/GaiaShell.tsx
- * GAIA-OS App Shell — Phase 4b
- * Canon: C90 — "The field has a home."
+ * GAIA-OS App Shell
+ * S.T.Q.I.O.S. — Sentient Terrestrial Quantum Intelligent Operating System
+ * Canon: C90
  *
- * Wraps CrystalField in a persistent shell:
- *   - Top bar: wordmark, active crystal, coherence score
- *   - Left rail: crystal navigator (all 5, always visible)
- *   - Content: active crystal full-height
- *   - Bottom strip: love filter + entanglement + session timer
+ * Clean, serious, powerful. No magic. No crystals. A real OS interface.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -21,25 +18,18 @@ import {
   CRYSTAL_ORDER,
   CRYSTAL_DECLARATIONS,
   CRYSTAL_LABELS,
+  MODE_ICONS,
 } from '../store/crystalStore';
 import { CrystalField } from '../field/CrystalField';
 import './GaiaShell.css';
-
-const CRYSTAL_GLYPHS: Record<CrystalMode, string> = {
-  [CrystalMode.SOVEREIGN_CORE]:  '🔷',
-  [CrystalMode.ANCHOR_PRISM]:    '🪨',
-  [CrystalMode.VIRIDITAS_HEART]: '🌿',
-  [CrystalMode.SOMNUS_VEIL]:     '🌙',
-  [CrystalMode.CLARUS_LENS]:     '🔬',
-};
 
 function useSessionTimer(startISO: string): string {
   const [elapsed, setElapsed] = useState('00:00');
   useEffect(() => {
     const start = new Date(startISO).getTime();
     const tick = () => {
-      const s = Math.floor((Date.now() - start) / 1000);
-      const m = Math.floor(s / 60).toString().padStart(2, '0');
+      const s  = Math.floor((Date.now() - start) / 1000);
+      const m  = Math.floor(s / 60).toString().padStart(2, '0');
       const sc = (s % 60).toString().padStart(2, '0');
       setElapsed(`${m}:${sc}`);
     };
@@ -51,15 +41,12 @@ function useSessionTimer(startISO: string): string {
 }
 
 export const GaiaShell: React.FC = () => {
-  const { activeCrystal, setCrystal, declaration } = useCrystal();
+  const { activeCrystal, setCrystal } = useCrystal();
   const session = useSession();
   const elapsed = useSessionTimer(session.sessionStart);
 
-  const coherenceLabel = session.coherenceLevel;
-  const coherencePct   = session.coherenceScore;
-
   return (
-    <div className="gaia-shell" data-crystal={activeCrystal}>
+    <div className="gaia-shell" data-mode={activeCrystal}>
 
       {/* ── TOP BAR ── */}
       <header className="gaia-shell__topbar">
@@ -69,32 +56,32 @@ export const GaiaShell: React.FC = () => {
         </div>
 
         <div className="gaia-shell__active-label">
-          <span className="gaia-shell__active-glyph">
-            {CRYSTAL_GLYPHS[activeCrystal]}
+          <span className="gaia-shell__active-icon">
+            {MODE_ICONS[activeCrystal]}
           </span>
           <span className="gaia-shell__active-name">
             {CRYSTAL_LABELS[activeCrystal]}
           </span>
-          <span className="gaia-shell__active-declaration">
-            {declaration}
+          <span className="gaia-shell__active-desc">
+            {CRYSTAL_DECLARATIONS[activeCrystal]}
           </span>
         </div>
 
-        <div className="gaia-shell__coherence">
+        <div className="gaia-shell__focus">
           <div
-            className="gaia-shell__coherence-bar"
+            className="gaia-shell__focus-bar"
             role="meter"
-            aria-valuenow={coherencePct}
+            aria-valuenow={session.coherenceScore}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label={`Coherence: ${coherenceLabel}`}
+            aria-label={`Focus: ${session.coherenceScore}%`}
           >
             <div
-              className="gaia-shell__coherence-fill"
-              style={{ width: `${coherencePct}%` }}
+              className="gaia-shell__focus-fill"
+              style={{ width: `${session.coherenceScore}%` }}
             />
           </div>
-          <span className="gaia-shell__coherence-label">{coherenceLabel}</span>
+          <span className="gaia-shell__focus-label">Focus {session.coherenceScore}%</span>
         </div>
       </header>
 
@@ -102,7 +89,7 @@ export const GaiaShell: React.FC = () => {
       <div className="gaia-shell__body">
 
         {/* ── LEFT RAIL ── */}
-        <nav className="gaia-shell__rail" aria-label="Crystal navigator">
+        <nav className="gaia-shell__rail" aria-label="Operating modes">
           {CRYSTAL_ORDER.map(mode => (
             <button
               key={mode}
@@ -111,22 +98,18 @@ export const GaiaShell: React.FC = () => {
               }`}
               onClick={() => setCrystal(mode)}
               aria-pressed={mode === activeCrystal}
-              aria-label={`${CRYSTAL_LABELS[mode]} — ${CRYSTAL_DECLARATIONS[mode]}`}
+              aria-label={CRYSTAL_LABELS[mode]}
               title={CRYSTAL_DECLARATIONS[mode]}
               data-mode={mode}
             >
-              <span className="gaia-shell__rail-glyph">
-                {CRYSTAL_GLYPHS[mode]}
-              </span>
-              <span className="gaia-shell__rail-name">
-                {CRYSTAL_LABELS[mode]}
-              </span>
+              <span className="gaia-shell__rail-icon">{MODE_ICONS[mode]}</span>
+              <span className="gaia-shell__rail-name">{CRYSTAL_LABELS[mode]}</span>
             </button>
           ))}
         </nav>
 
-        {/* ── CRYSTAL CONTENT ── */}
-        <main className="gaia-shell__content" aria-label="Active crystal">
+        {/* ── CONTENT ── */}
+        <main className="gaia-shell__content" aria-label="Active mode">
           <CrystalField />
         </main>
 
@@ -137,7 +120,7 @@ export const GaiaShell: React.FC = () => {
         <LoveFilter showLabel={true} size="small" />
         <EntanglementState showLabel={true} />
         <div className="gaia-shell__session-timer" aria-label="Session duration">
-          <span className="gaia-shell__timer-icon">◈</span>
+          <span className="gaia-shell__timer-label">SESSION</span>
           <span className="gaia-shell__timer-value">{elapsed}</span>
         </div>
       </footer>
