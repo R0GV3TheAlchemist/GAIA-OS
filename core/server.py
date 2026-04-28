@@ -1,5 +1,5 @@
 """
-GAIA API Server — FastAPI bootstrap v2.3.0
+GAIA API Server — FastAPI bootstrap v2.3.1
 
 Split from the monolith in Sprint C47+. All endpoints live in
 core/routers/. Shared process state lives in core/server_state.py.
@@ -26,6 +26,7 @@ from core.logger import GAIAEvent, LoggingMiddleware, get_logger, log_event
 from core.rate_limiter import RateLimitMiddleware
 from core.routers import (
     admin_router,
+    auth_users_router,
     chat_router,
     gaians_router,
     health_router,
@@ -67,17 +68,20 @@ app.add_middleware(
 )
 
 # — Routers —
-app.include_router(auth_router)
-app.include_router(health_router)    # /health, /health/ready — no auth, mounted first
+# auth_users_router provides /auth/register, /auth/login, /auth/me
+# auth_router (legacy) provides /auth/token for dev/admin bootstrap — kept for backward compat
+app.include_router(auth_users_router)   # POST /auth/register, POST /auth/login, GET /auth/me
+app.include_router(auth_router)         # POST /auth/token (dev bootstrap)
+app.include_router(health_router)       # /health, /health/ready — no auth
 app.include_router(system_router)
 app.include_router(gaians_router)
 app.include_router(chat_router)
-app.include_router(memory_router)    # /memory/* — C17 governed persistent memory
+app.include_router(memory_router)
 app.include_router(zodiac_router)
-app.include_router(query_router)     # /query, /query/stream
-app.include_router(admin_router)     # /admin/*
-app.include_router(mood_ws_router)   # /ws/mood — orb mood broadcaster
-app.include_router(room_router)      # /room/* — C20 Home Twin room persistence
+app.include_router(query_router)
+app.include_router(admin_router)
+app.include_router(mood_ws_router)
+app.include_router(room_router)
 
 # — Startup / shutdown lifecycle —
 register_lifecycle(app)
