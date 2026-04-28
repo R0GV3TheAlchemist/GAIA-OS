@@ -22,6 +22,8 @@ import './SovereignCore.css';
 
 // ── Live Clock ──────────────────────────────────────────────────────
 
+const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 const LiveClock: React.FC = () => {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -33,8 +35,7 @@ const LiveClock: React.FC = () => {
   const h = pad(now.getHours());
   const m = pad(now.getMinutes());
   const s = pad(now.getSeconds());
-  const days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   return (
     <div className="sc-clock" role="timer" aria-label={`${h}:${m}:${s}`}>
@@ -51,8 +52,6 @@ const LiveClock: React.FC = () => {
     </div>
   );
 };
-
-const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // ── System Status ───────────────────────────────────────────────────
 
