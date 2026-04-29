@@ -19,8 +19,17 @@ Resilience features (v2):
   proxies and load balancers do not close the connection while
   waiting for slow models (e.g. qwen2.5:32b) to produce token 0.
 
+Tokenizer (v3 — BPE):
+- Uses tiktoken cl100k_base encoding (GPT-4 / Claude-compatible,
+  ~100k token vocabulary) for subword-accurate streaming.
+- Each BPE token ID is decoded back to UTF-8. Incomplete multi-byte
+  sequences (e.g. mid-emoji, CJK characters) are buffered until they
+  form a valid codepoint before being emitted — no mojibake mid-stream.
+- Falls back to word-split if tiktoken is not installed, preserving
+  full backward compatibility.
+
 NOTE on event format inside stream_gaia_response:
-  The generator yields "data: {...}\nid: N\n\n" (data line first) so
+  The generator yields "data: {...}\\nid: N\\n\\n" (data line first) so
   that test helpers filtering on e.startswith("data:") capture every
   token and done event. format_sse_event() still follows the SSE spec
   (id: before data:) and is used unchanged by stream_error().
@@ -37,6 +46,65 @@ from core.noosphere import get_noosphere
 
 logger = logging.getLogger("gaia.streaming")
 
+# ---------------------------------------------------------------------------
+# Tokenizer bootstrap — tiktoken BPE with word-split fallback
+# ---------------------------------------------------------------------------
+try:
+    import tiktoken
+    _enc = tiktoken.get_encoding("cl100k_base")
+    _TIKTOKEN_AVAILABLE = True
+    logger.info("[streaming] tiktoken cl100k_base loaded — BPE tokenization active")
+except Exception:  # pragma: no cover
+    _enc = None
+    _TIKTOKEN_AVAILABLE = False
+    logger.warning(
+        "[streaming] tiktoken not available — falling back to word-split tokenization. "
+        "Install with: pip install tiktoken"
+    )
+
+
+def _bpe_chunks(text: str) -> list[str]:
+    """
+    Tokenize *text* using BPE and return a list of decoded string chunks.
+
+    Each chunk corresponds to one BPE token.  Multi-byte UTF-8 sequences
+    that straddle token boundaries are buffered internally and only emitted
+    once they decode cleanly — preventing mojibake from appearing in the
+    stream.
+
+    Falls back to word-level splitting when tiktoken is unavailable.
+    """
+    if not _TIKTOKEN_AVAILABLE or _enc is None:
+        # Backward-compatible fallback: preserve trailing space per original
+        words = text.split(" ")
+        return [w + " " if i < len(words) - 1 else w for i, w in enumerate(words)]
+
+    token_ids = _enc.encode(text)
+    chunks: list[str] = []
+    byte_buffer = b""
+
+    for tid in token_ids:
+        # tiktoken returns raw bytes per token via decode_single_token_bytes
+        raw: bytes = _enc.decode_single_token_bytes(tid)
+        byte_buffer += raw
+        try:
+            decoded = byte_buffer.decode("utf-8")
+            chunks.append(decoded)
+            byte_buffer = b""
+        except UnicodeDecodeError:
+            # Incomplete multi-byte sequence — hold in buffer until next token
+            continue
+
+    # Flush any remaining bytes (should be empty for well-formed UTF-8)
+    if byte_buffer:
+        chunks.append(byte_buffer.decode("utf-8", errors="replace"))
+
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 @dataclass
 class StreamToken:
@@ -84,9 +152,13 @@ async def stream_gaia_response(
     """
     Stream a GAIA response token by token via SSE.
 
+    Tokenization uses tiktoken BPE (cl100k_base) so each yielded chunk
+    corresponds to a real subword token rather than a whitespace-split word.
+    This produces the authentic Perplexity-style incremental rendering feel.
+
     Each token is yielded as an SSE event with:
     - A sequential event ID for resumable reconnection
-    - The text fragment
+    - The text fragment (one BPE token, decoded to UTF-8)
     - Any canon citation relevant to this fragment
     - Epistemic label if applicable
     - Noosphere resonance if the topic has collective patterns
@@ -96,7 +168,7 @@ async def stream_gaia_response(
     while waiting for the model to produce its first token.
 
     Event format: "data: {...}\\nid: N\\n\\n"
-    All word tokens carry is_final=False.  Only the done sentinel
+    All token events carry is_final=False.  Only the done sentinel
     event carries is_final=True, making it easy for consumers to
     detect stream completion by filtering e.startswith("data:") and
     checking is_final on the last element.
@@ -126,19 +198,16 @@ async def stream_gaia_response(
     # Current criticality state (captured once for the first token)
     crit_state = monitor.get_current_state().value
 
-    # Split response into tokens (simple word-level for Phase 1)
-    # Phase 2: replace with actual tokenizer from the inference model
-    words = response_text.split(" ")
+    # BPE tokenize — falls back to word-split if tiktoken unavailable
+    chunks = _bpe_chunks(response_text)
 
     citation_str = (
         ", ".join(f"[{c}]" for c in canon_citations) if canon_citations else None
     )
 
-    for i, word in enumerate(words):
-        is_last_word = (i == len(words) - 1)
-
+    for i, chunk in enumerate(chunks):
         payload: dict = {
-            "text": word + ("" if is_last_word else " "),
+            "text": chunk,
             "is_final": False,
         }
 
@@ -156,8 +225,8 @@ async def stream_gaia_response(
         yield f"data: {json.dumps(payload)}\nid: {i}\n\n"
         await asyncio.sleep(token_delay_ms / 1000.0)
 
-    # Done sentinel — event_id is len(words) so it sorts after all token IDs.
-    # is_final=True only here; all word tokens above are is_final=False.
+    # Done sentinel — event_id is len(chunks) so it sorts after all token IDs.
+    # is_final=True only here; all BPE token events above are is_final=False.
     done_payload: dict = {
         "text": "",
         "is_final": True,
@@ -166,9 +235,11 @@ async def stream_gaia_response(
     if citation_str:
         done_payload["canon_citation"] = citation_str
 
-    yield f"data: {json.dumps(done_payload)}\nid: {len(words)}\n\n"
+    yield f"data: {json.dumps(done_payload)}\nid: {len(chunks)}\n\n"
     logger.debug(
-        f"[streaming] Response streamed: {len(words)} tokens, topic={topic_cluster}"
+        f"[streaming] Response streamed: {len(chunks)} BPE tokens "
+        f"(tiktoken={'yes' if _TIKTOKEN_AVAILABLE else 'fallback'}), "
+        f"topic={topic_cluster}"
     )
 
 
