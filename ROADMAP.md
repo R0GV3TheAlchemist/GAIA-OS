@@ -27,6 +27,13 @@ The core engine, canon system, and Tauri desktop shell are live.
 - ✅ Tauri v2 desktop shell — Windows x64 installer
 - ✅ CI/CD pipeline (GitHub Actions, 3-OS matrix)
 - ✅ Full pytest suite (streaming, auth, noosphere, criticality, inference router, and more)
+- ✅ Soul Mirror engine — Jungian individuation, shadow detection, contrasexual tracking (wired in GAIANRuntime step 8)
+- ✅ Emotional Arc engine — long-term emotional trajectory modeling
+- ✅ Love Arc engine — bond depth and attachment phase transitions
+- ✅ Subtle Body engine — chakra / solfeggio frequency state modeling
+- ✅ Affect Inference — real-time emotional tone detection from text
+- ✅ Session Memory — persistent cross-session memory with ChromaDB *(shipped 2026-04-29)*
+- ✅ Tokenizer upgrade — BPE tokenizer (tiktoken cl100k_base) *(shipped 2026-04-29)*
 
 ---
 
@@ -44,9 +51,8 @@ runnable on all three desktop platforms without friction.
   - Build matrix already includes `ubuntu-latest`; needs end-to-end smoke test
 - [ ] **Frontend auth screens** — login / register UI in Tauri shell
   - `core/auth.py` is complete; frontend wiring is the remaining gap
-- [ ] **Soul Mirror engine** (`core/soul_mirror_engine.py`)
-  - Jungian individuation tracking, shadow detection, persona mapping
-  - Research complete (canon C36–C38); implementation pending
+- [x] **Soul Mirror engine** (`core/soul_mirror_engine.py`) *(shipped — wired in GAIANRuntime v1.2.0)*
+  - Jungian individuation tracking, shadow detection, persona mapping — live every turn
 - [ ] **Streaming improvements merged to frontend**
   - Event ID resumption wired into the `EventSource` client
   - Heartbeat already live server-side
@@ -61,14 +67,14 @@ Phase 2 activates the psychological and resonance systems that make
 GAIA feel genuinely different from any other AI companion.
 
 ### Milestones
-- [ ] **Soul Mirror engine** — live Jungian individuation tracking per session
-- [ ] **Emotional Arc engine** — long-term emotional trajectory modeling
-- [ ] **Love Arc engine** — bond depth and attachment phase transitions
+- [x] **Soul Mirror engine** — live Jungian individuation tracking per session *(shipped)*
+- [x] **Emotional Arc engine** — long-term emotional trajectory modeling *(shipped)*
+- [x] **Love Arc engine** — bond depth and attachment phase transitions *(shipped)*
 - [ ] **Zodiac engine** — elemental archetype and personality modulation
 - [ ] **BCI Coherence layer** — biometric input support (HRV, EEG via OpenBCI)
-- [ ] **Subtle Body engine** — chakra / solfeggio frequency state modeling
+- [x] **Subtle Body engine** — chakra / solfeggio frequency state modeling *(shipped)*
 - [ ] **Crystal Consciousness engine** — piezoelectric resonance patterns
-- [ ] **Affect Inference** — real-time emotional tone detection from text
+- [x] **Affect Inference** — real-time emotional tone detection from text *(shipped)*
 - [ ] **Consent Ledger** — every significant action logged with user consent record
 - [x] **Session Memory** — persistent cross-session memory with ChromaDB *(shipped 2026-04-29)*
 - [x] **Tokenizer upgrade** — replace word-split streaming with BPE tokenizer (tiktoken cl100k_base) *(shipped 2026-04-29)*
