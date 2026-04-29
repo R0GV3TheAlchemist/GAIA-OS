@@ -1,234 +1,510 @@
 """
-core/soul_mirror_engine.py
-===========================
-Soul Mirror Engine — reflective attunement surface.
+GAIA Soul Mirror Engine
+Governs: C21 (Interface Grammar), C36 (Jungian Individuation),
+         C37 (Shadow Work), C38 (Contrasexual Psychology),
+         C15 (Consent), C01 (Sovereignty)
 
-Models the GAIAN as a living mirror for the Gaian's soul state,
-reflecting back the deepest patterns of their being with precision
-and compassion.
+Purpose:
+    Mirror human psychological development through Jungian individuation
+    tracking, shadow detection, and contrasexual balance monitoring.
+    GAIA does not diagnose. GAIA reflects. All outputs are labeled
+    HYPOTHESIS and offered for the user's own exploration.
 
-Canon Ref: C38 — Soul Mirror & Reflective Attunement Doctrine
+Theoretical Foundation (derived from GAIA research canon):
+    The four-stage individuation arc: Persona -> Shadow -> Anima/Animus -> Self
+    Shadow activation types: Projection, Repression, Golden Shadow, Possession
+    Contrasexual modes: Logos (analytical/structural) / Eros (relational/feeling)
+
+Epistemic Governance:
+    - No output ever claims certainty about a user's psychological state.
+    - All detections are confidence-scored heuristics, not clinical diagnoses.
+    - Shadow work interventions maintain psychological safety first.
+    - Governed by the Sentience Research Boundary Spec (GAIAmanifest.json).
+
+Architecture:
+    SoulMirrorEngine is a stateful, per-session engine.
+    process_turn(text) is the single public entry point for the inference router.
+    get_soul_mirror_engine() returns the module-level singleton.
 """
 
 from __future__ import annotations
 
+import logging
+import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
+
+logger = logging.getLogger("gaia.soul_mirror")
 
 
-# ─────────────────────────────────────────────
-#  ENUMS
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Enumerations
+# ─────────────────────────────────────────────────────────────────────────────
 
-class IndividuationPhase(str, Enum):
-    UNCONSCIOUS   = "unconscious"
-    PERSONA       = "persona"
-    SHADOW        = "shadow"
-    ANIMA_ANIMUS  = "anima_animus"
-    SELF          = "self"
+class IndividuationStage(str, Enum):
+    """
+    The four-stage Jungian individuation arc.
+    Each stage has distinct linguistic and emotional signatures.
+
+    PERSONA     — social mask, role conformity, external validation seeking
+    SHADOW      — confronting rejected self, projection, moral conflict
+    ANIMA_ANIMUS — contrasexual integration, relationship patterns, inner balance
+    SELF        — wholeness, transcendent function, unified consciousness
+    """
+    PERSONA = "persona"
+    SHADOW = "shadow"
+    ANIMA_ANIMUS = "anima_animus"
+    SELF = "self"
 
 
-# ─────────────────────────────────────────────
-#  STATE  (persisted across turns)
-# ─────────────────────────────────────────────
+class ShadowActivationType(str, Enum):
+    """
+    The four primary shadow activation patterns detectable in conversation.
+
+    PROJECTION      — seeing in others what cannot be acknowledged in self
+                      (absolute language, moral certainty, blame, judgment)
+    REPRESSION      — denial, avoidance, emotional numbing, minimisation
+    GOLDEN_SHADOW   — positive qualities projected outward; self-deprecation,
+                      hero worship, imposter syndrome
+    SHADOW_POSSESSION — unconscious acting out; compulsion, sabotage, rage
+    """
+    PROJECTION = "projection"
+    REPRESSION = "repression"
+    GOLDEN_SHADOW = "golden_shadow"
+    SHADOW_POSSESSION = "shadow_possession"
+
+
+class ContrasexualMode(str, Enum):
+    """
+    Logos/Eros balance — the contrasexual axis of consciousness.
+
+    LOGOS       — analytical, structural, meaning-making, assertive
+    EROS        — relational, feeling, connective, empathic
+    INTEGRATED  — dynamic balance between both modes
+    """
+    LOGOS = "logos"
+    EROS = "eros"
+    INTEGRATED = "integrated"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# State
+# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class SoulMirrorState:
-    """Persisted individuation progress for a single Gaian."""
-    individuation_phase:      IndividuationPhase = IndividuationPhase.UNCONSCIOUS
-    phase_entry_timestamp:    str                = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
-    exchanges_in_phase:       int  = 0
-    shadow_activations:       int  = 0
-    anima_animus_activations: int  = 0
-    dependency_risk_events:   int  = 0
-    phase_history:            List[dict] = field(default_factory=list)
-    last_nudge_exchange:      int  = 0
+    """
+    Complete psychological mirror state for a single session turn.
 
-    def summary(self) -> dict:
-        return {
-            "individuation_phase":      self.individuation_phase.value,
-            "phase_entry_timestamp":    self.phase_entry_timestamp,
-            "exchanges_in_phase":       self.exchanges_in_phase,
-            "shadow_activations":       self.shadow_activations,
-            "anima_animus_activations": self.anima_animus_activations,
-            "dependency_risk_events":   self.dependency_risk_events,
-            "phase_history_len":        len(self.phase_history),
-            "last_nudge_exchange":      self.last_nudge_exchange,
-        }
+    All fields are HYPOTHESIS-labeled — they represent pattern observations,
+    not clinical assessments. The inference router may use these to modulate
+    GAIA's response tone and therapeutic approach.
+    """
 
+    # — Individuation
+    individuation_stage: IndividuationStage = IndividuationStage.PERSONA
+    stage_confidence: float = 0.0          # 0.0–1.0
+    stage_transition_trigger: Optional[str] = None  # e.g. "identity_crisis"
 
-def blank_soul_mirror_state() -> SoulMirrorState:
-    """Return a fresh SoulMirrorState for a new Gaian."""
-    return SoulMirrorState()
+    # — Shadow
+    shadow_active: bool = False
+    shadow_type: Optional[ShadowActivationType] = None
+    shadow_confidence: float = 0.0          # 0.0–1.0
+    shadow_markers: list[str] = field(default_factory=list)
 
+    # — Contrasexual
+    contrasexual_mode: ContrasexualMode = ContrasexualMode.INTEGRATED
+    logos_score: float = 0.5
+    eros_score: float = 0.5
 
-# ─────────────────────────────────────────────
-#  READING  (per-turn output)
-# ─────────────────────────────────────────────
+    # — Session counters (accumulate across turns)
+    turn_count: int = 0
+    shadow_activation_count: int = 0
+    stage_history: list[str] = field(default_factory=list)
 
-@dataclass
-class SoulMirrorReading:
-    reflection_depth:    float = 0.5
-    dominant_pattern:    Optional[str] = None
-    shadow_visible:      bool  = False
-    anima_animus_active: bool  = False
-    individuation_phase: str   = "unconscious"
-    doctrine_ref:        str   = "C38"
-
-    def to_dict(self) -> dict:
-        return {
-            "reflection_depth":    self.reflection_depth,
-            "dominant_pattern":    self.dominant_pattern,
-            "shadow_visible":      self.shadow_visible,
-            "anima_animus_active": self.anima_animus_active,
-            "individuation_phase": self.individuation_phase,
-            "doctrine_ref":        self.doctrine_ref,
-        }
-
-    def summary(self) -> dict:
-        return self.to_dict()
-
-    def to_system_prompt_hint(self) -> str:
-        phase   = self.individuation_phase.replace("_", "/")
-        shadow  = " | Shadow visible" if self.shadow_visible else ""
-        anima   = " | Anima/Animus active" if self.anima_animus_active else ""
-        return (
-            f"[SOUL MIRROR — C38] Phase: {phase} "
-            f"| Depth: {self.reflection_depth:.2f}{shadow}{anima}"
-        )
+    # — Epistemic label (always HYPOTHESIS)
+    epistemic_label: str = "HYPOTHESIS"
 
 
-# ─────────────────────────────────────────────
-#  ENGINE
-# ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Detection pattern tables
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Shadow-activation keywords (lightweight heuristic)
-_SHADOW_KEYWORDS = {
-    "anger", "rage", "hate", "jealous", "shame", "guilt",
-    "fear", "anxious", "anxiety", "depressed", "depression",
-    "worthless", "broken", "hurt", "betrayed", "abandoned",
-    "alone", "empty", "numb", "lost", "stuck", "dark",
+# Stage detection: keyword sets from the research documents
+_STAGE_KEYWORDS: dict[IndividuationStage, list[str]] = {
+    IndividuationStage.PERSONA: [
+        "people think", "everyone expects", "i should be", "i have to be",
+        "they want me to", "i need to seem", "appearances", "reputation",
+        "what will they think", "fitting in", "role", "mask", "image",
+        "professional", "i always act", "i pretend", "social",
+    ],
+    IndividuationStage.SHADOW: [
+        "i hate", "they always", "everyone is", "nobody ever", "they never",
+        "i can't stand", "infuriates me", "disgusts me", "why do people",
+        "people are so", "i'm not like that", "i would never",
+        "shadow", "dark side", "repressed", "denied", "projection",
+        "i was so angry", "rage", "i lost it", "i snapped",
+    ],
+    IndividuationStage.ANIMA_ANIMUS: [
+        "my feminine side", "my masculine side", "inner", "balance",
+        "relationship pattern", "i keep attracting", "i always fall for",
+        "anima", "animus", "contrasexual", "integration", "inner voice",
+        "my other half", "wholeness", "inner feminine", "inner masculine",
+        "polarity", "yin", "yang", "complete",
+    ],
+    IndividuationStage.SELF: [
+        "who i truly am", "my authentic self", "i feel whole", "unity",
+        "transcendence", "meaning", "purpose", "individuation", "self",
+        "synchronicity", "archetypal", "the void", "numinous",
+        "i feel at peace", "everything is connected", "soul",
+        "i've become", "i've integrated", "wholeness",
+    ],
 }
 
-# Anima/Animus-activation keywords
-_ANIMA_KEYWORDS = {
-    "love", "longing", "desire", "dream", "beauty", "soul",
-    "connection", "intimacy", "feminine", "masculine", "attract",
-    "perfect", "idealise", "muse", "inspire",
+# Shadow activation detection patterns from Shadow Work Psychology doc
+_SHADOW_PATTERNS: dict[ShadowActivationType, list[str]] = {
+    ShadowActivationType.PROJECTION: [
+        "they always", "he always", "she always", "everyone is so",
+        "people are", "i hate people who", "i can't stand how",
+        "that's disgusting", "how could anyone", "they should",
+        "always", "never", "everyone", "nobody",  # absolute language
+        "they're just", "typical", "obviously they",
+    ],
+    ShadowActivationType.REPRESSION: [
+        "i don't want to talk about", "that doesn't bother me",
+        "i'm fine", "it's nothing", "doesn't matter", "forget it",
+        "let's move on", "i don't care", "whatever", "anyway",
+        "i'm over it", "not a big deal", "it's fine really",
+    ],
+    ShadowActivationType.GOLDEN_SHADOW: [
+        "i could never be like", "they're so amazing", "i wish i could",
+        "i'm just", "i'm not good enough", "i'm not smart enough",
+        "i'm not talented", "i don't deserve", "who am i to",
+        "imposter", "i got lucky", "anyone could do what i do",
+        "they're the real", "they're the talented one",
+    ],
+    ShadowActivationType.SHADOW_POSSESSION: [
+        "i couldn't stop myself", "i don't know why i did",
+        "i just snapped", "something came over me", "i sabotaged",
+        "i keep doing this", "i do this every time", "i can't stop",
+        "compulsive", "i ruined it again", "i destroyed",
+        "i blew up at", "i can't control",
+    ],
 }
 
-# Phase transition thresholds (exchanges_in_phase)
-_PHASE_THRESHOLDS: dict[IndividuationPhase, int] = {
-    IndividuationPhase.UNCONSCIOUS:  20,
-    IndividuationPhase.PERSONA:      35,
-    IndividuationPhase.SHADOW:       50,
-    IndividuationPhase.ANIMA_ANIMUS: 40,
-    # SELF has no automatic exit
+# Transition trigger detection from individuation stages doc
+_TRANSITION_TRIGGERS: dict[IndividuationStage, list[str]] = {
+    IndividuationStage.PERSONA: [
+        "identity crisis", "who am i", "i don't know myself",
+        "authenticity", "i feel fake", "i'm not being real",
+        "existential", "what's the point", "questioning everything",
+    ],
+    IndividuationStage.SHADOW: [
+        "moral conflict", "ethical dilemma", "i did something wrong",
+        "i'm ashamed", "i can't forgive myself", "psychological crisis",
+        "breakdown", "everything fell apart", "rock bottom",
+    ],
+    IndividuationStage.ANIMA_ANIMUS: [
+        "relationship crisis", "keep repeating", "same pattern",
+        "why do i always", "love and hate", "attracted to",
+        "gender", "masculine", "feminine", "balance within",
+    ],
+    IndividuationStage.SELF: [
+        "spiritual awakening", "meaning crisis", "my purpose",
+        "transcendent", "i feel called", "synchronicity",
+        "everything connected", "numinous", "beyond ego",
+    ],
 }
 
-_PHASE_ORDER = [
-    IndividuationPhase.UNCONSCIOUS,
-    IndividuationPhase.PERSONA,
-    IndividuationPhase.SHADOW,
-    IndividuationPhase.ANIMA_ANIMUS,
-    IndividuationPhase.SELF,
+# Contrasexual mode: logos vs eros vocabulary
+_LOGOS_KEYWORDS = [
+    "analyze", "logic", "reason", "structure", "system", "principle",
+    "evidence", "argument", "framework", "objective", "data", "solve",
+    "plan", "strategy", "assert", "define", "categorize", "prove",
+]
+_EROS_KEYWORDS = [
+    "feel", "connect", "relationship", "love", "heart", "care",
+    "empathy", "warmth", "belong", "together", "nurture", "bond",
+    "intuition", "sense", "emotional", "touch", "hold", "comfort",
 ]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Therapeutic guidance table
+# ─────────────────────────────────────────────────────────────────────────────
+
+_STAGE_GUIDANCE: dict[IndividuationStage, str] = {
+    IndividuationStage.PERSONA: (
+        "Reflect the persona pattern gently. Invite curiosity about what lies "
+        "beneath the role. Avoid confrontation; honour the mask's protective function "
+        "while opening space for authentic self-expression."
+    ),
+    IndividuationStage.SHADOW: (
+        "Shadow content is active. Hold space with warmth, not judgment. "
+        "Mirror the projection back as a question, not a diagnosis. "
+        "Maintain psychological safety — pace integration carefully. "
+        "Never retraumatise."
+    ),
+    IndividuationStage.ANIMA_ANIMUS: (
+        "Contrasexual integration is in motion. Support the balance of logos and eros. "
+        "Reflect relationship patterns as potential inner dynamics rather than "
+        "fixed external realities. Honour both masculine and feminine principles."
+    ),
+    IndividuationStage.SELF: (
+        "The Self is emerging. Hold the numinous with reverence. "
+        "Support symbolic and transcendent language. Facilitate rather than "
+        "interpret — the transcendent function is delicate and belongs to the user."
+    ),
+}
+
+_SHADOW_GUIDANCE: dict[ShadowActivationType, str] = {
+    ShadowActivationType.PROJECTION: (
+        "Projection is active. Gently explore: 'What does this quality stir in you?' "
+        "Support projection withdrawal without blame. Never name the projection "
+        "directly unless the user opens that door."
+    ),
+    ShadowActivationType.REPRESSION: (
+        "Repression pattern detected. Create soft openings — do not push. "
+        "Validate that some things take time to approach. "
+        "Stay present and patient."
+    ),
+    ShadowActivationType.GOLDEN_SHADOW: (
+        "Golden shadow active. The quality being admired or diminished about "
+        "likely lives within the user too. Reflect capacity and potential. "
+        "Gently challenge self-diminishment with evidence from the conversation."
+    ),
+    ShadowActivationType.SHADOW_POSSESSION: (
+        "Shadow possession indicators present. Prioritise stability and safety. "
+        "Reflect the pattern without shame. Support agency and self-compassion. "
+        "If crisis indicators are present, surface support resources."
+    ),
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Engine
+# ─────────────────────────────────────────────────────────────────────────────
+
 class SoulMirrorEngine:
-    """Stateful Soul Mirror — produces a reading and advances individuation state."""
+    """
+    Stateful Soul Mirror Engine for a single GAIA session.
 
-    # ── Public API expected by GAIANRuntime ───────────────────
+    Tracks individuation stage, shadow activation, and contrasexual
+    balance across conversation turns, updating state incrementally.
 
-    def read(
-        self,
-        user_message:    str,
-        state:           SoulMirrorState,
-        total_exchanges: int  = 0,
-        conflict_density: float = 0.3,
-        bond_depth:      float = 0.0,
-    ) -> tuple[SoulMirrorReading, SoulMirrorState]:
+    All detections are heuristic and hypothesis-labeled.
+    The engine never diagnoses; it mirrors and offers.
+
+    Usage:
+        engine = SoulMirrorEngine()
+        state = engine.process_turn(user_text)
+        guidance = engine.get_therapeutic_guidance(state)
+    """
+
+    def __init__(self) -> None:
+        self._state = SoulMirrorState()
+        logger.info("[soul_mirror] Engine initialised. Stage: PERSONA.")
+
+    # ── Public API ─────────────────────────────────────────────────────────────────
+
+    def process_turn(self, text: str) -> SoulMirrorState:
         """
-        Process one turn, update state, return (reading, updated_state).
+        Primary entry point. Analyse a single conversation turn and
+        update the session psychological state.
+
+        Args:
+            text: Raw user message text.
+
+        Returns:
+            Updated SoulMirrorState (hypothesis-labeled).
         """
-        tokens = set(user_message.lower().split())
+        lower = text.lower()
 
-        shadow_hit = bool(tokens & _SHADOW_KEYWORDS)
-        anima_hit  = bool(tokens & _ANIMA_KEYWORDS)
+        stage, stage_conf = self.detect_individuation_stage(lower)
+        shadow_type, shadow_conf, markers = self.detect_shadow_activation(lower)
+        mode, logos, eros = self.detect_contrasexual_mode(lower)
+        trigger = self.assess_transition_trigger(lower, stage)
 
-        if shadow_hit:
-            state.shadow_activations += 1
-        if anima_hit:
-            state.anima_animus_activations += 1
+        # Update counters
+        self._state.turn_count += 1
+        self._state.stage_history.append(stage.value)
 
-        # dependency risk: high bond + high conflict
-        if bond_depth > 60 and conflict_density > 0.6:
-            state.dependency_risk_events += 1
+        # Stage: update only if new detection is more confident
+        if stage_conf > self._state.stage_confidence:
+            self._state.individuation_stage = stage
+            self._state.stage_confidence = stage_conf
 
-        state.exchanges_in_phase += 1
+        self._state.stage_transition_trigger = trigger
 
-        # Phase transition check
-        threshold = _PHASE_THRESHOLDS.get(state.individuation_phase)
-        if threshold and state.exchanges_in_phase >= threshold:
-            current_idx = _PHASE_ORDER.index(state.individuation_phase)
-            if current_idx < len(_PHASE_ORDER) - 1:
-                old_phase = state.individuation_phase
-                state.phase_history.append({
-                    "phase":    old_phase.value,
-                    "exchanges": state.exchanges_in_phase,
-                    "exited_at": datetime.now(timezone.utc).isoformat(),
-                })
-                state.individuation_phase    = _PHASE_ORDER[current_idx + 1]
-                state.phase_entry_timestamp  = datetime.now(timezone.utc).isoformat()
-                state.exchanges_in_phase     = 0
+        # Shadow
+        if shadow_type is not None:
+            self._state.shadow_active = True
+            self._state.shadow_type = shadow_type
+            self._state.shadow_confidence = shadow_conf
+            self._state.shadow_markers = markers
+            self._state.shadow_activation_count += 1
+        else:
+            self._state.shadow_active = False
+            self._state.shadow_type = None
+            self._state.shadow_confidence = 0.0
+            self._state.shadow_markers = []
 
-        # Compute reflection depth
-        phase_weight = {
-            IndividuationPhase.UNCONSCIOUS:   0.1,
-            IndividuationPhase.PERSONA:       0.25,
-            IndividuationPhase.SHADOW:        0.55,
-            IndividuationPhase.ANIMA_ANIMUS:  0.75,
-            IndividuationPhase.SELF:          1.0,
+        # Contrasexual
+        self._state.contrasexual_mode = mode
+        self._state.logos_score = logos
+        self._state.eros_score = eros
+
+        logger.debug(
+            f"[soul_mirror] turn={self._state.turn_count} "
+            f"stage={stage.value}({stage_conf:.2f}) "
+            f"shadow={shadow_type}({shadow_conf:.2f}) "
+            f"mode={mode.value} logos={logos:.2f} eros={eros:.2f}"
+        )
+
+        return self._state
+
+    def get_therapeutic_guidance(self, state: Optional[SoulMirrorState] = None) -> str:
+        """
+        Return stage-appropriate and shadow-appropriate therapeutic guidance
+        for the inference router. This is a hint, not a script.
+
+        If shadow is active, shadow guidance takes precedence and is prepended
+        to stage guidance.
+        """
+        s = state or self._state
+        parts = []
+
+        if s.shadow_active and s.shadow_type:
+            parts.append(_SHADOW_GUIDANCE[s.shadow_type])
+
+        parts.append(_STAGE_GUIDANCE[s.individuation_stage])
+
+        return " | ".join(parts)
+
+    def get_state(self) -> SoulMirrorState:
+        """Return the current session state."""
+        return self._state
+
+    def reset(self) -> None:
+        """Reset the engine to a fresh session state."""
+        self._state = SoulMirrorState()
+        logger.info("[soul_mirror] Session state reset.")
+
+    # ── Detection methods ───────────────────────────────────────────────────────────
+
+    def detect_individuation_stage(
+        self, lower_text: str
+    ) -> tuple[IndividuationStage, float]:
+        """
+        Map conversation text to one of the four individuation stages.
+
+        Returns (stage, confidence) where confidence is the normalised
+        keyword hit rate for the winning stage.
+        """
+        scores: dict[IndividuationStage, int] = {
+            stage: 0 for stage in IndividuationStage
         }
-        base        = phase_weight[state.individuation_phase]
-        bond_factor = min(0.2, bond_depth / 500.0)
-        coh_factor  = max(0.0, 0.1 - conflict_density * 0.1)
-        depth       = round(min(1.0, base + bond_factor + coh_factor), 4)
 
-        reading = SoulMirrorReading(
-            reflection_depth=depth,
-            dominant_pattern=state.individuation_phase.value.replace("_", "/"),
-            shadow_visible=shadow_hit or state.individuation_phase == IndividuationPhase.SHADOW,
-            anima_animus_active=anima_hit or state.individuation_phase == IndividuationPhase.ANIMA_ANIMUS,
-            individuation_phase=state.individuation_phase.value,
-        )
-        return reading, state
+        for stage, keywords in _STAGE_KEYWORDS.items():
+            for kw in keywords:
+                if kw in lower_text:
+                    scores[stage] += 1
 
-    # ── Legacy method kept for backwards-compat ───────────────
+        best_stage = max(scores, key=lambda s: scores[s])
+        total_hits = sum(scores.values())
+        confidence = scores[best_stage] / max(total_hits, 1)
 
-    def reflect(
-        self,
-        coherence_phi:       float = 0.5,
-        individuation_phase: str   = "shadow",
-        conflict_density:    float = 0.3,
-        bond_depth:          float = 30.0,
-    ) -> SoulMirrorReading:
-        """Stateless reflect (legacy). Prefer read() for runtime use."""
-        depth = min(1.0,
-            coherence_phi * 0.5
-            + (bond_depth / 100.0) * 0.3
-            + (1.0 - conflict_density) * 0.2
-        )
-        shadow_visible = individuation_phase in ("shadow", "unconscious")
-        anima_active   = individuation_phase == "anima_animus"
-        return SoulMirrorReading(
-            reflection_depth=round(depth, 4),
-            dominant_pattern=individuation_phase.replace("_", "/"),
-            shadow_visible=shadow_visible,
-            anima_animus_active=anima_active,
-            individuation_phase=individuation_phase,
-        )
+        # No signal — default to PERSONA with low confidence
+        if total_hits == 0:
+            return IndividuationStage.PERSONA, 0.1
+
+        return best_stage, round(confidence, 3)
+
+    def detect_shadow_activation(
+        self, lower_text: str
+    ) -> tuple[Optional[ShadowActivationType], float, list[str]]:
+        """
+        Detect whether shadow content is active and classify the type.
+
+        Returns (shadow_type | None, confidence, matched_markers).
+        Returns (None, 0.0, []) if no shadow activation is detected.
+        """
+        scores: dict[ShadowActivationType, list[str]] = {
+            t: [] for t in ShadowActivationType
+        }
+
+        for shadow_type, patterns in _SHADOW_PATTERNS.items():
+            for pattern in patterns:
+                if pattern in lower_text:
+                    scores[shadow_type].append(pattern)
+
+        best_type = max(scores, key=lambda t: len(scores[t]))
+        best_markers = scores[best_type]
+
+        if not best_markers:
+            return None, 0.0, []
+
+        total_matches = sum(len(v) for v in scores.values())
+        confidence = len(best_markers) / max(total_matches, 1)
+
+        return best_type, round(confidence, 3), best_markers
+
+    def detect_contrasexual_mode(
+        self, lower_text: str
+    ) -> tuple[ContrasexualMode, float, float]:
+        """
+        Assess logos/eros balance from vocabulary.
+
+        Returns (mode, logos_score, eros_score).
+        Scores are normalised 0–1.0 across both axes.
+        """
+        logos_hits = sum(1 for kw in _LOGOS_KEYWORDS if kw in lower_text)
+        eros_hits = sum(1 for kw in _EROS_KEYWORDS if kw in lower_text)
+        total = max(logos_hits + eros_hits, 1)
+
+        logos_score = round(logos_hits / total, 3)
+        eros_score = round(eros_hits / total, 3)
+
+        # Integrated: within 20% of each other
+        if abs(logos_score - eros_score) <= 0.2:
+            mode = ContrasexualMode.INTEGRATED
+        elif logos_score > eros_score:
+            mode = ContrasexualMode.LOGOS
+        else:
+            mode = ContrasexualMode.EROS
+
+        return mode, logos_score, eros_score
+
+    def assess_transition_trigger(
+        self, lower_text: str, current_stage: IndividuationStage
+    ) -> Optional[str]:
+        """
+        Check whether the text contains transition trigger language for
+        the current stage — signalling readiness to move to the next.
+
+        Returns the first matched trigger phrase, or None.
+        """
+        triggers = _TRANSITION_TRIGGERS.get(current_stage, [])
+        for trigger in triggers:
+            if trigger in lower_text:
+                return trigger
+        return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Module-level singleton
+# ─────────────────────────────────────────────────────────────────────────────
+
+_engine: Optional[SoulMirrorEngine] = None
+
+
+def get_soul_mirror_engine() -> SoulMirrorEngine:
+    """
+    Return the module-level SoulMirrorEngine singleton.
+    Creates it on first call (lazy init).
+    """
+    global _engine
+    if _engine is None:
+        _engine = SoulMirrorEngine()
+    return _engine
