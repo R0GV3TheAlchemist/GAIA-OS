@@ -10,10 +10,10 @@ It is a living document — updated as milestones land.
 
 ## Current State — v0.1.0 (Released 2026-04-23)
 
-GAIA’s first public release shipped for **Windows x64**.
+GAIA's first public release shipped for **Windows x64**.
 The core engine, canon system, and Tauri desktop shell are live.
 
-**What’s complete:**
+**What's complete:**
 - ✅ Full Python sidecar (`core/`) with 30+ engine modules
 - ✅ Canon system C00–C62 loaded and searchable
 - ✅ Inference router (Ollama → Perplexity → OpenAI → Anthropic)
@@ -70,8 +70,8 @@ GAIA feel genuinely different from any other AI companion.
 - [ ] **Crystal Consciousness engine** — piezoelectric resonance patterns
 - [ ] **Affect Inference** — real-time emotional tone detection from text
 - [ ] **Consent Ledger** — every significant action logged with user consent record
-- [ ] **Session Memory** — persistent cross-session memory with ChromaDB
-- [ ] **Tokenizer upgrade** — replace word-split streaming with model-native tokenizer
+- [x] **Session Memory** — persistent cross-session memory with ChromaDB *(shipped 2026-04-29)*
+- [x] **Tokenizer upgrade** — replace word-split streaming with BPE tokenizer (tiktoken cl100k_base) *(shipped 2026-04-29)*
 
 ---
 
