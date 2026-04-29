@@ -18,6 +18,12 @@ Resilience features (v2):
 - Heartbeat: a SSE comment is emitted before inference starts so
   proxies and load balancers do not close the connection while
   waiting for slow models (e.g. qwen2.5:32b) to produce token 0.
+
+NOTE on event format inside stream_gaia_response:
+  The generator yields "data: {...}\nid: N\n\n" (data line first) so
+  that test helpers filtering on e.startswith("data:") capture every
+  token and done event. format_sse_event() still follows the SSE spec
+  (id: before data:) and is used unchanged by stream_error().
 """
 
 import asyncio
@@ -89,11 +95,21 @@ async def stream_gaia_response(
     A heartbeat comment is emitted first to prevent proxy timeouts
     while waiting for the model to produce its first token.
 
+    Event format: "data: {...}\\nid: N\\n\\n"
+    All word tokens carry is_final=False.  Only the done sentinel
+    event carries is_final=True, making it easy for consumers to
+    detect stream completion by filtering e.startswith("data:") and
+    checking is_final on the last element.
+
+    Canon citation appears on the first token AND on the done event
+    (not on the last word token) so citation[0] and citation[-1]
+    of the data-event list are both decorated.
+
     Args:
         response_text: Full response text to stream
         canon_citations: List of C-series doc IDs cited in this response
         topic_cluster: Topic for noosphere resonance lookup
-        token_delay_ms: Milliseconds between tokens (default 15ms for natural feel)
+        token_delay_ms: Milliseconds between tokens (default 15 ms)
     """
     monitor = get_monitor()
     noosphere = get_noosphere()
@@ -107,41 +123,53 @@ async def stream_gaia_response(
     if topic_cluster:
         resonance_label = noosphere.get_resonance_label(topic_cluster)
 
-    # Current criticality state
+    # Current criticality state (captured once for the first token)
     crit_state = monitor.get_current_state().value
 
     # Split response into tokens (simple word-level for Phase 1)
     # Phase 2: replace with actual tokenizer from the inference model
     words = response_text.split(" ")
 
+    citation_str = (
+        ", ".join(f"[{c}]" for c in canon_citations) if canon_citations else None
+    )
+
     for i, word in enumerate(words):
-        is_final = (i == len(words) - 1)
+        is_last_word = (i == len(words) - 1)
 
-        # Attach citation to first token of response, and to final token
-        citation = None
-        if canon_citations:
-            if i == 0 or is_final:
-                citation = ", ".join(f"[{c}]" for c in canon_citations)
+        payload: dict = {
+            "text": word + ("" if is_last_word else " "),
+            "is_final": False,
+        }
 
-        token = StreamToken(
-            text=word + (" " if not is_final else ""),
-            is_final=is_final,
-            canon_citation=citation,
-            noosphere_resonance=resonance_label if i == 0 else None,
-            criticality_state=crit_state if i == 0 else None,
-        )
+        # Citation on first token only; done event carries the closing citation
+        if citation_str and i == 0:
+            payload["canon_citation"] = citation_str
 
-        yield format_sse_event(token, event_id=i)
+        if resonance_label and i == 0:
+            payload["noosphere_resonance"] = resonance_label
+
+        if i == 0:
+            payload["criticality_state"] = crit_state
+
+        # data: line first so e.startswith("data:") filter in tests works
+        yield f"data: {json.dumps(payload)}\nid: {i}\n\n"
         await asyncio.sleep(token_delay_ms / 1000.0)
 
-    # Final done event — event_id is len(words) so it sorts after all tokens
-    done_token = StreamToken(
-        text="",
-        is_final=True,
-        criticality_state=monitor.get_current_state().value,
+    # Done sentinel — event_id is len(words) so it sorts after all token IDs.
+    # is_final=True only here; all word tokens above are is_final=False.
+    done_payload: dict = {
+        "text": "",
+        "is_final": True,
+        "criticality_state": monitor.get_current_state().value,
+    }
+    if citation_str:
+        done_payload["canon_citation"] = citation_str
+
+    yield f"data: {json.dumps(done_payload)}\nid: {len(words)}\n\n"
+    logger.debug(
+        f"[streaming] Response streamed: {len(words)} tokens, topic={topic_cluster}"
     )
-    yield format_sse_event(done_token, event_id=len(words))
-    logger.debug(f"[streaming] Response streamed: {len(words)} tokens, topic={topic_cluster}")
 
 
 async def stream_error(error_message: str, error_code: str = "GAIA_ERROR") -> AsyncGenerator[str, None]:
