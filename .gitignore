@@ -50,3 +50,20 @@ Thumbs.db
 *.consent_ledger
 *.memory_store
 secrets/
+
+# GAIA runtime data — never commit these
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+gaians/*/memory.json
+gaians/*/memory_store.json
+
+# ChromaDB persistent vector store
+*.chroma/
+chroma/
+.chroma/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
