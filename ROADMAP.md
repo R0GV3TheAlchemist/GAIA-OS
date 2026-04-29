@@ -32,6 +32,7 @@ The core engine, canon system, and Tauri desktop shell are live.
 - ✅ Love Arc engine — bond depth and attachment phase transitions
 - ✅ Subtle Body engine — chakra / solfeggio frequency state modeling
 - ✅ Affect Inference — real-time emotional tone detection from text
+- ✅ Frontend auth screens — Sign In + Create Account UI in Tauri shell (`GaiaShell.tsx`)
 - ✅ Session Memory — persistent cross-session memory with ChromaDB *(shipped 2026-04-29)*
 - ✅ Tokenizer upgrade — BPE tokenizer (tiktoken cl100k_base) *(shipped 2026-04-29)*
 
@@ -49,8 +50,7 @@ runnable on all three desktop platforms without friction.
   - CI matrix is already configured; signing secrets slot in when ready
 - [ ] **Linux build** — `.AppImage` and `.deb` for Ubuntu/Debian
   - Build matrix already includes `ubuntu-latest`; needs end-to-end smoke test
-- [ ] **Frontend auth screens** — login / register UI in Tauri shell
-  - `core/auth.py` is complete; frontend wiring is the remaining gap
+- [x] **Frontend auth screens** — Sign In + Create Account tabs, full form validation, token persistence *(shipped — `GaiaShell.tsx` + `GaiaShell.css`)*
 - [x] **Soul Mirror engine** (`core/soul_mirror_engine.py`) *(shipped — wired in GAIANRuntime v1.2.0)*
   - Jungian individuation tracking, shadow detection, persona mapping — live every turn
 - [ ] **Streaming improvements merged to frontend**
