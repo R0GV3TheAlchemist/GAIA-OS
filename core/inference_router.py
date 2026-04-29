@@ -37,7 +37,7 @@ Env vars:
   ANTHROPIC_API_KEY   — Anthropic API key
   OLLAMA_MODEL        — local Ollama model name
 
-Canon Ref: C12, C20, C21, C27, C42, C43, C44, C49
+Canon Ref: C12, C17, C20, C21, C27, C42, C43, C44, C49
 """
 
 from __future__ import annotations
@@ -221,6 +221,9 @@ class InferenceRequest:
     # Web-search hint — forces Perplexity routing
     web_search:             bool           = False
 
+    # Session identifier for memory tagging (C17)
+    session_id:             str            = ""
+
 
 @dataclass
 class InferenceResponse:
@@ -238,6 +241,7 @@ class InferenceResponse:
     duration_ms:            float              = 0.0
     error:                  Optional[str]      = None
     perplexity_model:       Optional[str]      = None
+    chroma_memories_injected: int             = 0      # C17 — count of recalled memories
 
 
 # ------------------------------------------------------------------ #
@@ -292,6 +296,48 @@ def _build_memory_block(long_term: list[str], visible: list[str]) -> str:
         items = "\n".join(f"  \u2022 {m}" for m in visible[-10:])
         parts.append(f"[SESSION MEMORY PINS]\n{items}")
     return "\n\n".join(parts)
+
+
+def _recall_chroma_memories(
+    query: str,
+    gaian_slug: str,
+    session_id: str = "",
+    top_k: int = 5,
+) -> list[str]:
+    """
+    Retrieve semantically similar memories from ChromaDB for this GAIAN.
+    Returns [] gracefully if ChromaDB is unavailable. [C17]
+    """
+    try:
+        from core.memory_chroma import recall_for_prompt
+        memories = recall_for_prompt(query=query, gaian_slug=gaian_slug, top_k=top_k)
+        return memories
+    except Exception as e:
+        logger.debug(f"[InferenceRouter] ChromaDB recall skipped: {e}")
+        return []
+
+
+def _store_chroma_turn(
+    user_message: str,
+    gaian_response: str,
+    gaian_slug: str,
+    session_id: str = "",
+) -> None:
+    """
+    Persist both sides of a conversation turn into ChromaDB.
+    No-op if ChromaDB unavailable. [C17]
+    """
+    try:
+        from core.memory_chroma import store_turn
+        store_turn(
+            user_message=user_message,
+            gaian_response=gaian_response,
+            gaian_slug=gaian_slug,
+            session_id=session_id,
+            emotion="neutral",
+        )
+    except Exception as e:
+        logger.debug(f"[InferenceRouter] ChromaDB store_turn skipped: {e}")
 
 
 # ------------------------------------------------------------------ #
@@ -435,7 +481,26 @@ class GAIAInferenceRouter:
         t0 = time.perf_counter()
         response_meta.gaian_slug = request.gaian_slug
 
-        # ── 1. Canon enrichment ─────────────────────────────────
+        # ── 0. ChromaDB semantic memory recall (C17) ──────────────────
+        # Retrieve the top-5 most semantically similar past memories
+        # for this GAIAN and prepend them to long_term_memories so
+        # they flow into _build_memory_block() and the system prompt.
+        if request.gaian_slug:
+            chroma_memories = _recall_chroma_memories(
+                query=request.query,
+                gaian_slug=request.gaian_slug,
+                session_id=request.session_id,
+                top_k=5,
+            )
+            if chroma_memories:
+                request.long_term_memories = chroma_memories + list(request.long_term_memories)
+                response_meta.chroma_memories_injected = len(chroma_memories)
+                logger.debug(
+                    f"[InferenceRouter] ChromaDB recalled {len(chroma_memories)} memories "
+                    f"for gaian={request.gaian_slug} [C17]"
+                )
+
+        # ── 1. Canon enrichment ─────────────────────────────────────
         sources = list(request.sources)
         canon_doc_ids:   list[str] = []
         top_canon_score: float     = 0.0
@@ -445,7 +510,7 @@ class GAIAInferenceRouter:
             )
         response_meta.canon_docs_injected = canon_doc_ids
 
-        # ── 2. Criticality state (T2) ───────────────────────────
+        # ── 2. Criticality state (T2) ───────────────────────────────
         temperature   = 0.42
         order_param   = 0.5
         if request.enrich_criticality:
@@ -454,13 +519,13 @@ class GAIAInferenceRouter:
             response_meta.order_parameter   = order_param
         response_meta.temperature_used = temperature
 
-        # ── 3. Noosphere resonance (T3) ────────────────────────
+        # ── 3. Noosphere resonance (T3) ────────────────────────────
         noosphere_label: Optional[str] = None
         if request.enrich_noosphere:
             noosphere_label = _read_noosphere_resonance()
             response_meta.noosphere_resonance = noosphere_label
 
-        # ── 3.5. Quintessence field (T5 — C49) ──────────────────
+        # ── 3.5. Quintessence field (T5 — C49) ──────────────────────
         quintessence_hint:  Optional[str] = None
         quintessence_phase: str           = "ALBEDO"
         quintessence_phi:   float         = 0.0
@@ -472,7 +537,7 @@ class GAIAInferenceRouter:
             response_meta.quintessence_phase = quintessence_phase
             response_meta.quintessence_phi   = quintessence_phi
 
-        # ── 4. Select backend ──────────────────────────────────
+        # ── 4. Select backend ──────────────────────────────────────
         if request.provider_override:
             backend = InferenceBackend(request.provider_override)
         elif request.web_search and os.environ.get("PERPLEXITY_API_KEY"):
@@ -484,7 +549,7 @@ class GAIAInferenceRouter:
         if backend == InferenceBackend.PERPLEXITY:
             response_meta.perplexity_model = os.environ.get("PERPLEXITY_MODEL", "sonar-pro")
 
-        # ── 5. Epistemic label ─────────────────────────────────
+        # ── 5. Epistemic label ───────────────────────────────────
         epistemic = _infer_epistemic_label(
             request.query, sources, canon_doc_ids,
             top_canon_score=top_canon_score,
@@ -492,7 +557,7 @@ class GAIAInferenceRouter:
         )
         response_meta.epistemic_label = epistemic
 
-        # ── 6. Build enriched system prompt ─────────────────────
+        # ── 6. Build enriched system prompt ─────────────────────────
         base_prompt = request.gaian_system_prompt or _default_system_prompt()
 
         memory_block = _build_memory_block(
@@ -551,10 +616,11 @@ class GAIAInferenceRouter:
             f"canon_score={top_canon_score:.3f} temp={temperature:.4f} "
             f"op={order_param:.3f} Qφ={quintessence_phi:.4f} Q_phase={quintessence_phase} "
             f"canon_docs={len(canon_doc_ids)} sources={len(sources)} "
+            f"chroma_memories={response_meta.chroma_memories_injected} "
             f"gaian={request.gaian_slug}"
         )
 
-        # ── 7. Stream ──────────────────────────────────────────
+        # ── 7. Stream ────────────────────────────────────────────
         try:
             from core.synthesizer import stream_synthesis
             async for chunk in stream_synthesis(
@@ -597,18 +663,37 @@ class GAIAInferenceRouter:
         chunks: list[str] = []
         async for chunk in self.stream(request, response_meta):
             chunks.append(chunk)
-        return "".join(chunks)
+        full_response = "".join(chunks)
+
+        # ── Auto-store conversation turn in ChromaDB (C17) ────────────
+        # Only store when we have both sides of the conversation and
+        # a GAIAN slug to key the memory to.
+        if request.gaian_slug and full_response.strip():
+            _store_chroma_turn(
+                user_message=request.query,
+                gaian_response=full_response,
+                gaian_slug=request.gaian_slug,
+                session_id=request.session_id,
+            )
+
+        return full_response
 
     def get_stats(self) -> dict:
         from core.quintessence_engine import get_quintessence_engine
         q_state = get_quintessence_engine().get_state().to_dict()
+        try:
+            from core.memory_chroma import get_chroma
+            chroma_count = get_chroma().count()
+        except Exception:
+            chroma_count = -1
         return {
-            "total_calls":        self._call_count,
-            "backend_health":     {b.value: h for b, h in _BACKEND_HEALTH.items()},
-            "active_backend":     _probe_backend_availability().value,
-            "perplexity_model":   os.environ.get("PERPLEXITY_MODEL", "sonar-pro"),
-            "perplexity_key_set": bool(os.environ.get("PERPLEXITY_API_KEY")),
-            "quintessence":       q_state,
+            "total_calls":          self._call_count,
+            "backend_health":       {b.value: h for b, h in _BACKEND_HEALTH.items()},
+            "active_backend":       _probe_backend_availability().value,
+            "perplexity_model":     os.environ.get("PERPLEXITY_MODEL", "sonar-pro"),
+            "perplexity_key_set":   bool(os.environ.get("PERPLEXITY_API_KEY")),
+            "quintessence":         q_state,
+            "chroma_memory_count":  chroma_count,  # C17
         }
 
 
