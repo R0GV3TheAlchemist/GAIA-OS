@@ -10,11 +10,18 @@ Architecture:
 - Each event carries: token, canon_citation, epistemic_label
 - Frontend consumes SSE stream and renders inline citation cards
 - Criticality monitor is consulted per response to flag drift
+
+Resilience features (v2):
+- Event IDs: every event carries id: N so EventSource can resume
+  from the last received token after a dropped connection, using
+  the Last-Event-ID request header on reconnect.
+- Heartbeat: a SSE comment is emitted before inference starts so
+  proxies and load balancers do not close the connection while
+  waiting for slow models (e.g. qwen2.5:32b) to produce token 0.
 """
 
 import asyncio
 import json
-import time
 import logging
 from typing import AsyncGenerator, Optional
 from dataclasses import dataclass
@@ -35,10 +42,15 @@ class StreamToken:
     criticality_state: Optional[str] = None    # current processing state
 
 
-def format_sse_event(token: StreamToken) -> str:
+def format_sse_event(token: StreamToken, event_id: Optional[int] = None) -> str:
     """
     Format a StreamToken as a Server-Sent Events data line.
-    Frontend parses this JSON payload for rendering.
+
+    If event_id is provided, an `id:` field is prepended so the
+    browser EventSource can track the last received event and send
+    Last-Event-ID on reconnect, enabling resumable streams.
+
+    Frontend parses the JSON payload for rendering.
     """
     payload = {
         "text": token.text,
@@ -52,7 +64,9 @@ def format_sse_event(token: StreamToken) -> str:
         payload["noosphere_resonance"] = token.noosphere_resonance
     if token.criticality_state:
         payload["criticality_state"] = token.criticality_state
-    return f"data: {json.dumps(payload)}\n\n"
+
+    id_line = f"id: {event_id}\n" if event_id is not None else ""
+    return f"{id_line}data: {json.dumps(payload)}\n\n"
 
 
 async def stream_gaia_response(
@@ -65,11 +79,15 @@ async def stream_gaia_response(
     Stream a GAIA response token by token via SSE.
 
     Each token is yielded as an SSE event with:
+    - A sequential event ID for resumable reconnection
     - The text fragment
     - Any canon citation relevant to this fragment
     - Epistemic label if applicable
     - Noosphere resonance if the topic has collective patterns
     - Current criticality state
+
+    A heartbeat comment is emitted first to prevent proxy timeouts
+    while waiting for the model to produce its first token.
 
     Args:
         response_text: Full response text to stream
@@ -79,6 +97,10 @@ async def stream_gaia_response(
     """
     monitor = get_monitor()
     noosphere = get_noosphere()
+
+    # Heartbeat: keeps the connection alive through proxy/LB idle timeouts
+    # while the model is generating. SSE comments are invisible to EventSource.
+    yield ": heartbeat\n\n"
 
     # Check noosphere resonance for this topic
     resonance_label = None
@@ -91,7 +113,6 @@ async def stream_gaia_response(
     # Split response into tokens (simple word-level for Phase 1)
     # Phase 2: replace with actual tokenizer from the inference model
     words = response_text.split(" ")
-    citation_index = 0
 
     for i, word in enumerate(words):
         is_final = (i == len(words) - 1)
@@ -110,16 +131,16 @@ async def stream_gaia_response(
             criticality_state=crit_state if i == 0 else None,
         )
 
-        yield format_sse_event(token)
+        yield format_sse_event(token, event_id=i)
         await asyncio.sleep(token_delay_ms / 1000.0)
 
-    # Yield final done event
+    # Final done event — event_id is len(words) so it sorts after all tokens
     done_token = StreamToken(
         text="",
         is_final=True,
         criticality_state=monitor.get_current_state().value,
     )
-    yield format_sse_event(done_token)
+    yield format_sse_event(done_token, event_id=len(words))
     logger.debug(f"[streaming] Response streamed: {len(words)} tokens, topic={topic_cluster}")
 
 
@@ -127,6 +148,7 @@ async def stream_error(error_message: str, error_code: str = "GAIA_ERROR") -> As
     """
     Stream an error event to the frontend.
     Errors are never suppressed — they are surfaced with their error code.
+    Error events use event_id=0 (single event, no resume semantics needed).
     """
     payload = {
         "error": True,
@@ -134,4 +156,9 @@ async def stream_error(error_message: str, error_code: str = "GAIA_ERROR") -> As
         "message": error_message,
         "is_final": True,
     }
+    yield format_sse_event(
+        StreamToken(text="", is_final=True),
+        event_id=0,
+    )
+    # Yield the actual error payload as a separate data line
     yield f"data: {json.dumps(payload)}\n\n"
