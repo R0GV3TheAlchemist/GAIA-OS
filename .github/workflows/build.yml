@@ -78,6 +78,7 @@ jobs:
   build-tauri:
     name: Tauri (${{ matrix.name }})
     needs: build-sidecar
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -87,16 +88,19 @@ jobs:
             triple: x86_64-pc-windows-msvc
             ext: .exe
             rust_target: x86_64-pc-windows-msvc
+            bundle_args: --target x86_64-pc-windows-msvc
           - name: macOS
             os: macos-latest
             triple: aarch64-apple-darwin
             ext: ""
             rust_target: aarch64-apple-darwin
+            bundle_args: --target aarch64-apple-darwin
           - name: Linux
             os: ubuntu-latest
             triple: x86_64-unknown-linux-gnu
             ext: ""
             rust_target: x86_64-unknown-linux-gnu
+            bundle_args: --target x86_64-unknown-linux-gnu --bundles deb,rpm
 
     runs-on: ${{ matrix.os }}
     permissions:
@@ -213,4 +217,4 @@ jobs:
           releaseName: "GAIA v__VERSION__"
           releaseDraft: true
           prerelease: false
-          args: --target ${{ matrix.rust_target }}
+          args: ${{ matrix.bundle_args }}
