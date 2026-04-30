@@ -62,7 +62,7 @@ jobs:
       - name: Stage sidecar with triple name (Unix)
         if: matrix.os != 'windows-latest'
         run: |
-          dest="src-tauri/binaries/${{ matrix.triple }}"
+          dest="src-tauri/binaries/gaia-backend-${{ matrix.triple }}"
           cp dist/gaia-backend "$dest"
           chmod +x "$dest"
           echo "Staged: $(wc -c < $dest) bytes"
@@ -133,7 +133,7 @@ jobs:
             patchelf
 
       - name: Install Node deps
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build frontend (Vite)
         run: pnpm run build
