@@ -115,7 +115,7 @@ class TestFormatSseEvent:
         assert payload["noosphere_resonance"] == "Resonates with 3 sessions"
         assert payload["criticality_state"] == "NOMINAL"
 
-    # ── v2: Event ID tests ────────────────────────────────────────────────────
+    # ── v2: Event ID tests ────────────────────────────────────────────────────────────────
 
     def test_no_event_id_by_default(self):
         """event_id=None must not produce an id: line."""
@@ -163,7 +163,7 @@ class TestStreamGaiaResponse:
         events = await collect(
             stream_gaia_response("one two three", token_delay_ms=0)
         )
-        # events[0] = heartbeat, events[1..3] = tokens, events[4] = done
+        # events[0] = heartbeat, events[1..N] = tokens, events[-1] = done
         token_events = [e for e in events[1:] if not e.startswith(":")]
         for expected_id, raw in enumerate(token_events):
             id_line = get_id_line(raw)
@@ -181,12 +181,30 @@ class TestStreamGaiaResponse:
         assert get_id_line(done_event) == f"id: {word_count}"
 
     @pytest.mark.asyncio
-    async def test_single_word_produces_two_events_plus_heartbeat(self):
-        """Single word → heartbeat + 1 token event + 1 done event = 3 total."""
+    async def test_single_word_produces_at_least_three_events(self):
+        """
+        Single word → heartbeat + ≥1 BPE token event(s) + 1 done event ≥ 3 total.
+
+        Under BPE (tiktoken cl100k_base) a single English word may tokenize
+        into multiple subword tokens (e.g. 'GAIA' → ['GA', 'IA']).  We
+        assert the minimum structural invariants rather than a fixed count:
+          - at least 3 events total
+          - first event is the heartbeat
+          - last data event is the done sentinel (is_final=True)
+          - concatenating all non-final token texts reconstructs the original
+        """
+        text = "GAIA"
         events = await collect(
-            stream_gaia_response("GAIA", token_delay_ms=0)
+            stream_gaia_response(text, token_delay_ms=0)
         )
-        assert len(events) == 3
+        # Structural minimum: heartbeat + ≥1 token + done
+        assert len(events) >= 3
+        assert events[0] == ": heartbeat\n\n"
+        data_events = [parse_data_event(e) for e in events if e.startswith("data:")]
+        assert data_events[-1]["is_final"] is True
+        # Lossless reconstruction
+        reconstructed = "".join(d["text"] for d in data_events[:-1])
+        assert reconstructed == text
 
     @pytest.mark.asyncio
     async def test_token_count_matches_word_count_plus_done(self):
@@ -237,15 +255,21 @@ class TestStreamGaiaResponse:
             assert "canon_citation" not in event
 
     @pytest.mark.asyncio
-    async def test_trailing_space_on_non_final_words(self):
-        """Every word token except the last real word should end with a space."""
+    async def test_bpe_tokens_reconstruct_correctly(self):
+        """
+        BPE (cl100k_base) tokenization: the space is part of the *following*
+        token (e.g. 'hello world' → ['hello', ' world']), not appended to
+        the prior token.  Assert that joining all non-final token texts
+        losslessly reconstructs the original string regardless of how the
+        encoder splits it.
+        """
+        text = "hello world"
         events = await collect(
-            stream_gaia_response("hello world", token_delay_ms=0)
+            stream_gaia_response(text, token_delay_ms=0)
         )
         data_events = [parse_data_event(e) for e in events if e.startswith("data:")]
-        # data_events[0] = 'hello ', data_events[1] = 'world' (no space)
-        assert data_events[0]["text"] == "hello "
-        assert data_events[1]["text"] == "world"
+        token_texts = [d["text"] for d in data_events[:-1]]
+        assert "".join(token_texts) == text
 
     @pytest.mark.asyncio
     async def test_noosphere_resonance_on_first_token_only(self, mock_noosphere):
