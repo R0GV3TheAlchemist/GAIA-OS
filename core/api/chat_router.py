@@ -111,10 +111,12 @@ async def gaian_chat(
             await asyncio.sleep(0.01)
 
             if result.soul_mirror.individuation_nudge:
-                yield (
-                    f"event: soul_mirror\ndata: "
-                    f"{json.dumps({'nudge': result.soul_mirror.individuation_nudge, 'signal': result.soul_mirror.shadow_signal.value, 'carrier': result.soul_mirror.projection_carrier.value})}\n\n"
-                )
+                soul_mirror_data = {
+                    'nudge':   result.soul_mirror.individuation_nudge,
+                    'signal':  result.soul_mirror.shadow_signal.value,
+                    'carrier': result.soul_mirror.projection_carrier.value,
+                }
+                yield f"event: soul_mirror\ndata: {json.dumps(soul_mirror_data)}\n\n"
                 await asyncio.sleep(0.01)
 
             yield f"event: resonance_field\ndata: {json.dumps(result.resonance_field.summary())}\n\n"
@@ -176,27 +178,26 @@ async def gaian_chat(
                 bond_depth=round(rt.attachment.bond_depth, 2),
             )
 
-            yield (
-                f"event: done\ndata: {json.dumps({
-                    'session_id':          session_id,
-                    'gaian':               gaian.name,
-                    'gaian_slug':          slug,
-                    'user_id':             user.user_id,
-                    'exchange':            rt.attachment.total_exchanges,
-                    'bond_depth':          round(rt.attachment.bond_depth, 2),
-                    'individuation_phase': rt.soul_mirror_state.individuation_phase.value,
-                    'resonance_hz':        result.resonance_field.solfeggio.hz.value,
-                    'schumann_aligned':    result.resonance_field.schumann_aligned,
-                    'noosphere_health':    round(rt.codex_stage_state.noosphere_health, 4),
-                    'epistemic_label':     inference_meta.epistemic_label.value,
-                    'backend_used':        inference_meta.backend_used.value,
-                    'canon_docs':          inference_meta.canon_docs_injected,
-                    'noosphere_resonance': inference_meta.noosphere_resonance,
-                    'criticality_state':   inference_meta.criticality_state,
-                    'inference_ms':        inference_meta.duration_ms,
-                    'timestamp':           time.time(),
-                })}\n\n"
-            )
+            done_data = {
+                'session_id':          session_id,
+                'gaian':               gaian.name,
+                'gaian_slug':          slug,
+                'user_id':             user.user_id,
+                'exchange':            rt.attachment.total_exchanges,
+                'bond_depth':          round(rt.attachment.bond_depth, 2),
+                'individuation_phase': rt.soul_mirror_state.individuation_phase.value,
+                'resonance_hz':        result.resonance_field.solfeggio.hz.value,
+                'schumann_aligned':    result.resonance_field.schumann_aligned,
+                'noosphere_health':    round(rt.codex_stage_state.noosphere_health, 4),
+                'epistemic_label':     inference_meta.epistemic_label.value,
+                'backend_used':        inference_meta.backend_used.value,
+                'canon_docs':          inference_meta.canon_docs_injected,
+                'noosphere_resonance': inference_meta.noosphere_resonance,
+                'criticality_state':   inference_meta.criticality_state,
+                'inference_ms':        inference_meta.duration_ms,
+                'timestamp':           time.time(),
+            }
+            yield f"event: done\ndata: {json.dumps(done_data)}\n\n"
 
         except Exception as exc:
             logger.error(f"Chat stream error [{slug}]: {exc}", exc_info=True,

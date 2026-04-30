@@ -201,7 +201,7 @@ async def query_stream(
                 web_results=len(sources) - len(canon_results),
             )
 
-            yield f"event: done\ndata: {json.dumps({
+            done_data = {
                 'canon_status':        _canon.status if _canon else 'unloaded',
                 'docs_searched':       len(_canon.list_documents()) if _canon else 0,
                 'refs_found':          len(canon_results),
@@ -217,7 +217,8 @@ async def query_stream(
                 'criticality_state':   inference_meta.criticality_state,
                 'inference_ms':        inference_meta.duration_ms,
                 'timestamp':           time.time(),
-            })}\n\n"
+            }
+            yield f"event: done\ndata: {json.dumps(done_data)}\n\n"
 
         except Exception as exc:
             logger.error(f"Stream error: {exc}", exc_info=True,
