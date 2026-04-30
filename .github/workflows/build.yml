@@ -62,7 +62,7 @@ jobs:
       - name: Stage sidecar with triple name (Unix)
         if: matrix.os != 'windows-latest'
         run: |
-          dest="src-tauri/binaries/gaia-backend-${{ matrix.triple }}"
+          dest="src-tauri/binaries/${{ matrix.triple }}"
           cp dist/gaia-backend "$dest"
           chmod +x "$dest"
           echo "Staged: $(wc -c < $dest) bytes"
@@ -110,11 +110,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Set up Node 20
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - name: Set up Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 24
+          cache: pnpm
 
       - name: Install Linux system deps
         if: matrix.os == 'ubuntu-latest'
@@ -127,10 +133,10 @@ jobs:
             patchelf
 
       - name: Install Node deps
-        run: npm install
+        run: pnpm install
 
       - name: Build frontend (Vite)
-        run: npm run build
+        run: pnpm run build
 
       - name: Download sidecar
         uses: actions/download-artifact@v4
